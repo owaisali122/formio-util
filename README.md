@@ -1,4 +1,4 @@
-# formIoBuilder
+# @owaisali122/kolea-cms-formio-builder
 
 Shared Form.io custom components for builder and renderer. Use this package to embed the Form.io designer (e.g. in Payload admin), scope Bootstrap/Form.io CSS so it doesn’t affect the host app, and render saved forms in React.
 
@@ -7,26 +7,22 @@ Shared Form.io custom components for builder and renderer. Use this package to e
 In the project that will use the builder and/or renderer (e.g. CMS or portal):
 
 ```bash
-pnpm add formiojs bootstrap@5.3.8 formIoBuilder
+pnpm add formiojs bootstrap@5.3.8 formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^1.0.0
 ```
 
 Or with npm:
 
 ```bash
-npm install formiojs bootstrap@5.3.8 formIoBuilder
+npm install formiojs bootstrap@5.3.8 formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^1.0.0
 ```
 
 **From a local path** (development):
 
 ```bash
-pnpm add formIoBuilder@file:../formio-util
+pnpm add formIoBuilder@link:../formio-util
 ```
 
-**From GitHub** (if you publish the repo):
-
-```bash
-pnpm add formIoBuilder@github:your-org/formio-util#v1.0.0
-```
+See `FORMIO-CONSUMER-INSTALL-GUIDE.md` for GitHub Packages setup and `.npmrc` for the `@owaisali122` scope.
 
 ## Configuration
 
@@ -34,7 +30,7 @@ pnpm add formIoBuilder@github:your-org/formio-util#v1.0.0
 
 **Option 1 – once at app startup (e.g. layout):**
 ```ts
-import { configure } from 'formIoBuilder'
+import { configure } from '@owaisali122/kolea-cms-formio-builder'
 
 configure({
   formsListUrl: process.env.NEXT_PUBLIC_FORMS_API_URL || '/api/forms',  // required for App Detail Ref
@@ -61,7 +57,7 @@ Import the package CSS once so the Form.io builder and wizard page tabs look cor
 
 ```ts
 // In your app entry or layout (e.g. app/layout.tsx, _app.tsx, or the page that renders the builder)
-import 'formIoBuilder/styles/formio-overrides.css'
+import '@owaisali122/kolea-cms-formio-builder/styles/formio-overrides.css'
 ```
 
 This includes: dialog/nav fixes, builder background, sidebar, wizard pages (Page 1, Page 2, + PAGE) visibility and styling. Toolbar styles (e.g. "Display as" dropdown) stay in your app if you use a custom toolbar.
@@ -71,7 +67,7 @@ This includes: dialog/nav fixes, builder background, sidebar, wizard pages (Page
 Wrap the Form.io builder (or renderer) with `BootstrapProvider` so Bootstrap and Form.io styles are loaded and scoped. They will not leak into the rest of the app (e.g. Payload admin).
 
 ```tsx
-import { BootstrapProvider, registerCustomComponents, getBuilderConfig } from 'formIoBuilder'
+import { BootstrapProvider, registerCustomComponents, getBuilderConfig } from '@owaisali122/kolea-cms-formio-builder'
 
 // Before rendering the builder:
 await registerCustomComponents()
@@ -87,7 +83,7 @@ await registerCustomComponents()
 Render a saved Form.io schema (from the builder) in any React app:
 
 ```tsx
-import { FormRenderer } from 'formIoBuilder/FormRenderer'
+import { FormRenderer } from '@owaisali122/kolea-cms-formio-builder/FormRenderer'
 
 <FormRenderer
   schema={form.schema}
@@ -111,7 +107,7 @@ Use `getBuilderConfig()` when creating the Form.io builder so the sidebar and te
 If you see **"Cannot set property FormBuilder"** (FormBuilder is read-only in your bundle), use `createFormBuilder` instead of `new Formio.FormBuilder`:
 
 ```ts
-import { registerCustomComponents, getBuilderConfig, createFormBuilder } from 'formIoBuilder'
+import { registerCustomComponents, getBuilderConfig, createFormBuilder } from '@owaisali122/kolea-cms-formio-builder'
 
 const FormioInstance = await registerCustomComponents()
 const builderConfig = getBuilderConfig()
@@ -121,7 +117,16 @@ const instance = await formBuilder.ready
 
 ## Custom components
 
-Custom Form.io components (Document Upload, Document Viewer, Searchable Dropdown, SSN, etc.) will be added in a later release. The registry and builder config are set up so they can be registered and listed in the builder sidebar once implemented.
+**This version (1.0.0)** includes:
+
+- **Form Reference** (App Detail Ref) — create form reference / link to other forms.
+- **Server-side dropdown** (Searchable Dropdown) — dropdown with server-side data.
+
+**Planned for next version:**
+
+- **SSN** — custom SSN component (to be added in a future release).
+
+The registry and builder config are set up so these components are registered and available in the Form.io builder sidebar.
 
 ## Peer dependencies
 
@@ -136,6 +141,7 @@ Consuming projects must install these themselves. Use `bootstrap@5.3.8` in the h
 - `pnpm build` — Build the package (output in `dist/`).
 - `pnpm dev` — Watch and rebuild on changes.
 - `pnpm typecheck` — Run `tsc --noEmit`.
+- `pnpm run publish` — Publish to GitHub Packages (use `pnpm run publish -- 1.0.1` to set version).
 
 ## License
 

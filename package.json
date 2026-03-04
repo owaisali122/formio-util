@@ -1,7 +1,7 @@
 {
-  "name": "@owaisali122/formiobuilder",
+  "name": "kolea-cms-formio-builder",
   "version": "1.0.0",
-  "description": "Shared Form.io custom components for builder and renderer",
+  "description": "Shared Form.io custom components for builder and renderer. This version: Form Reference (create form reference), Server-side dropdown.",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -19,11 +19,15 @@
     },
     "./styles/formio-overrides.css": "./src/styles/formio-overrides.css"
   },
-  "files": ["dist", "src/styles/formio-overrides.css"],
+  "files": [
+    "dist",
+    "src/styles/formio-overrides.css"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "publish": "node scripts/release.cjs"
   },
   "peerDependencies": {
     "formiojs": "^4.21.0",
