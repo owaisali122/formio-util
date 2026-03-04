@@ -117,14 +117,11 @@ const instance = await formBuilder.ready
 
 ## Custom components
 
-**This version (1.0.0)** includes:
+**This version** includes:
 
 - **Form Reference** (App Detail Ref) — create form reference / link to other forms.
 - **Server-side dropdown** (Searchable Dropdown) — dropdown with server-side data.
-
-**Planned for next version:**
-
-- **SSN** — custom SSN component (to be added in a future release).
+- **SSN** — custom SSN component.
 
 The registry and builder config are set up so these components are registered and available in the Form.io builder sidebar.
 
