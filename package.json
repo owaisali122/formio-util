@@ -28,7 +28,8 @@
   "peerDependencies": {
     "formiojs": "^4.21.0",
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "react-select": ">=5.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -36,6 +37,7 @@
     "formiojs": "^4.21.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-select": "^5.9.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0"
   }

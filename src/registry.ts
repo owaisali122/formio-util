@@ -1,5 +1,6 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
+import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -70,6 +71,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
 
     await registerAppDetailRef(Components)
     await registerSSN(Components)
+    await registerSearchableDropdown(Components)
   }
 
   // Wrap FormBuilder so wizard schema always has at least one panel (Page 1, + PAGE).
@@ -141,6 +143,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           datetime: true,
           appDetailRef: true,
           ssn: true,
+          searchableDropdown: true,
         },
       },
       advanced: false,

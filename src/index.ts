@@ -32,3 +32,12 @@ export {
 } from './utils/formio-app-detail-ref-logic'
 
 export { SSNComponent } from './components/SSN'
+
+export {
+  SearchableDropdownComponent,
+  SEARCHABLE_DROPDOWN_TYPE,
+} from './components/SearchableDropdown'
+export type { SearchableDropdownItem } from './components/SearchableDropdown'
+
+export { SearchableDropdownReact } from './components/SearchableDropdownReact'
+export type { SearchableDropdownReactProps } from './components/SearchableDropdownReact'

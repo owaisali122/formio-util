@@ -10,7 +10,7 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  external: ['formiojs', 'react', 'react-dom'],
+  external: ['formiojs', 'react', 'react-dom', 'react-select', 'react-select/async'],
   splitting: false,
   treeshake: true,
 })
