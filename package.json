@@ -1,5 +1,5 @@
 {
-  "name": "formIoBuilder",
+  "name": "@owaisali122/formiobuilder",
   "version": "1.0.0",
   "description": "Shared Form.io custom components for builder and renderer",
   "type": "module",
@@ -40,5 +40,8 @@
     "react-select": "^5.9.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
