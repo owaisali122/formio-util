@@ -1,6 +1,6 @@
 {
   "name": "kolea-cms-formio-builder",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Shared Form.io custom components for builder and renderer. Includes: Form Reference (App Detail Ref), Server-side dropdown (Searchable Dropdown), SSN.",
   "type": "module",
   "main": "dist/index.cjs",
