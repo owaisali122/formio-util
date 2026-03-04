@@ -70,7 +70,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     const Components = FormioModuleObj.Components as FormioComponents
 
     await registerAppDetailRef(Components)
-    await registerSSN(Components)
+    // await registerSSN(Components)
     await registerSearchableDropdown(Components)
   }
 
