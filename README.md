@@ -15,14 +15,19 @@ See `FORMIO-CONSUMER-INSTALL-GUIDE.md` for GitHub Packages setup and `.npmrc` fo
 
 ## Custom components
 
-**This version** includes:
+**Previous version** included:
 
 - **Form Reference** (App Detail Ref) — create form reference / link to other forms.
 - **Server-side dropdown** (Searchable Dropdown) — dropdown with server-side data.
 
-**Next version**:
+**This version** includes:
 
 - **SSN** — custom SSN component.
+
+
+**Next version**:
+
+- --
 
 The registry and builder config are set up so these components are registered and available in the Form.io builder sidebar.
 
