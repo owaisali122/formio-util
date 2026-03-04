@@ -1,0 +1,42 @@
+{
+  "name": "formio-custom-components",
+  "version": "1.0.0",
+  "description": "Shared Form.io custom components for builder and renderer",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./FormRenderer": {
+      "types": "./dist/components/FormRenderer.d.ts",
+      "import": "./dist/components/FormRenderer.js",
+      "require": "./dist/components/FormRenderer.cjs"
+    },
+    "./styles/formio-overrides.css": "./src/styles/formio-overrides.css"
+  },
+  "files": ["dist", "src/styles/formio-overrides.css"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "formiojs": "^4.21.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "formiojs": "^4.21.7",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0"
+  }
+}
