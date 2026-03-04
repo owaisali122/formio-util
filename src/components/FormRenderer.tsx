@@ -30,6 +30,20 @@ function ensureComponentsRegistered(): Promise<unknown> {
   return registrationPromise
 }
 
+type FormioFormInstance = {
+  on: (e: string, fn: (sub: { data: Record<string, unknown> }) => void) => void
+  submission: { data: Record<string, unknown> }
+  destroy: () => void
+}
+
+type FormioStatic = {
+  createForm: (
+    el: HTMLElement,
+    schema: FormRendererSchema,
+    opts?: { readOnly?: boolean; [key: string]: unknown }
+  ) => Promise<FormioFormInstance>
+}
+
 export function FormRenderer({
   schema,
   onSubmit,
@@ -37,8 +51,25 @@ export function FormRenderer({
   readOnly = false,
 }: FormRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const formInstanceRef = useRef<{ destroy: () => void } | null>(null)
+  const formInstanceRef = useRef<FormioFormInstance | null>(null)
 
+  // Keep latest callbacks/values in refs so the effect never needs to re-run for them
+  const onSubmitRef = useRef(onSubmit)
+  useEffect(() => {
+    onSubmitRef.current = onSubmit
+  }, [onSubmit])
+
+  const submissionRef = useRef(submission)
+  useEffect(() => {
+    submissionRef.current = submission
+
+    // If the form is already mounted just update submission in place — no rebuild needed
+    if (formInstanceRef.current && submission && Object.keys(submission).length > 0) {
+      formInstanceRef.current.submission = { data: submission }
+    }
+  }, [submission])
+
+  // Only re-create the form when schema or readOnly actually changes
   useEffect(() => {
     const container = containerRef.current
     if (!container || !schema) return
@@ -48,13 +79,7 @@ export function FormRenderer({
     ensureComponentsRegistered().then((Formio) => {
       if (cancelled || !containerRef.current) return
 
-      const F = Formio as {
-        createForm: (
-          el: HTMLElement,
-          schema: FormRendererSchema,
-          opts?: { readOnly?: boolean; [key: string]: unknown }
-        ) => Promise<{ on: (e: string, fn: (sub: { data: Record<string, unknown> }) => void) => void; submission: { data: Record<string, unknown> }; destroy: () => void }>
-      }
+      const F = Formio as FormioStatic
 
       F.createForm(container, schema, { readOnly })
         .then((form) => {
@@ -62,24 +87,24 @@ export function FormRenderer({
             form.destroy()
             return
           }
+
           formInstanceRef.current = form
 
-          if (submission && Object.keys(submission).length > 0) {
-            form.submission = { data: submission }
+          // Use the ref so we always call the latest submission/callback
+          const currentSubmission = submissionRef.current
+          if (currentSubmission && Object.keys(currentSubmission).length > 0) {
+            form.submission = { data: currentSubmission }
           }
 
-          if (onSubmit) {
-            form.on('submit', (sub: { data: Record<string, unknown> }) => {
-              onSubmit(sub.data)
-            })
-          }
+          form.on('submit', (sub: { data: Record<string, unknown> }) => {
+            onSubmitRef.current?.(sub.data)
+          })
         })
         .catch((err) => {
           if (!cancelled) console.error('[FormRenderer] createForm error:', err)
         })
     })
 
-    
     return () => {
       cancelled = true
       if (formInstanceRef.current) {
@@ -87,7 +112,7 @@ export function FormRenderer({
         formInstanceRef.current = null
       }
     }
-  }, [schema, readOnly, submission, onSubmit])
+  }, [schema, readOnly]) // ← onSubmit and submission intentionally removed
 
   return <div ref={containerRef} className="formio-renderer" />
 }

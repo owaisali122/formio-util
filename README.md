@@ -1,4 +1,4 @@
-# formio-custom-components
+# formIoBuilder
 
 Shared Form.io custom components for builder and renderer. Use this package to embed the Form.io designer (e.g. in Payload admin), scope Bootstrap/Form.io CSS so it doesn’t affect the host app, and render saved forms in React.
 
@@ -7,25 +7,25 @@ Shared Form.io custom components for builder and renderer. Use this package to e
 In the project that will use the builder and/or renderer (e.g. CMS or portal):
 
 ```bash
-pnpm add formiojs bootstrap@5.3.8 formio-custom-components
+pnpm add formiojs bootstrap@5.3.8 formIoBuilder
 ```
 
 Or with npm:
 
 ```bash
-npm install formiojs bootstrap@5.3.8 formio-custom-components
+npm install formiojs bootstrap@5.3.8 formIoBuilder
 ```
 
 **From a local path** (development):
 
 ```bash
-pnpm add formio-custom-components@file:../formio-util
+pnpm add formIoBuilder@file:../formio-util
 ```
 
 **From GitHub** (if you publish the repo):
 
 ```bash
-pnpm add formio-custom-components@github:your-org/formio-util#v1.0.0
+pnpm add formIoBuilder@github:your-org/formio-util#v1.0.0
 ```
 
 ## Configuration
@@ -34,7 +34,7 @@ pnpm add formio-custom-components@github:your-org/formio-util#v1.0.0
 
 **Option 1 – once at app startup (e.g. layout):**
 ```ts
-import { configure } from 'formio-custom-components'
+import { configure } from 'formIoBuilder'
 
 configure({
   formsListUrl: process.env.NEXT_PUBLIC_FORMS_API_URL || '/api/forms',  // required for App Detail Ref
@@ -61,7 +61,7 @@ Import the package CSS once so the Form.io builder and wizard page tabs look cor
 
 ```ts
 // In your app entry or layout (e.g. app/layout.tsx, _app.tsx, or the page that renders the builder)
-import 'formio-custom-components/styles/formio-overrides.css'
+import 'formIoBuilder/styles/formio-overrides.css'
 ```
 
 This includes: dialog/nav fixes, builder background, sidebar, wizard pages (Page 1, Page 2, + PAGE) visibility and styling. Toolbar styles (e.g. "Display as" dropdown) stay in your app if you use a custom toolbar.
@@ -71,7 +71,7 @@ This includes: dialog/nav fixes, builder background, sidebar, wizard pages (Page
 Wrap the Form.io builder (or renderer) with `BootstrapProvider` so Bootstrap and Form.io styles are loaded and scoped. They will not leak into the rest of the app (e.g. Payload admin).
 
 ```tsx
-import { BootstrapProvider, registerCustomComponents, getBuilderConfig } from 'formio-custom-components'
+import { BootstrapProvider, registerCustomComponents, getBuilderConfig } from 'formIoBuilder'
 
 // Before rendering the builder:
 await registerCustomComponents()
@@ -87,7 +87,7 @@ await registerCustomComponents()
 Render a saved Form.io schema (from the builder) in any React app:
 
 ```tsx
-import { FormRenderer } from 'formio-custom-components/FormRenderer'
+import { FormRenderer } from 'formIoBuilder/FormRenderer'
 
 <FormRenderer
   schema={form.schema}
@@ -111,7 +111,7 @@ Use `getBuilderConfig()` when creating the Form.io builder so the sidebar and te
 If you see **"Cannot set property FormBuilder"** (FormBuilder is read-only in your bundle), use `createFormBuilder` instead of `new Formio.FormBuilder`:
 
 ```ts
-import { registerCustomComponents, getBuilderConfig, createFormBuilder } from 'formio-custom-components'
+import { registerCustomComponents, getBuilderConfig, createFormBuilder } from 'formIoBuilder'
 
 const FormioInstance = await registerCustomComponents()
 const builderConfig = getBuilderConfig()

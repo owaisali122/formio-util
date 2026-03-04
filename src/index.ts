@@ -30,3 +30,5 @@ export {
   getReferencableComponents,
   runAppDetailRefInjection,
 } from './utils/formio-app-detail-ref-logic'
+
+export { SSNComponent } from './components/SSN'

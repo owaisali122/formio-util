@@ -1,5 +1,5 @@
 {
-  "name": "formio-custom-components",
+  "name": "formIoBuilder",
   "version": "1.0.0",
   "description": "Shared Form.io custom components for builder and renderer",
   "type": "module",

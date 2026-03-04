@@ -21,11 +21,11 @@ This document covers everything related to Form.io: how the designer is embedded
 
 ## 1. Architecture
 
-All custom Form.io component definitions, the component registry, the builder configuration, and `FormRenderer` live in a **separate private npm package** (`@your-org/formio-custom-components`). The CMS project and any other consuming project install this package — they never define components locally.
+All custom Form.io component definitions, the component registry, the builder configuration, and `FormRenderer` live in a **separate private npm package** (`@your-org/formIoBuilder`). The CMS project and any other consuming project install this package — they never define components locally.
 
 ```
 ┌─────────────────────────────────────┐     ┌─────────────────────────────────────────┐
-│  CMS Project                        │     │  formio-custom-components (private pkg) │
+│  CMS Project                        │     │  formIoBuilder (private pkg)           │
 │                                     │     │                                         │
 │  - FormBuilderField (Payload admin) │◄────│  - All Form.io component definitions    │
 │  - Bootstrap + formio CSS routes     │     │  - Component registry + builder config  │
@@ -59,7 +59,7 @@ All custom Form.io component definitions, the component registry, the builder co
 ```bash
 pnpm add formiojs
 pnpm add bootstrap@5.3.8
-pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-components#v1.0.0
+pnpm add @your-org/formIoBuilder@github:your-org/formIoBuilder#v1.0.0
 ```
 
 `bootstrap@5.3.8` is mandatory — this exact version is what Form.io's bootstrap template and `@formio/bootstrap3` expect. It is served to the browser via the scoped CSS API routes described in Section 5.
@@ -69,7 +69,7 @@ pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-compon
 ```bash
 pnpm add formiojs
 pnpm add bootstrap@5.3.8
-pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-components#v1.0.0
+pnpm add @your-org/formIoBuilder@github:your-org/formIoBuilder#v1.0.0
 ```
 
 ---
@@ -107,7 +107,7 @@ This is a `'use client'` React component that:
 
    ```typescript
    const { registerCustomComponents, getBuilderConfig } =
-     await import('@your-org/formio-custom-components')
+     await import('@your-org/formIoBuilder')
    ```
 
 3. Calls `registerCustomComponents()` — this registers all custom Form.io components with `Formio.Components.setComponent()` before the builder is created.
@@ -165,7 +165,7 @@ This is a `'use client'` React component that:
 To render a saved form in any React application:
 
 ```tsx
-import { FormRenderer } from '@your-org/formio-custom-components/FormRenderer'
+import { FormRenderer } from '@your-org/formIoBuilder/FormRenderer'
 
 <FormRenderer
   schema={form.schema}
@@ -299,7 +299,7 @@ Add CSS URLs to the registry config so `BootstrapProvider` knows where to fetch 
 
 ```typescript
 // In the CMS project (e.g. in a layout or before rendering the admin)
-import { configure } from '@your-org/formio-custom-components'
+import { configure } from '@your-org/formIoBuilder'
 
 configure({
   formsListUrl: '/api/forms',
@@ -595,7 +595,7 @@ Formio.Components.setComponent('documentUpload', DocumentUpload)
 ### Package structure
 
 ```
-formio-custom-components/              # Private GitHub repository
+formIoBuilder/                         # Private GitHub repository
 ├── src/
 │   ├── components/
 │   │   ├── BootstrapProvider.tsx      # Scoped Bootstrap/Form.io CSS loader
@@ -623,15 +623,15 @@ formio-custom-components/              # Private GitHub repository
 
 ### Step 1 — Create a private repository on GitHub
 
-Go to **GitHub → New repository** → set visibility to **Private** → name it `formio-custom-components` → do not initialise with a README → click **Create repository**.
+Go to **GitHub → New repository** → set visibility to **Private** → name it `formIoBuilder` → do not initialise with a README → click **Create repository**.
 
 ### Step 2 — Scaffold locally
 
 ```bash
-mkdir formio-custom-components
-cd formio-custom-components
+mkdir formIoBuilder
+cd formIoBuilder
 git init
-git remote add origin git@github.com:your-org/formio-custom-components.git
+git remote add origin git@github.com:your-org/formIoBuilder.git
 ```
 
 Initialise `package.json` interactively:
@@ -660,7 +660,7 @@ pnpm add -D formiojs react react-dom
 
 ```json
 {
-  "name": "@your-org/formio-custom-components",
+  "name": "@your-org/formIoBuilder",
   "version": "1.0.0",
   "description": "Shared Form.io custom components for builder and renderer",
   "type": "module",
@@ -897,21 +897,21 @@ ssh -T git@github.com
 Always pin to a tag — never use a floating branch name:
 
 ```bash
-pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-components#v1.0.0
+pnpm add @your-org/formIoBuilder@github:your-org/formIoBuilder#v1.0.0
 ```
 
 This writes to the consuming project's `package.json`:
 
 ```json
 "dependencies": {
-  "@your-org/formio-custom-components": "github:your-org/formio-custom-components#v1.0.0"
+  "@your-org/formIoBuilder": "github:your-org/formIoBuilder#v1.0.0"
 }
 ```
 
 ### Update to a newer release
 
 ```bash
-pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-components#v1.1.0
+pnpm add @your-org/formIoBuilder@github:your-org/formIoBuilder#v1.1.0
 ```
 
 Or edit the tag directly in `package.json` and run `pnpm install`.
@@ -923,9 +923,9 @@ import {
   registerCustomComponents,
   getBuilderConfig,
   configure,
-} from '@your-org/formio-custom-components'
+} from '@your-org/formIoBuilder'
 
-import { FormRenderer } from '@your-org/formio-custom-components/FormRenderer'
+import { FormRenderer } from '@your-org/formIoBuilder/FormRenderer'
 
 // Call once at startup — tells the package where the Forms API is
 configure({ formsListUrl: '/api/forms' })
@@ -962,7 +962,7 @@ pnpm link --global
 
 ```bash
 # Inside the CMS (or any other consuming project)
-pnpm link --global @your-org/formio-custom-components
+pnpm link --global @your-org/formIoBuilder
 ```
 
 **Run both in parallel:**
@@ -979,7 +979,7 @@ pnpm dev
 
 ```bash
 # In the consuming project
-pnpm unlink @your-org/formio-custom-components
+pnpm unlink @your-org/formIoBuilder
 
 # In the package repo
 pnpm unlink --global
@@ -994,7 +994,7 @@ Edit the consuming project's `package.json` temporarily:
 
 ```json
 "dependencies": {
-  "@your-org/formio-custom-components": "file:../formio-custom-components"
+  "@your-org/formIoBuilder": "file:../formIoBuilder"
 }
 ```
 
@@ -1005,7 +1005,7 @@ pnpm install
 Run `pnpm dev` in the package repo to keep `dist/` up to date. When done, revert to the tag and reinstall:
 
 ```json
-"@your-org/formio-custom-components": "github:your-org/formio-custom-components#v1.1.0"
+"@your-org/formIoBuilder": "github:your-org/formIoBuilder#v1.1.0"
 ```
 
 ```bash
@@ -1022,11 +1022,11 @@ pnpm install
 3.  Export it from src/index.ts
 4.  Start package in watch mode:    pnpm dev               (package repo)
 5.  Link into the consuming project: pnpm link --global     (package repo)
-                                     pnpm link --global @your-org/formio-custom-components  (CMS)
+                                     pnpm link --global @your-org/formIoBuilder  (CMS)
 6.  Start the CMS dev server:        pnpm dev               (CMS)
 7.  Test in the admin — iterate until satisfied
 8.  Unlink
 9.  Bump version:                    pnpm version minor     (package repo)
 10. Build and publish:               pnpm build && git push origin main --follow-tags
-11. Update consuming project:        pnpm add @your-org/formio-custom-components@github:your-org/formio-custom-components#vX.Y.Z
+11. Update consuming project:        pnpm add @your-org/formIoBuilder@github:your-org/formIoBuilder#vX.Y.Z
 ```
