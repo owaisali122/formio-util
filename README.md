@@ -7,7 +7,7 @@ Shared Form.io custom components for builder and renderer. Use this package to e
 In the project that will use the builder and/or renderer (e.g. CMS or portal):
 
 ```bash
-pnpm add formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^1.0.0
+pnpm add formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^2.0.0
 ```
 
 See `FORMIO-CONSUMER-INSTALL-GUIDE.md` for GitHub Packages setup and `.npmrc` for the `<user>` scope.
