@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'components/FormRenderer': 'src/components/FormRenderer.tsx',
+    payload: 'src/payload.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,

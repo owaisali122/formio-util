@@ -40,6 +40,9 @@ export {
 
 export { SSNComponent } from './components/SSN'
 
+export { Products } from './collections/Products'
+export { myProductsPlugin } from './plugins/myProductsPlugin'
+
 export {
   SearchableDropdownComponent,
   SEARCHABLE_DROPDOWN_TYPE,

@@ -1,6 +1,6 @@
 {
   "name": "kolea-cms-formio-builder",
-  "version": "2.0.0",
+  "version": "3.8.0",
   "description": "Shared Form.io custom components for builder and renderer. Includes: Form Reference (App Detail Ref), Server-side dropdown (Searchable Dropdown), SSN.",
   "type": "module",
   "main": "dist/index.cjs",
@@ -12,6 +12,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./payload": {
+      "types": "./dist/payload.d.ts",
+      "import": "./dist/payload.js",
+      "require": "./dist/payload.cjs"
+    },
     "./FormRenderer": {
       "types": "./dist/components/FormRenderer.d.ts",
       "import": "./dist/components/FormRenderer.js",
@@ -19,13 +24,15 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "publish": "node scripts/release.cjs"
+    "publish": "node scripts/release.cjs",
+    "postinstall": "node scripts/install-patch.cjs"
   },
   "dependencies": {
     "font-awesome": "^4.7.0"
