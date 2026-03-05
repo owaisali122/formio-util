@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { registerCustomComponents } from '../registry'
+import { injectFormioOverrides } from '../utils/inject-formio-overrides'
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
 export interface FormRendererSchema {
@@ -52,6 +53,10 @@ export function FormRenderer({
 }: FormRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const formInstanceRef = useRef<FormioFormInstance | null>(null)
+
+  useEffect(() => {
+    injectFormioOverrides()
+  }, [])
 
   // Keep latest callbacks/values in refs so the effect never needs to re-run for them
   const onSubmitRef = useRef(onSubmit)

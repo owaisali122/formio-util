@@ -9,6 +9,8 @@ export interface RegistryConfig {
   formsListUrl?: string
   bootstrapCssUrl?: string
   formioCssUrl?: string
+  /** Base URL for Font Awesome font files (default `/fonts/`). Copy `node_modules/font-awesome/fonts` to `public/fonts` or set to a CDN URL. */
+  fontAwesomeFontsUrl?: string
 }
 
 let _config: RegistryConfig = {}
@@ -17,8 +19,10 @@ export function configure(config: RegistryConfig): void {
   _config = { ..._config, ...config }
   if (typeof window !== 'undefined') {
     ; (window as unknown as { __formioConfig?: RegistryConfig }).__formioConfig = {
+      ..._config,
       bootstrapCssUrl: _config.bootstrapCssUrl ?? '/api/bootstrap-css',
       formioCssUrl: _config.formioCssUrl ?? '/api/formio-css',
+      fontAwesomeFontsUrl: _config.fontAwesomeFontsUrl,
     }
   }
 }

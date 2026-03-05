@@ -1,55 +1,66 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import fontAwesomeCss from 'font-awesome/css/font-awesome.css'
 
-const SCOPE_SELECTORS = [
-  '.bootstrap-scope',
-  '.formio-modal',
-  '.formio-dialog',
-  '.formio-edit-form',
-  '.formio-builder-dialog',
-  '.formio-builder',
-  '.formbuilder',
-].join(', ')
+const SCOPE_MAIN = '.bootstrap-scope, .formio-builder, .formbuilder'
+const SCOPE_DIALOGS = '.formio-modal, .formio-dialog, .formio-edit-form, .formio-builder-dialog, .modal'
 
-function scopeBootstrapCss(css: string): string {
-  const skipPattern = /@(?:media|keyframes|import|supports)\b/
+declare global {
+  interface Window {
+    __formBuilderBootstrapCount?: number
+    __formioConfig?: {
+      bootstrapCssUrl?: string
+      formioCssUrl?: string
+      fontAwesomeFontsUrl?: string
+    }
+  }
+}
+
+function toCssString(css: unknown): string {
+  if (typeof css === 'string') return css
+  const def = (css as { default?: string })?.default
+  return typeof def === 'string' ? def : ''
+}
+
+function getFontAwesomeCss(): string {
+  const raw = toCssString(fontAwesomeCss)
+  const base = window.__formioConfig?.fontAwesomeFontsUrl ?? '/fonts/'
+  const baseNorm = base.endsWith('/') ? base : base + '/'
+  return raw.replace(/url\s*\(\s*['"]?\.\.\/fonts\//gi, `url('${baseNorm}`)
+}
+
+function scopeCss(css: string, scope: string): string {
+  const skip = /@(?:media|keyframes|import|supports)\b/
   const lines = css.split('\n')
   const out: string[] = []
   let inRule = false
-  let currentSelectors: string[] = []
-  let currentBody = ''
+  let sel: string[] = []
+  let body = ''
 
   for (const line of lines) {
-    if (skipPattern.test(line.trim()) || line.trim().startsWith('@')) {
-      if (inRule) {
-        out.push(
-          currentSelectors.map((s) => `${SCOPE_SELECTORS} ${s}`).join(', ') + currentBody
-        )
+    if (skip.test(line.trim()) || line.trim().startsWith('@')) {
+      if (inRule && sel.length) {
+        out.push(sel.map((s) => `${scope} ${s}`).join(', ') + body)
         inRule = false
+        sel = []
+        body = ''
       }
       out.push(line)
       continue
     }
-
-    const open = line.indexOf('{')
-    if (open !== -1) {
-      const selectors = line
-        .slice(0, open)
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-      const body = line.slice(open)
-      if (selectors.length) {
-        const scoped = selectors.map((s) => `${SCOPE_SELECTORS} ${s}`).join(', ')
-        out.push(scoped + body)
+    const i = line.indexOf('{')
+    if (i !== -1) {
+      const parts = line.slice(0, i).split(',').map((s) => s.trim()).filter(Boolean)
+      const b = line.slice(i)
+      if (parts.length) {
+        out.push(parts.map((s) => `${scope} ${s}`).join(', ') + b)
       } else {
         out.push(line)
       }
       inRule = line.indexOf('}') === -1
       continue
     }
-
     if (inRule) {
       out.push(line)
       if (line.includes('}')) inRule = false
@@ -57,27 +68,17 @@ function scopeBootstrapCss(css: string): string {
       out.push(line)
     }
   }
-
   return out.join('\n')
 }
 
-declare global {
-  interface Window {
-    __formBuilderBootstrapCount?: number
-    __formioConfig?: { bootstrapCssUrl?: string; formioCssUrl?: string }
+function getOrCreateStyle(id: string): HTMLStyleElement {
+  let el = document.getElementById(id) as HTMLStyleElement | null
+  if (!el) {
+    el = document.createElement('style')
+    el.id = id
+    document.head.appendChild(el)
   }
-}
-
-function getBootstrapCssUrl(): string {
-  const url =
-    typeof window !== 'undefined' ? window.__formioConfig?.bootstrapCssUrl : undefined
-  return url ?? '/api/bootstrap-css'
-}
-
-function getFormioCssUrl(): string {
-  const url =
-    typeof window !== 'undefined' ? window.__formioConfig?.formioCssUrl : undefined
-  return url ?? '/api/formio-css'
+  return el
 }
 
 export function BootstrapProvider({ children }: { children: React.ReactNode }) {
@@ -89,46 +90,50 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
 
     if (!isFirst) {
       setMounted(true)
-      return () => {
-        window.__formBuilderBootstrapCount! -= 1
-      }
+      return () => { window.__formBuilderBootstrapCount! -= 1 }
     }
 
-    const styleId = 'form-builder-bootstrap-scoped'
-    const formioStyleId = 'form-builder-formio-css'
+    const ids = {
+      main: 'form-builder-bootstrap-scoped',
+      dialogs: 'form-builder-bootstrap-dialogs',
+      formio: 'form-builder-formio-css',
+      fontAwesome: 'form-builder-font-awesome',
+    }
+
+    const bootstrapUrl = window.__formioConfig?.bootstrapCssUrl ?? '/api/bootstrap-css'
+    const formioUrl = window.__formioConfig?.formioCssUrl ?? '/api/formio-css'
 
     Promise.all([
-      fetch(getBootstrapCssUrl()).then((r) => r.text()),
-      fetch(getFormioCssUrl()).then((r) => r.text()),
+      fetch(bootstrapUrl).then((r) => r.text()),
+      fetch(formioUrl).then((r) => r.text()),
     ]).then(([bootstrapCss, formioCss]) => {
-      const scoped = scopeBootstrapCss(bootstrapCss)
       const extra = `
         .bootstrap-scope { isolation: isolate; contain: layout style paint; }
-        .formio-modal, .formio-dialog, .formio-edit-form, .formio-builder-dialog { isolation: isolate; }
+        .formio-modal, .formio-dialog, .formio-edit-form, .formio-builder-dialog, .modal { isolation: isolate; }
       `
-      let el = document.getElementById(styleId)
-      if (!el) {
-        el = document.createElement('style')
-        el.id = styleId
-        document.head.appendChild(el)
-      }
-      el.textContent = scoped + extra
+      getOrCreateStyle(ids.main).textContent = scopeCss(bootstrapCss, SCOPE_MAIN) + extra
+      getOrCreateStyle(ids.dialogs).textContent = scopeCss(bootstrapCss, SCOPE_DIALOGS)
+      getOrCreateStyle(ids.formio).textContent = formioCss
+      getOrCreateStyle(ids.fontAwesome).textContent = getFontAwesomeCss()
 
-      let formioEl = document.getElementById(formioStyleId)
-      if (!formioEl) {
-        formioEl = document.createElement('style')
-        formioEl.id = formioStyleId
-        document.head.appendChild(formioEl)
-      }
-      formioEl.textContent = formioCss
+      const order = [ids.main, ids.formio, ids.dialogs, ids.fontAwesome]
+      order.forEach((id) => {
+        const el = document.getElementById(id)
+        if (el) {
+          el.remove()
+          document.head.appendChild(el)
+        }
+      })
+
       setMounted(true)
     })
 
     return () => {
       window.__formBuilderBootstrapCount! -= 1
       if (window.__formBuilderBootstrapCount === 0) {
-        document.getElementById(styleId)?.remove()
-        document.getElementById(formioStyleId)?.remove()
+        [ids.main, ids.dialogs, ids.formio, ids.fontAwesome].forEach((id) =>
+          document.getElementById(id)?.remove()
+        )
       }
     }
   }, [])

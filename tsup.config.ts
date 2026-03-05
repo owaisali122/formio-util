@@ -4,7 +4,6 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'components/FormRenderer': 'src/components/FormRenderer.tsx',
-    'components/BootstrapProvider': 'src/components/BootstrapProvider.tsx',
   },
   format: ['cjs', 'esm'],
   dts: true,
@@ -13,4 +12,7 @@ export default defineConfig({
   external: ['formiojs', 'react', 'react-dom', 'react-select', 'react-select/async'],
   splitting: false,
   treeshake: true,
+  esbuildOptions(options) {
+    options.loader = { ...options.loader, '.css': 'text' }
+  },
 })

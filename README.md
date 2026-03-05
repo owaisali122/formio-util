@@ -53,14 +53,7 @@ If you don’t set `formsListUrl`, App Detail Ref will not load forms and will s
 
 ## Form builder styles (wizard pages, sidebar, layout)
 
-Import the package CSS once so the Form.io builder and wizard page tabs look correct. You do **not** need to add your own FormBuilderField.module.scss for builder layout if you use this.
-
-```ts
-// In your app entry or layout (e.g. app/layout.tsx, _app.tsx, or the page that renders the builder)
-import '@owaisali122/kolea-cms-formio-builder/styles/formio-overrides.css'
-```
-
-This includes: dialog/nav fixes, builder background, sidebar, wizard pages (Page 1, Page 2, + PAGE) visibility and styling. Toolbar styles (e.g. "Display as" dropdown) stay in your app if you use a custom toolbar.
+Form.io override styles (dialog/nav fixes, builder background, sidebar, wizard pages visibility and styling) are injected automatically when `FormBuilder` or `FormRenderer` mounts. No manual CSS import is needed.
 
 ## BootstrapProvider
 

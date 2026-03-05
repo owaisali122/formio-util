@@ -12,6 +12,13 @@ export type { RegistryConfig } from './registry'
 export { BootstrapProvider } from './components/BootstrapProvider'
 export { FormRenderer } from './components/FormRenderer'
 export type { FormRendererProps, FormRendererSchema } from './components/FormRenderer'
+export { FormBuilder } from './components/FormBuilder'
+export type {
+  FormBuilderProps,
+  FormBuilderSchema,
+  FormioBuilderInstance,
+  DisplayType,
+} from './components/FormBuilder'
 
 export {
   AppDetailRefComponent,

@@ -1,7 +1,5 @@
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.0/css/font-awesome.css');
-
-
-/* Ensure cards render correctly inside Form.io dialogs */
+/** Form.io override styles – injected into document.head at runtime by FormBuilder and FormRenderer. */
+export const formioOverridesCss = `/* Ensure cards render correctly inside Form.io dialogs */
 .formio-dialog .card {
   display: block;
 }
@@ -143,3 +141,4 @@
 .app-detail-ref-preview-inner {
   min-height: 200px;
 }
+`

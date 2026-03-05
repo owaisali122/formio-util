@@ -16,18 +16,19 @@
       "types": "./dist/components/FormRenderer.d.ts",
       "import": "./dist/components/FormRenderer.js",
       "require": "./dist/components/FormRenderer.cjs"
-    },
-    "./styles/formio-overrides.css": "./src/styles/formio-overrides.css"
+    }
   },
   "files": [
-    "dist",
-    "src/styles/formio-overrides.css"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "publish": "node scripts/release.cjs"
+  },
+  "dependencies": {
+    "font-awesome": "^4.7.0"
   },
   "peerDependencies": {
     "formiojs": "^4.21.0",
