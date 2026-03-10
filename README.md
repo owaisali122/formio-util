@@ -4,16 +4,20 @@ Shared Form.io custom components for builder and renderer. Use this package to e
 
 ## Installation
 
-**1. Add this line to your project's `.npmrc`** (required for re-install to work properly):
+**1. Add these lines to your project's `.npmrc`** (required for re-install to work properly):
 
 ```
+@owaisali122:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<your-github-token>
 side-effects-cache=false
 ```
+
+Replace `<your-github-token>` with your GitHub Personal Access Token (with `read:packages` permission).
 
 **2. Install the package:**
 
 ```bash
-pnpm add kolea-cms-formio-builder@npm:@your-scope/kolea-cms-formio-builder@^3.0.0
+pnpm add kolea-cms-formio-builder@npm:<@your-scope>/kolea-cms-formio-builder@^3.0.0
 ```
 
 Replace `@your-scope` with your GitHub org/user scope (e.g. `@owaisali122`).
