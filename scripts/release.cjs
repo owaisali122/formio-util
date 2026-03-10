@@ -14,7 +14,7 @@ if (requestedVersion) {
   console.log('version set to', requestedVersion);
 }
 
-// 1. Set name to @owaisali122/kolea-cms-formio-builder for publishing
+// 1. Set name to publishScope/kolea-cms-formio-builder for publishing (see package.json publishScope)
 require('./prepublish-name.cjs');
 
 let exitCode = 0;

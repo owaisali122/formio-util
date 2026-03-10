@@ -1,16 +1,46 @@
-# @owaisali122/kolea-cms-formio-builder
+# kolea-cms-formio-builder
 
 Shared Form.io custom components for builder and renderer. Use this package to embed the Form.io designer (e.g. in Payload admin), scope Bootstrap/Form.io CSS so it doesn’t affect the host app, and render saved forms in React.
 
 ## Installation
 
-In the project that will use the builder and/or renderer (e.g. CMS or portal):
+**1. Add this line to your project's `.npmrc`** (required for re-install to work properly):
 
-```bash
-pnpm add formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^2.0.0
+```
+side-effects-cache=false
 ```
 
-See `FORMIO-CONSUMER-INSTALL-GUIDE.md` for GitHub Packages setup and `.npmrc` for the `<user>` scope.
+**2. Install the package:**
+
+```bash
+pnpm add kolea-cms-formio-builder@npm:@your-scope/kolea-cms-formio-builder@^3.0.0
+```
+
+Replace `@your-scope` with your GitHub org/user scope (e.g. `@owaisali122`).
+
+**What postinstall does automatically:**
+- Patches `payload.config` — adds `formBuilderPlugin()` and `FormBuilder` collection (slug: `forms`, API: `/api/forms`)
+- Creates `src/components/admin/FormBuilderField.tsx`
+- Creates `src/collections/form-builder.ts`
+- Creates `src/config/formio.ts` — Form.io API URL helpers
+- Appends `FormBuilder` interface to `payload-types.ts`
+- Saves a backup of your original `payload.config` as `payload.config.ts.kolea-backup`
+
+## Uninstalling
+
+Run the package manager remove command, then manually clean up:
+
+```bash
+pnpm remove kolea-cms-formio-builder
+```
+
+Then delete or revert as needed:
+- `src/components/admin/FormBuilderField.tsx`
+- `src/collections/form-builder.ts`
+- `src/config/formio.ts`
+- The `FormBuilder` block at the bottom of `payload-types.ts`
+- The `formBuilderPlugin()` and `FormBuilder` lines from `payload.config.ts`
+  _(or restore from `payload.config.ts.kolea-backup` if it exists)_
 
 
 ## Custom components

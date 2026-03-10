@@ -69,7 +69,7 @@ export function setupAppDetailRefFormDropdown(instance: Record<string, unknown>)
     requestAnimationFrame(async () => {
       try {
         if (!inst.editForm?.getComponent) return
-        const listUrl = `${url}${url.includes('?') ? '&' : '?'}limit=500`
+        const listUrl = `${url}${url.includes('?') ? '&' : '?'}`
         const raw = (await fetch(listUrl).then((r) => r.json())) as FormsListResponse
         if (typeof window !== 'undefined') {
           ; (window as unknown as { __appDetailRefFormsCache?: FormsListResponse }).__appDetailRefFormsCache = raw

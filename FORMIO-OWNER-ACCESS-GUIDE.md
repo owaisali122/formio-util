@@ -2,9 +2,9 @@
 
 This guide explains what the **repository/package owner** needs to do so that teammates can install and use the private `formIoBuilder` package from GitHub Packages.
 
-The package that has been published is:
+The package name is derived from `publishScope` in this repo's `package.json`. Set it once (e.g. `"@your-org"`); the published package will be:
 
-- **Registry package name**: `@owaisali122/kolea-cms-formio-builder`
+- **Registry package name**: `@<publishScope>/kolea-cms-formio-builder` (e.g. `@your-org/kolea-cms-formio-builder`)
 
 ---
 
@@ -80,9 +80,11 @@ Store this token as a **secret** in your CI system (for example `GH_PACKAGES_TOK
 Share the following snippet with your team (they should use their **own** token):
 
 ```ini
-@owaisali122:registry=https://npm.pkg.github.com
+@<publishScope>:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=ghp_THEIR_PERSONAL_TOKEN_HERE
 ```
+
+Replace `<publishScope>` with the value from `package.json` (e.g. `@your-org`).
 
 Place this in either:
 
@@ -118,7 +120,7 @@ jobs:
       - name: Configure npm for GitHub Packages
         run: |
           cat <<'EOF' > .npmrc
-          @owaisali122:registry=https://npm.pkg.github.com
+          @<publishScope>:registry=https://npm.pkg.github.com
           //npm.pkg.github.com/:_authToken=${GH_PACKAGES_TOKEN}
           EOF
         env:
@@ -140,11 +142,11 @@ To use this:
 
 When onboarding a new teammate, share the following points:
 
-1. They have been granted access to the repository that owns `@owaisali122/kolea-cms-formio-builder`.
+1. They have been granted access to the repository that owns the package (see `publishScope` in this repo's `package.json`).
 2. They should follow the **consumer guide** (`FORMIO-CONSUMER-INSTALL-GUIDE.md`) to:
    - Create their own PAT with `repo` + `read:packages`.
    - Configure `.npmrc` with their token.
-   - Install `formIoBuilder` using `pnpm add formIoBuilder@npm:@owaisali122/kolea-cms-formio-builder@^1.0.0`.
+   - Install `formIoBuilder` using `pnpm add formIoBuilder@npm:@<publishScope>/kolea-cms-formio-builder@^1.0.0` (replace `<publishScope>` with the scope from `package.json`).
 
 This keeps ownership and security with you while making it easy for others to consume the package.
 

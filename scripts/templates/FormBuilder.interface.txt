@@ -1,0 +1,34 @@
+
+/** Added by kolea-cms-formio-builder — FormBuilder (forms collection) */
+export interface FormBuilder {
+  id: number;
+  title: string;
+  /**
+   * URL-safe identifier used by the API (e.g. benefits-application).
+   */
+  slug: string;
+  /**
+   * Internal reference only.
+   */
+  description?: string | null;
+  status: 'draft' | 'published';
+  /**
+   * Form.io schema — use the Form Builder below to edit.
+   */
+  schema:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  settings?: {
+    submitButtonText?: string | null;
+    successMessage?: string | null;
+    allowMultipleSubmissions?: boolean | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
