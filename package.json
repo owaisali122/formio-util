@@ -32,8 +32,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "publish": "node scripts/release.cjs",
-    "postinstall": "node scripts/install-patch.cjs"
+    "publish": "node scripts/release.cjs"
   },
   "dependencies": {
     "font-awesome": "^4.7.0"
