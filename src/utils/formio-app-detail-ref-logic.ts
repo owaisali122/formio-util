@@ -1,5 +1,6 @@
 /**
- * App Detail Ref – form schema helpers for preview and referencable fields.
+ * App Detail Ref – form schema helpers for preview, referencable fields, and
+ * renderer-time schema injection.
  */
 
 import { APP_DETAIL_REF_EXCLUDE_TYPES } from '../components/AppDetailRef'
@@ -88,9 +89,118 @@ export function getFormSchemaForPreview(
   return { display: 'form', components: comps }
 }
 
-/** No-op for API compatibility (injection can be implemented by consuming app if needed). */
+/**
+ * Deeply walk a schema and rewrite App Detail Ref components from the designer
+ * type (`appDetailRef`) to the runtime renderer type (`appDetailRefRuntime`).
+ * This keeps the builder schema unchanged while allowing the renderer to use
+ * a dedicated runtime component implementation.
+ */
+
+const DESIGNER_TYPE = 'appDetailRef'
+const RUNTIME_TYPE = 'appDetailRefRuntime'
+
+type AnyRecord = Record<string, unknown>
+
+function transformComponentsArray(arr: unknown[] | undefined): unknown[] | undefined {
+  if (!Array.isArray(arr) || arr.length === 0) return arr
+  let changed = false
+  const next = arr.map((item) => {
+    const updated = transformComponent(item)
+    if (updated !== item) changed = true
+    return updated
+  })
+  return changed ? next : arr
+}
+
+function transformComponent(node: unknown): unknown {
+  if (!node || typeof node !== 'object') return node
+  const comp = node as AnyRecord
+  let changed = false
+  const clone: AnyRecord = { ...comp }
+
+  if (clone.type === DESIGNER_TYPE) {
+    clone.type = RUNTIME_TYPE
+    changed = true
+  }
+
+  const components = transformComponentsArray(clone.components as unknown[] | undefined)
+  if (components && components !== clone.components) {
+    clone.components = components
+    changed = true
+  }
+
+  const tabs = clone.tabs as Array<{ components?: unknown[] }> | undefined
+  if (Array.isArray(tabs) && tabs.length > 0) {
+    let tabsChanged = false
+    const nextTabs = tabs.map((tab) => {
+      if (!tab?.components) return tab
+      const nextComponents = transformComponentsArray(tab.components)
+      if (nextComponents && nextComponents !== tab.components) {
+        tabsChanged = true
+        return { ...tab, components: nextComponents }
+      }
+      return tab
+    })
+    if (tabsChanged) {
+      clone.tabs = nextTabs
+      changed = true
+    }
+  }
+
+  const columns = clone.columns as Array<{ components?: unknown[] }> | undefined
+  if (Array.isArray(columns) && columns.length > 0) {
+    let colsChanged = false
+    const nextCols = columns.map((col) => {
+      if (!col?.components) return col
+      const nextComponents = transformComponentsArray(col.components)
+      if (nextComponents && nextComponents !== col.components) {
+        colsChanged = true
+        return { ...col, components: nextComponents }
+      }
+      return col
+    })
+    if (colsChanged) {
+      clone.columns = nextCols
+      changed = true
+    }
+  }
+
+  const rows = clone.rows as unknown[] | undefined
+  if (Array.isArray(rows) && rows.length > 0) {
+    let rowsChanged = false
+    const nextRows = rows.map((row) => {
+      if (!Array.isArray(row)) return row
+      let rowChanged = false
+      const nextRow = row.map((cell) => {
+        const cellObj = cell as { components?: unknown[] }
+        if (!cellObj?.components) return cell
+        const nextComponents = transformComponentsArray(cellObj.components)
+        if (nextComponents && nextComponents !== cellObj.components) {
+          rowChanged = true
+          return { ...cellObj, components: nextComponents }
+        }
+        return cell
+      })
+      if (rowChanged) {
+        rowsChanged = true
+        return nextRow
+      }
+      return row
+    })
+    if (rowsChanged) {
+      clone.rows = nextRows
+      changed = true
+    }
+  }
+
+  return changed ? clone : node
+}
+
 export async function runAppDetailRefInjection(
   schema: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  return schema
+  if (!schema || typeof schema !== 'object') return schema
+  const maybeUpdated = transformComponent(schema) as AnyRecord
+  return maybeUpdated
 }
+

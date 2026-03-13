@@ -76,6 +76,22 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerAppDetailRef(Components)
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
+
+    // Register runtime App Detail Ref component for renderer.
+    // This uses the base FieldComponent so it plays nicely with Form.io's
+    // standard value/update lifecycle, while keeping the builder behavior
+    // (designer component + preview) unchanged.
+    try {
+      const FieldComponent = (FormioModuleObj.Components as any)?.components?.field
+      if (FieldComponent) {
+        const { createAppDetailRefRuntimeClass } = await import('./components/AppDetailRefRuntime')
+        const AppDetailRefRuntime = createAppDetailRefRuntimeClass(FieldComponent)
+        Components.setComponent('appDetailRefRuntime', AppDetailRefRuntime as never)
+      }
+    } catch {
+      // If registration fails, designer behavior remains intact; renderer
+      // simply won't have the runtime App Detail Ref component.
+    }
   }
 
   // Wrap FormBuilder so wizard schema always has at least one panel (Page 1, + PAGE).

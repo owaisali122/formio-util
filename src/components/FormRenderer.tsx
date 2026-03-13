@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { registerCustomComponents } from '../registry'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
+import { runAppDetailRefInjection } from '../utils/formio-app-detail-ref-logic'
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
 export interface FormRendererSchema {
@@ -86,8 +87,13 @@ export function FormRenderer({
 
       const F = Formio as FormioStatic
 
-      F.createForm(container, schema, { readOnly })
+      runAppDetailRefInjection(schema)
+        .then((effectiveSchema) => {
+          if (cancelled || !containerRef.current) return null
+          return F.createForm(container, effectiveSchema, { readOnly })
+        })
         .then((form) => {
+          if (!form) return
           if (cancelled) {
             form.destroy()
             return
