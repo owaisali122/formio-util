@@ -1,6 +1,6 @@
 ## Kolea Form.io Renderer – Installation & Usage Guide
 
-This guide explains how to install and use `kolea-cms-formio-builder` as a **Form Renderer** inside a Next.js application, including required configuration, database/API wiring, and precautions.
+This guide explains how to install and use `kolea-shared-package` as a **Form Renderer** inside a Next.js application, including required configuration, database/API wiring, and precautions.
 
 ---
 
@@ -23,11 +23,11 @@ In your Next.js project root, create or update `.npmrc`:
 Use your preferred package manager:
 
 ```bash
-pnpm add kolea-cms-formio-builder
+pnpm add kolea-shared-package
 # or
-npm install kolea-cms-formio-builder
+npm install kolea-shared-package
 # or
-yarn add kolea-cms-formio-builder
+yarn add kolea-shared-package
 ```
 
 **Precautions:**
@@ -48,7 +48,7 @@ Create `app/formio/setupFormio.ts`:
 ```typescript
 'use client'
 
-import { registerCustomComponents, configure } from 'kolea-cms-formio-builder'
+import { registerCustomComponents, configure } from 'kolea-shared-package'
 
 let _registered: Promise<unknown> | null = null
 
@@ -128,7 +128,7 @@ The package also includes logic to support the **App Detail Ref runtime** compon
 ```typescript
 'use client'
 
-import { FormRenderer, type FormRendererSchema } from 'kolea-cms-formio-builder'
+import { FormRenderer, type FormRendererSchema } from 'kolea-shared-package'
 
 type Props = {
   schema: FormRendererSchema
@@ -163,7 +163,7 @@ This pattern matches the conceptual flow in `formio-renderer-integration.md`.
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FormRenderer, type FormRendererSchema } from 'kolea-cms-formio-builder'
+import { FormRenderer, type FormRendererSchema } from 'kolea-shared-package'
 
 type Props = {
   slug: string

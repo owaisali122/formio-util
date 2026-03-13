@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const PKG_SHORT = 'kolea-cms-formio-builder';
+const PKG_SHORT = 'kolea-shared-package';
 const PLUGIN_FN = 'formBuilderPlugin';
 const IMPORT_LINE = `import { ${PLUGIN_FN} } from '${PKG_SHORT}/payload'`;
 const FORM_BUILDER_IMPORT = "import { Forms as FormBuilder } from './collections/form-builder'";

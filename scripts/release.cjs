@@ -14,7 +14,7 @@ if (requestedVersion) {
   console.log('version set to', requestedVersion);
 }
 
-// 1. Set name to publishScope/kolea-cms-formio-builder for publishing (see package.json publishScope)
+// 1. Set name to publishScope/kolea-shared-package for publishing (see package.json publishScope)
 require('./prepublish-name.cjs');
 
 let exitCode = 0;
@@ -24,7 +24,7 @@ try {
 } catch (err) {
   exitCode = err.status ?? 1;
 } finally {
-  // 3. Restore name to kolea-cms-formio-builder for local/link (root, no scope)
+  // 3. Restore name to kolea-shared-package for local/link (root, no scope)
   require('./postpublish-name.cjs');
   if (exitCode !== 0) process.exit(exitCode);
 }

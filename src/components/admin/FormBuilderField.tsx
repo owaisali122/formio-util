@@ -1,8 +1,8 @@
 'use client'
 
 import { useField } from '@payloadcms/ui'
-import { FormBuilder } from 'kolea-cms-formio-builder'
-import type { FormBuilderSchema } from 'kolea-cms-formio-builder'
+import { FormBuilder } from 'kolea-shared-package'
+import type { FormBuilderSchema } from 'kolea-shared-package'
 import { getFormsListUrl } from '@/config/formio'
 
 function FormBuilderField() {

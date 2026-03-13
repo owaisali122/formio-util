@@ -9,7 +9,7 @@ This guide shows how to integrate forms from an external FormBuilder database us
 Configure `FormRenderer` to fetch schemas from your external FormBuilder API:
 
 ```typescript
-import { registerCustomComponents } from 'kolea-cms-formio-builder'
+import { registerCustomComponents } from 'kolea-shared-package'
 
 registerCustomComponents({
   formsListUrl: 'https://your-formbuilder-api.com/api/formBuilder',
@@ -149,11 +149,11 @@ interface FormRendererProps {
 ## Type Imports
 
 ```typescript
-import type { FormRendererSchema, FormRendererProps } from 'kolea-cms-formio-builder'
+import type { FormRendererSchema, FormRendererProps } from 'kolea-shared-package'
 import { 
   FormRenderer,
   registerCustomComponents 
-} from 'kolea-cms-formio-builder'
+} from 'kolea-shared-package'
 ```
 
 ---
