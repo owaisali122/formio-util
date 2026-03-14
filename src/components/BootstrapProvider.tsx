@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import fontAwesomeCss from 'font-awesome/css/font-awesome.css'
 
 const SCOPE_MAIN = '.bootstrap-scope, .formio-builder, .formbuilder'
@@ -25,9 +25,44 @@ function toCssString(css: unknown): string {
 
 function getFontAwesomeCss(): string {
   const raw = toCssString(fontAwesomeCss)
-  const base = window.__formioConfig?.fontAwesomeFontsUrl ?? '/fonts/'
+  const base =
+    window.__formioConfig?.fontAwesomeFontsUrl ??
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/fonts/'
   const baseNorm = base.endsWith('/') ? base : base + '/'
-  return raw.replace(/url\s*\(\s*['"]?\.\.\/fonts\//gi, `url('${baseNorm}`)
+  return raw
+    .replace(/url\s*\(\s*['"]?\.\.\/fonts\//gi, `url('${baseNorm}`)
+    .replace(/url\s*\(\s*['"]?\/fonts\//gi, `url('${baseNorm}`)
+}
+
+function rewriteCssAssetUrls(css: string, sourceUrl: string, fontAwesomeBase: string): string {
+  if (!css) return css
+  const faBase = fontAwesomeBase.endsWith('/') ? fontAwesomeBase : `${fontAwesomeBase}/`
+  return css.replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (_m, quote: string, rawPath: string) => {
+    const p = String(rawPath || '').trim()
+    if (!p) return _m
+    if (
+      p.startsWith('data:') ||
+      p.startsWith('http://') ||
+      p.startsWith('https://') ||
+      p.startsWith('//') ||
+      p.startsWith('#')
+    ) {
+      return `url(${quote}${p}${quote})`
+    }
+
+    // Form.io/FA sometimes references root /fonts/* which breaks in consumers.
+    if (/^\/fonts\/fontawesome-webfont\./i.test(p)) {
+      const fileWithQuery = p.replace(/^\/fonts\//i, '')
+      return `url(${quote}${faBase}${fileWithQuery}${quote})`
+    }
+
+    try {
+      const abs = new URL(p, sourceUrl).toString()
+      return `url(${quote}${abs}${quote})`
+    } catch {
+      return `url(${quote}${p}${quote})`
+    }
+  })
 }
 
 function scopeCss(css: string, scope: string): string {
@@ -81,15 +116,18 @@ function getOrCreateStyle(id: string): HTMLStyleElement {
   return el
 }
 
-export function BootstrapProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false)
+function stripSourceMapComments(css: string): string {
+  return css
+    .replace(/\/\*# sourceMappingURL=.*?\*\//g, '')
+    .replace(/\/\/# sourceMappingURL=.*$/gm, '')
+}
 
+export function BootstrapProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const isFirst = (window.__formBuilderBootstrapCount ?? 0) === 0
     window.__formBuilderBootstrapCount = (window.__formBuilderBootstrapCount ?? 0) + 1
 
     if (!isFirst) {
-      setMounted(true)
       return () => { window.__formBuilderBootstrapCount! -= 1 }
     }
 
@@ -100,20 +138,51 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
       fontAwesome: 'form-builder-font-awesome',
     }
 
-    const bootstrapUrl = window.__formioConfig?.bootstrapCssUrl ?? '/api/bootstrap-css'
-    const formioUrl = window.__formioConfig?.formioCssUrl ?? '/api/formio-css'
+    const BOOTSTRAP_CDN = 'https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css'
+    const FORMIO_CDN = 'https://cdn.jsdelivr.net/npm/formiojs@4.21.7/dist/formio.full.min.css'
+
+    const bootstrapUrl = window.__formioConfig?.bootstrapCssUrl ?? BOOTSTRAP_CDN
+    const formioUrl = window.__formioConfig?.formioCssUrl ?? FORMIO_CDN
+
+    const fetchWithFallback = async (
+      url: string,
+      cdnUrl: string
+    ): Promise<{ css: string; sourceUrl: string }> => {
+      try {
+        const r = await fetch(url)
+        if (r.ok) return { css: await r.text(), sourceUrl: r.url || url }
+      } catch {
+        // ignore and try fallback
+      }
+      try {
+        const r2 = await fetch(cdnUrl)
+        if (r2.ok) return { css: await r2.text(), sourceUrl: r2.url || cdnUrl }
+      } catch {
+        // ignore and return empty css so UI still mounts
+      }
+      return { css: '', sourceUrl: cdnUrl }
+    }
 
     Promise.all([
-      fetch(bootstrapUrl).then((r) => r.text()),
-      fetch(formioUrl).then((r) => r.text()),
-    ]).then(([bootstrapCss, formioCss]) => {
+      fetchWithFallback(bootstrapUrl, BOOTSTRAP_CDN),
+      fetchWithFallback(formioUrl, FORMIO_CDN),
+    ]).then(([bootstrapResult, formioResult]) => {
+      const fontBase =
+        window.__formioConfig?.fontAwesomeFontsUrl ??
+        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/fonts/'
+      const bootstrapCssClean = stripSourceMapComments(
+        rewriteCssAssetUrls(bootstrapResult.css, bootstrapResult.sourceUrl, fontBase)
+      )
+      const formioCssClean = stripSourceMapComments(
+        rewriteCssAssetUrls(formioResult.css, formioResult.sourceUrl, fontBase)
+      )
       const extra = `
         .bootstrap-scope { isolation: isolate; contain: layout style paint; }
         .formio-modal, .formio-dialog, .formio-edit-form, .formio-builder-dialog, .modal { isolation: isolate; }
       `
-      getOrCreateStyle(ids.main).textContent = scopeCss(bootstrapCss, SCOPE_MAIN) + extra
-      getOrCreateStyle(ids.dialogs).textContent = scopeCss(bootstrapCss, SCOPE_DIALOGS)
-      getOrCreateStyle(ids.formio).textContent = formioCss
+      getOrCreateStyle(ids.main).textContent = scopeCss(bootstrapCssClean, SCOPE_MAIN) + extra
+      getOrCreateStyle(ids.dialogs).textContent = scopeCss(bootstrapCssClean, SCOPE_DIALOGS)
+      getOrCreateStyle(ids.formio).textContent = formioCssClean
       getOrCreateStyle(ids.fontAwesome).textContent = getFontAwesomeCss()
 
       const order = [ids.main, ids.formio, ids.dialogs, ids.fontAwesome]
@@ -125,7 +194,8 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
         }
       })
 
-      setMounted(true)
+    }).catch(() => {
+      // Never block form rendering if CSS loading fails.
     })
 
     return () => {
@@ -139,8 +209,8 @@ export function BootstrapProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <div className="bootstrap-scope formio-builder formbuilder">
-      {mounted ? children : null}
+    <div className="bootstrap-scope">
+      {children}
     </div>
   )
 }

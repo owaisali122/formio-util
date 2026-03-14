@@ -39,32 +39,33 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
   padding: 10px;
 }
 
-.formio-builder .formio-component-textfield,
-.formio-builder .formio-component-textarea,
-.formio-builder .formio-component-email,
-.formio-builder .formio-component-number,
-.formio-builder .formio-component-password,
-.formio-builder .formio-component-select,
-.formio-builder .formio-component-radio,
-.formio-builder .formio-component-checkbox,
-.formio-builder .formio-component-button,
-.formbuilder .formio-component-textfield,
-.formbuilder .formio-component-textarea,
-.formbuilder .formio-component-email,
-.formbuilder .formio-component-number,
-.formbuilder .formio-component-password,
-.formbuilder .formio-component-select,
-.formbuilder .formio-component-radio,
-.formbuilder .formio-component-checkbox,
-.formbuilder .formio-component-button {
+/* Dashed border only in builder drop zone (not in renderer) */
+.formio-builder .drag-container .formio-component-textfield,
+.formio-builder .drag-container .formio-component-textarea,
+.formio-builder .drag-container .formio-component-email,
+.formio-builder .drag-container .formio-component-number,
+.formio-builder .drag-container .formio-component-password,
+.formio-builder .drag-container .formio-component-select,
+.formio-builder .drag-container .formio-component-radio,
+.formio-builder .drag-container .formio-component-checkbox,
+.formio-builder .drag-container .formio-component-button,
+.formbuilder .drag-container .formio-component-textfield,
+.formbuilder .drag-container .formio-component-textarea,
+.formbuilder .drag-container .formio-component-email,
+.formbuilder .drag-container .formio-component-number,
+.formbuilder .drag-container .formio-component-password,
+.formbuilder .drag-container .formio-component-select,
+.formbuilder .drag-container .formio-component-radio,
+.formbuilder .drag-container .formio-component-checkbox,
+.formbuilder .drag-container .formio-component-button {
   padding: 8px;
   margin: 4px 0;
   border: 1px dashed #e2e8f0;
   border-radius: 4px;
 }
 
-.formio-builder .formio-component:hover,
-.formbuilder .formio-component:hover {
+.formio-builder .drag-container .formio-component:hover,
+.formbuilder .drag-container .formio-component:hover {
   border-color: #3b82f6;
 }
 
@@ -130,7 +131,7 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
   list-style: none;
 }
 
-/* App Detail Ref: preview panel in edit dialog */
+/* App Detail Ref: preview panel in builder edit dialog only */
 .formio-dialog .app-detail-ref-preview-inner {
   min-height: 280px;
   padding: 12px;
@@ -140,5 +141,43 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
 }
 .app-detail-ref-preview-inner {
   min-height: 200px;
+}
+
+/* App Detail Ref in renderer: force plain look (no dashed/gray box) */
+.formio-renderer .app-detail-ref-container,
+.formio-renderer .app-detail-ref-placeholder,
+.formio-renderer .app-detail-ref-preview-inner {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.formio-renderer .formio-component-appDetailRefRuntime,
+.formio-renderer .formio-component-appdetailrefruntime,
+.formio-renderer .formio-component-appDetailRef,
+.formio-renderer .formio-component-appdetailref {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 0 1rem 0 !important;
+  box-shadow: none !important;
+}
+
+/* If builder classes leak into renderer, neutralize dashed component wrappers */
+.formio-renderer .formio-component-textfield,
+.formio-renderer .formio-component-textarea,
+.formio-renderer .formio-component-email,
+.formio-renderer .formio-component-number,
+.formio-renderer .formio-component-password,
+.formio-renderer .formio-component-select,
+.formio-renderer .formio-component-radio,
+.formio-renderer .formio-component-checkbox,
+.formio-renderer .formio-component-button {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 `

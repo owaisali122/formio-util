@@ -212,6 +212,35 @@ import { /* utilities */ } from 'kolea-shared-package/payload'
 import { FormRenderer } from 'kolea-shared-package/FormRenderer'
 ```
 
+## Using with Next.js (incl. App Router / Turbopack)
+
+If you use this package inside a **Next.js** app (e.g. app-renderer) and see **"Module not found: Can't resolve 'kolea-shared-package'"**:
+
+1. **Build the library**  
+   From this package directory run:  
+   `pnpm run build`  
+   so that `dist/` exists and the package can be resolved.
+
+2. **Tell Next.js to transpile the package**  
+   In your app’s `next.config.ts` (or `next.config.js`), add:
+
+   ```ts
+   const nextConfig = {
+     transpilePackages: ['kolea-shared-package'],
+     // ... rest of config
+   }
+   ```
+
+3. **Resolve the package**  
+   - **Option A – Workspace (recommended)**  
+     In the app’s `package.json`:
+     `"kolea-shared-package": "workspace:*"`  
+     (with pnpm/yarn workspaces so the root links the package.)
+   - **Option B – Path alias**  
+     If you alias to a relative path (e.g. `../../package/kolea-shared-package`), ensure that path is correct from the app’s root and that `tsconfig.json` (and any Next alias) use the same path.
+
+After that, imports like `import { BootstrapProvider, configure } from 'kolea-shared-package'` should resolve and build.
+
 ## Local Development
 
 ### Set Up Local Path
@@ -325,7 +354,9 @@ For detailed guides, see:
 - [Form.io Package Guide](./FORMIO-PACKAGE-GUIDE.md) — Architecture and design
 - [Form Builder Payload CMS Setup](./formio-builder-payload-cms.md) — CMS integration
 - [Consumer Install Guide](./FORMIO-CONSUMER-INSTALL-GUIDE.md) — Installation steps
+- [Form Renderer Installation](./FORMIO-RENDERER-INSTALL-GUIDE.md) — Set up public portal renderer
 - [Form Renderer Integration](./formio-renderer-integration.md) — Rendering forms
+- [Form Submission Architecture](./FORM-SUBMISSION-ARCHITECTURE.md) — **Separate database for form submissions**
 - [Owner Access Guide](./FORMIO-OWNER-ACCESS-GUIDE.md) — Admin and ownership
 
 ## Support

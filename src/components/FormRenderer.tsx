@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import { registerCustomComponents } from '../registry'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
 import { runAppDetailRefInjection } from '../utils/formio-app-detail-ref-logic'
+import { BootstrapProvider } from './BootstrapProvider'
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
 export interface FormRendererSchema {
@@ -21,13 +22,27 @@ export interface FormRendererProps {
   submission?: Record<string, unknown>
   /** Render form as read-only */
   readOnly?: boolean
+  /** Called once when the underlying Form.io form instance is created */
+  onFormReady?: (form: FormioFormInstance) => void
+  /** Optional Form.io createForm() options (e.g. buttonSettings to hide wizard buttons) */
+  createFormOptions?: Record<string, unknown>
 }
 
-let registrationPromise: Promise<unknown> | null = null
+let registrationPromise: Promise<FormioStatic> | null = null
 
-function ensureComponentsRegistered(): Promise<unknown> {
+function ensureComponentsRegistered(): Promise<FormioStatic> {
   if (!registrationPromise) {
-    registrationPromise = registerCustomComponents()
+    registrationPromise = registerCustomComponents().then(() => {
+      const globalAny = globalThis as any
+      const formioFromWindow = typeof window !== 'undefined' ? (window as any).Formio : undefined
+      const FormioGlobal = (formioFromWindow ?? globalAny.Formio) as FormioStatic | undefined
+
+      if (!FormioGlobal || typeof FormioGlobal.createForm !== 'function') {
+        throw new Error('[FormRenderer] Formio.createForm is not available after registration')
+      }
+
+      return FormioGlobal
+    })
   }
   return registrationPromise
 }
@@ -46,12 +61,8 @@ type FormioStatic = {
   ) => Promise<FormioFormInstance>
 }
 
-export function FormRenderer({
-  schema,
-  onSubmit,
-  submission,
-  readOnly = false,
-}: FormRendererProps) {
+export function FormRenderer(props: FormRendererProps) {
+  const { schema, onSubmit, submission, readOnly = false, onFormReady, createFormOptions } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const formInstanceRef = useRef<FormioFormInstance | null>(null)
 
@@ -64,6 +75,16 @@ export function FormRenderer({
   useEffect(() => {
     onSubmitRef.current = onSubmit
   }, [onSubmit])
+
+  const onFormReadyRef = useRef(onFormReady)
+  useEffect(() => {
+    onFormReadyRef.current = onFormReady
+  }, [onFormReady])
+
+  const createFormOptionsRef = useRef(createFormOptions)
+  useEffect(() => {
+    createFormOptionsRef.current = createFormOptions
+  }, [createFormOptions])
 
   const submissionRef = useRef(submission)
   useEffect(() => {
@@ -82,39 +103,42 @@ export function FormRenderer({
 
     let cancelled = false
 
-    ensureComponentsRegistered().then((Formio) => {
-      if (cancelled || !containerRef.current) return
+    ensureComponentsRegistered()
+      .then((F) => {
+        if (cancelled || !containerRef.current) return
 
-      const F = Formio as FormioStatic
-
-      runAppDetailRefInjection(schema)
-        .then((effectiveSchema) => {
-          if (cancelled || !containerRef.current) return null
-          return F.createForm(container, effectiveSchema, { readOnly })
-        })
-        .then((form) => {
-          if (!form) return
-          if (cancelled) {
-            form.destroy()
-            return
-          }
-
-          formInstanceRef.current = form
-
-          // Use the ref so we always call the latest submission/callback
-          const currentSubmission = submissionRef.current
-          if (currentSubmission && Object.keys(currentSubmission).length > 0) {
-            form.submission = { data: currentSubmission }
-          }
-
-          form.on('submit', (sub: { data: Record<string, unknown> }) => {
-            onSubmitRef.current?.(sub.data)
+        return runAppDetailRefInjection(schema)
+          .then((effectiveSchema) => {
+            if (cancelled || !containerRef.current) return null
+            const opts = { readOnly, ...createFormOptionsRef.current }
+            return F.createForm(container, effectiveSchema, opts)
           })
-        })
-        .catch((err) => {
-          if (!cancelled) console.error('[FormRenderer] createForm error:', err)
-        })
-    })
+          .then((form) => {
+            if (!form) return
+            if (cancelled) {
+              form.destroy()
+              return
+            }
+
+            formInstanceRef.current = form
+
+            // Expose the raw Form.io instance to consumers when requested
+            onFormReadyRef.current?.(form)
+
+            // Use the ref so we always call the latest submission/callback
+            const currentSubmission = submissionRef.current
+            if (currentSubmission && Object.keys(currentSubmission).length > 0) {
+              form.submission = { data: currentSubmission }
+            }
+
+            form.on('submit', (sub: { data: Record<string, unknown> }) => {
+              onSubmitRef.current?.(sub.data)
+            })
+          })
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('[FormRenderer] createForm error:', err)
+      })
 
     return () => {
       cancelled = true
@@ -125,5 +149,9 @@ export function FormRenderer({
     }
   }, [schema, readOnly]) // ← onSubmit and submission intentionally removed
 
-  return <div ref={containerRef} className="formio-renderer" />
+  return (
+    <BootstrapProvider>
+      <div ref={containerRef} className="formio-renderer" />
+    </BootstrapProvider>
+  )
 }

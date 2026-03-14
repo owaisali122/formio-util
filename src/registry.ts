@@ -5,6 +5,10 @@ import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
 
+const DEFAULT_BOOTSTRAP_CSS_URL = 'https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css'
+const DEFAULT_FORMIO_CSS_URL = 'https://cdn.jsdelivr.net/npm/formiojs@4.21.7/dist/formio.full.min.css'
+const DEFAULT_FONT_AWESOME_FONTS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/fonts/'
+
 export interface RegistryConfig {
   formsListUrl?: string
   bootstrapCssUrl?: string
@@ -20,9 +24,9 @@ export function configure(config: RegistryConfig): void {
   if (typeof window !== 'undefined') {
     ; (window as unknown as { __formioConfig?: RegistryConfig }).__formioConfig = {
       ..._config,
-      bootstrapCssUrl: _config.bootstrapCssUrl ?? '/api/bootstrap-css',
-      formioCssUrl: _config.formioCssUrl ?? '/api/formio-css',
-      fontAwesomeFontsUrl: _config.fontAwesomeFontsUrl,
+      bootstrapCssUrl: _config.bootstrapCssUrl ?? DEFAULT_BOOTSTRAP_CSS_URL,
+      formioCssUrl: _config.formioCssUrl ?? DEFAULT_FORMIO_CSS_URL,
+      fontAwesomeFontsUrl: _config.fontAwesomeFontsUrl ?? DEFAULT_FONT_AWESOME_FONTS_URL,
     }
   }
 }

@@ -11,17 +11,32 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js",
+      "require": "./dist/server.cjs",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.cjs",
+      "default": "./dist/client.js"
     },
     "./payload": {
       "types": "./dist/payload.d.ts",
       "import": "./dist/payload.js",
-      "require": "./dist/payload.cjs"
+      "require": "./dist/payload.cjs",
+      "default": "./dist/payload.js"
     },
     "./FormRenderer": {
       "types": "./dist/components/FormRenderer.d.ts",
       "import": "./dist/components/FormRenderer.js",
-      "require": "./dist/components/FormRenderer.cjs"
+      "require": "./dist/components/FormRenderer.cjs",
+      "default": "./dist/components/FormRenderer.js"
     }
   },
   "files": [
@@ -35,7 +50,8 @@
     "publish": "node scripts/release.cjs"
   },
   "dependencies": {
-    "font-awesome": "^4.7.0"
+    "font-awesome": "^4.7.0",
+    "postgres": ">=3.4.4"
   },
   "peerDependencies": {
     "formiojs": "^4.21.0",
