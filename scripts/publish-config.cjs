@@ -10,7 +10,7 @@
 const path = require('path');
 const fs = require('fs');
 
-const PKG_NAME_UNSCOPED = 'kolea-cms-formio-builder';
+const PKG_NAME_UNSCOPED = 'kolea-shared-package';
 const root = path.join(__dirname, '..');
 const pkgPath = path.join(root, 'package.json');
 

@@ -1,6 +1,6 @@
-# Kolea CMS Form.io Builder — Setup Guide for Payload CMS
+# Kolea Shared Package — Setup Guide for Payload CMS
 
-This guide explains how to configure `kolea-cms-formio-builder` inside a Payload CMS project. The package provides custom Form.io components and tools for building and rendering forms, but requires manual setup within your Payload project.
+This guide explains how to configure `kolea-shared-package` inside a Payload CMS project. The package provides custom Form.io components and tools for building and rendering forms, but requires manual setup within your Payload project.
 
 ## Table of Contents
 
@@ -47,10 +47,10 @@ Replace `ghp_YOUR_TOKEN_HERE` with your actual token. Do **not** commit this fil
 ## Installation
 
 
-### 1. Install the Kolea Package
+### 1. Install the Kolea Shared Package
 
 ```bash
-pnpm add kolea-cms-formio-builder@npm:<@SCOPE>/kolea-cms-formio-builder@<VERSION>
+pnpm add kolea-shared-package@npm:<@SCOPE>/kolea-shared-package@<VERSION>
 ```
 
 ### 3. Database Configuration During Installation
@@ -72,7 +72,7 @@ When prompted, provide these credentials. The package will create a `forms` tabl
 Run the post-install script manually:
 
 ```bash
-node node_modules/kolea-cms-formio-builder/scripts/install-patch.cjs
+node node_modules/kolea-shared-package/scripts/install-patch.cjs
 ```
 
 ---
@@ -216,8 +216,8 @@ The `FormBuilderField` component is the bridge between Payload's admin panel and
 'use client'
 
 import React, { Suspense } from 'react'
-import { FormBuilder } from 'kolea-cms-formio-builder'
-import type { FormBuilderProps } from 'kolea-cms-formio-builder'
+import { FormBuilder } from 'kolea-shared-package'
+import type { FormBuilderProps } from 'kolea-shared-package'
 
 const FormBuilderField: React.FC<FormBuilderProps> = (props) => {
   return (
@@ -258,7 +258,7 @@ export default buildConfig({
 Setup the package configuration to point to your forms API endpoint:
 
 ```typescript
-import { configure } from 'kolea-cms-formio-builder'
+import { configure } from 'kolea-shared-package'
 
 configure({
   formBuilderListUrl: '/api/formBuilder',
@@ -272,7 +272,7 @@ To ensure full TypeScript type safety, update your Payload global types to inclu
 Create or update `src/payload-types.ts`:
 
 ```typescript
-import type { Form } from 'kolea-cms-formio-builder'
+import type { Form } from 'kolea-shared-package'
 
 declare global {
   namespace Payload {
@@ -415,7 +415,7 @@ The package provides three pre-configured custom Form.io components that are rea
 All custom components must be registered in your application before they can be used. Call `registerCustomComponents()` early in your application initialization:
 
 ```typescript
-import { registerCustomComponents, configure } from 'kolea-cms-formio-builder'
+import { registerCustomComponents, configure } from 'kolea-shared-package'
 
 // Initialize and configure the package
 configure({
@@ -438,7 +438,7 @@ registerCustomComponents()
 'use client'
 
 import { useEffect } from 'react'
-import { registerCustomComponents, configure } from 'kolea-cms-formio-builder'
+import { registerCustomComponents, configure } from 'kolea-shared-package'
 
 export default function RootLayout({ children }) {
   useEffect(() => {
@@ -475,7 +475,7 @@ The **App Detail Ref** component allows you to reference and display data from o
 **Configuration in Code:**
 
 ```typescript
-import { setupAppDetailRefFormDropdown } from 'kolea-cms-formio-builder'
+import { setupAppDetailRefFormDropdown } from 'kolea-shared-package'
 
 // Setup the App Detail Ref component with form references
 setupAppDetailRefFormDropdown({
@@ -545,7 +545,7 @@ The **Searchable Dropdown** component provides a server-side dropdown that fetch
 **Configuration in Code:**
 
 ```typescript
-import { SearchableDropdownComponent } from 'kolea-cms-formio-builder'
+import { SearchableDropdownComponent } from 'kolea-shared-package'
 
 // Configure the endpoint that provides dropdown options
 const dropdownConfig = {
@@ -728,7 +728,7 @@ The **SSN (Social Security Number)** component is a specialized text field for i
 **Configuration in Code:**
 
 ```typescript
-import { SSNComponent } from 'kolea-cms-formio-builder'
+import { SSNComponent } from 'kolea-shared-package'
 
 // SSN component is pre-configured, just import and use
 // No additional configuration needed
@@ -813,7 +813,7 @@ import {
   registerCustomComponents,
   configure,
   setupAppDetailRefFormDropdown,
-} from 'kolea-cms-formio-builder'
+} from 'kolea-shared-package'
 
 export function initializeFormio() {
   // Configure the package

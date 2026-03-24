@@ -1,30 +1,19 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
+import { registerPdfViewer } from './registries/register-pdf-viewer'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
 
 export interface RegistryConfig {
   formsListUrl?: string
-  bootstrapCssUrl?: string
-  formioCssUrl?: string
-  /** Base URL for Font Awesome font files (default `/fonts/`). Copy `node_modules/font-awesome/fonts` to `public/fonts` or set to a CDN URL. */
-  fontAwesomeFontsUrl?: string
 }
 
 let _config: RegistryConfig = {}
 
 export function configure(config: RegistryConfig): void {
   _config = { ..._config, ...config }
-  if (typeof window !== 'undefined') {
-    ; (window as unknown as { __formioConfig?: RegistryConfig }).__formioConfig = {
-      ..._config,
-      bootstrapCssUrl: _config.bootstrapCssUrl ?? '/api/bootstrap-css',
-      formioCssUrl: _config.formioCssUrl ?? '/api/formio-css',
-      fontAwesomeFontsUrl: _config.fontAwesomeFontsUrl,
-    }
-  }
 }
 
 /** Returns the forms list URL set via configure() or registerCustomComponents(options). Consumer app provides this. */
@@ -76,6 +65,27 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerAppDetailRef(Components)
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
+    await registerPdfViewer(Components)
+
+    // Register runtime App Detail Ref component for renderer.
+    // This uses the base FieldComponent so it plays nicely with Form.io's
+    // standard value/update lifecycle, while keeping the builder behavior
+    // (designer component + preview) unchanged.
+    try {
+      const FieldComponent = (FormioModuleObj.Components as any)?.components?.field
+      if (FieldComponent) {
+        const { createAppDetailRefRuntimeClass } = await import('./components/AppDetailRefRuntime')
+        const AppDetailRefRuntime = createAppDetailRefRuntimeClass(FieldComponent)
+        Components.setComponent('appDetailRefRuntime', AppDetailRefRuntime as never)
+
+        const { default: createPdfViewerClass } = await import('./client/custom-components/PdfViewerFormIO')
+        const PdfViewerRuntime = createPdfViewerClass(FieldComponent)
+        Components.setComponent('pdfViewer', PdfViewerRuntime as never)
+      }
+    } catch {
+      // If registration fails, designer behavior remains intact; renderer
+      // simply won't have the runtime components.
+    }
   }
 
   // Wrap FormBuilder so wizard schema always has at least one panel (Page 1, + PAGE).
@@ -148,6 +158,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
+          pdfViewer: true,
         },
       },
       advanced: false,

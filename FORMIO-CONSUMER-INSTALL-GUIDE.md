@@ -4,7 +4,7 @@ This guide explains how **you**, as a consumer, can get access to, install, and 
 
 The package you will install is:
 
-- **Registry package name**: `@<publishScope>/kolea-cms-formio-builder` (the repo owner sets `publishScope` in `package.json`; e.g. `@your-org/kolea-cms-formio-builder`)
+- **Registry package name**: `@<publishScope>/kolea-shared-package` (the repo owner sets `publishScope` in `package.json`; e.g. `@your-org/kolea-shared-package`)
 - **Recommended local dependency name**: `formIoBuilder`
 
 ---
@@ -95,17 +95,17 @@ You can install the package **directly by its registry name** or keep the famili
 From your project folder:
 
 ```bash
-pnpm add formIoBuilder@npm:@<publishScope>/kolea-cms-formio-builder@^1.0.0
+pnpm add formIoBuilder@npm:@<publishScope>/kolea-shared-package@^1.0.0
 ```
 
 Replace `<publishScope>` with the scope from the package (e.g. `@your-org`). This:
 
-- Installs `@<publishScope>/kolea-cms-formio-builder` from GitHub Packages.
+- Installs `@<publishScope>/kolea-shared-package` from GitHub Packages.
 - Records the dependency in `package.json` as:
 
 ```json
 "dependencies": {
-  "formIoBuilder": "npm:@<publishScope>/kolea-cms-formio-builder@^1.0.0"
+  "formIoBuilder": "npm:@<publishScope>/kolea-shared-package@^1.0.0"
 }
 ```
 
@@ -125,7 +125,7 @@ If you prefer `npm` and your version works correctly with GitHub Packages:
 
 ```json
 "dependencies": {
-  "formIoBuilder": "npm:@<publishScope>/kolea-cms-formio-builder@^1.0.0"
+  "formIoBuilder": "npm:@<publishScope>/kolea-shared-package@^1.0.0"
 }
 ```
 
@@ -158,7 +158,7 @@ When a new version is published (for example `1.1.0`):
 1. Update your `package.json` version range if needed, for example:
 
 ```json
-"formIoBuilder": "npm:@<publishScope>/kolea-cms-formio-builder@^1.1.0"
+"formIoBuilder": "npm:@<publishScope>/kolea-shared-package@^1.1.0"
 ```
 
 2. Run your package manager:

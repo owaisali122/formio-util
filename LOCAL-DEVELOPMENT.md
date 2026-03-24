@@ -8,7 +8,7 @@ In your **consumer app's** `package.json`:
 
 ```json
 "dependencies": {
-  "kolea-cms-formio-builder": "file:../kolea-cms-formio-builder"
+  "kolea-shared-package": "file:../kolea-cms-formio-builder"
 }
 ```
 
@@ -22,7 +22,7 @@ pnpm install
 
 ## 2. Build the package
 
-In **this repo** (kolea-cms-formio-builder):
+In **this repo** (kolea-shared-package):
 
 ```bash
 pnpm run build
@@ -51,7 +51,7 @@ pnpm run dev
 In the consumer's `package.json`, replace the `file:` dependency with the version from your registry, e.g.:
 
 ```json
-"kolea-cms-formio-builder": "^3.42.0"
+"kolea-shared-package": "^3.42.0"
 ```
 
 Then run `pnpm install`.

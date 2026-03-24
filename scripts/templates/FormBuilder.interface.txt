@@ -1,5 +1,5 @@
 
-/** Added by kolea-cms-formio-builder — FormBuilder (forms collection) */
+/** Added by kolea-shared-package — FormBuilder (forms collection) */
 export interface FormBuilder {
   id: number;
   title: string;

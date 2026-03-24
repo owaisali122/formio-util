@@ -4,7 +4,7 @@ This guide explains what the **repository/package owner** needs to do so that te
 
 The package name is derived from `publishScope` in this repo's `package.json`. Set it once (e.g. `"@your-org"`); the published package will be:
 
-- **Registry package name**: `@<publishScope>/kolea-cms-formio-builder` (e.g. `@your-org/kolea-cms-formio-builder`)
+- **Registry package name**: `@<publishScope>/kolea-shared-package` (e.g. `@your-org/kolea-shared-package`)
 
 ---
 
@@ -146,7 +146,7 @@ When onboarding a new teammate, share the following points:
 2. They should follow the **consumer guide** (`FORMIO-CONSUMER-INSTALL-GUIDE.md`) to:
    - Create their own PAT with `repo` + `read:packages`.
    - Configure `.npmrc` with their token.
-   - Install `formIoBuilder` using `pnpm add formIoBuilder@npm:@<publishScope>/kolea-cms-formio-builder@^1.0.0` (replace `<publishScope>` with the scope from `package.json`).
+   - Install `formIoBuilder` using `pnpm add formIoBuilder@npm:@<publishScope>/kolea-shared-package@^1.0.0` (replace `<publishScope>` with the scope from `package.json`).
 
 This keeps ownership and security with you while making it easy for others to consume the package.
 
