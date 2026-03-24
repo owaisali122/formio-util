@@ -44,12 +44,14 @@
     "scripts"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "prebuild": "node scripts/prebuild-css.cjs",
+    "build": "node scripts/prebuild-css.cjs && tsup",
+    "dev": "node scripts/prebuild-css.cjs && tsup --watch",
     "typecheck": "tsc --noEmit",
     "publish": "node scripts/release.cjs"
   },
   "dependencies": {
+    "bootstrap": "3.4.1",
     "font-awesome": "^4.7.0",
     "postgres": ">=3.4.4"
   },

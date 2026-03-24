@@ -1,34 +1,19 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
+import { registerPdfViewer } from './registries/register-pdf-viewer'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
 
-const DEFAULT_BOOTSTRAP_CSS_URL = 'https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css'
-const DEFAULT_FORMIO_CSS_URL = 'https://cdn.jsdelivr.net/npm/formiojs@4.21.7/dist/formio.full.min.css'
-const DEFAULT_FONT_AWESOME_FONTS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/fonts/'
-
 export interface RegistryConfig {
   formsListUrl?: string
-  bootstrapCssUrl?: string
-  formioCssUrl?: string
-  /** Base URL for Font Awesome font files (default `/fonts/`). Copy `node_modules/font-awesome/fonts` to `public/fonts` or set to a CDN URL. */
-  fontAwesomeFontsUrl?: string
 }
 
 let _config: RegistryConfig = {}
 
 export function configure(config: RegistryConfig): void {
   _config = { ..._config, ...config }
-  if (typeof window !== 'undefined') {
-    ; (window as unknown as { __formioConfig?: RegistryConfig }).__formioConfig = {
-      ..._config,
-      bootstrapCssUrl: _config.bootstrapCssUrl ?? DEFAULT_BOOTSTRAP_CSS_URL,
-      formioCssUrl: _config.formioCssUrl ?? DEFAULT_FORMIO_CSS_URL,
-      fontAwesomeFontsUrl: _config.fontAwesomeFontsUrl ?? DEFAULT_FONT_AWESOME_FONTS_URL,
-    }
-  }
 }
 
 /** Returns the forms list URL set via configure() or registerCustomComponents(options). Consumer app provides this. */
@@ -80,6 +65,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerAppDetailRef(Components)
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
+    await registerPdfViewer(Components)
 
     // Register runtime App Detail Ref component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -91,10 +77,14 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         const { createAppDetailRefRuntimeClass } = await import('./components/AppDetailRefRuntime')
         const AppDetailRefRuntime = createAppDetailRefRuntimeClass(FieldComponent)
         Components.setComponent('appDetailRefRuntime', AppDetailRefRuntime as never)
+
+        const { default: createPdfViewerClass } = await import('./client/custom-components/PdfViewerFormIO')
+        const PdfViewerRuntime = createPdfViewerClass(FieldComponent)
+        Components.setComponent('pdfViewer', PdfViewerRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
-      // simply won't have the runtime App Detail Ref component.
+      // simply won't have the runtime components.
     }
   }
 
@@ -168,6 +158,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
+          pdfViewer: true,
         },
       },
       advanced: false,

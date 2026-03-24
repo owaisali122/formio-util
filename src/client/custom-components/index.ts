@@ -10,3 +10,4 @@
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
 export { SearchableDropdownReact, type SearchableDropdownProps } from './SearchableDropdown'
+export { default as createPdfViewerClass } from './PdfViewerFormIO'

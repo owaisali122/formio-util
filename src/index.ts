@@ -50,3 +50,9 @@ export type { SearchableDropdownItem } from './components/SearchableDropdown'
 
 export { SearchableDropdownReact } from './components/SearchableDropdownReact'
 export type { SearchableDropdownReactProps } from './components/SearchableDropdownReact'
+
+export {
+  PdfViewerComponent,
+  PDF_VIEWER_TYPE,
+} from './components/PdfViewer'
+export type { PdfViewerSchema } from './components/PdfViewer'
