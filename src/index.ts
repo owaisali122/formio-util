@@ -38,9 +38,10 @@ export {
   runAppDetailRefInjection,
 } from './utils/formio-app-detail-ref-logic'
 
-export { SSNComponent } from './components/SSN'
-
 export { formBuilderPlugin } from './plugins/formBuilderPlugin'
+
+export { SSNComponent, SSN_TYPE } from './components/SSN'
+export type { SSNSchema } from './components/SSN'
 
 export {
   SearchableDropdownComponent,
@@ -56,3 +57,15 @@ export {
   PDF_VIEWER_TYPE,
 } from './components/PdfViewer'
 export type { PdfViewerSchema } from './components/PdfViewer'
+
+export {
+  FileUploadComponent,
+  FILE_UPLOAD_TYPE,
+} from './components/FileUpload'
+export type { FileUploadSchema } from './components/FileUpload'
+
+export {
+  OverlayPopupComponent,
+  OVERLAY_POPUP_TYPE,
+} from './components/OverlayPopup'
+export type { OverlayPopupSchema } from './components/OverlayPopup'

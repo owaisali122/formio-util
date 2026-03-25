@@ -16,6 +16,8 @@ export default function createPdfViewerClass(FieldComponent: any) {
   return class PdfViewerFormIO extends FieldComponent {
     pdfIframe: HTMLIFrameElement | null = null
     resolvedUrl: string = ''
+    _cachedSource: string = ''
+    _cachedSourceType: string = ''
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(PdfViewerComponent.schema(), ...extend)
@@ -76,10 +78,23 @@ export default function createPdfViewerClass(FieldComponent: any) {
       })
 
       const content = (this.refs as any)?.pdfContent as HTMLElement | undefined
-      if (content) {
-        this.loadPdf(content)
+      if (!content) return result
+
+      // If source hasn't changed and we already have a loaded iframe,
+      // move it into the new container (avoids reload on every form redraw).
+      const currentSource = this.pdfSource
+      const currentType = this.sourceType
+      if (
+        this.pdfIframe &&
+        this._cachedSource === currentSource &&
+        this._cachedSourceType === currentType
+      ) {
+        content.innerHTML = ''
+        content.appendChild(this.pdfIframe)
+        return result
       }
 
+      this.loadPdf(content)
       return result
     }
 
@@ -141,6 +156,9 @@ export default function createPdfViewerClass(FieldComponent: any) {
 
       this.pdfIframe = iframe
       container.appendChild(iframe)
+
+      this._cachedSource = this.pdfSource
+      this._cachedSourceType = this.sourceType
     }
 
     showPlaceholder(container: HTMLElement, message: string) {
@@ -155,6 +173,8 @@ export default function createPdfViewerClass(FieldComponent: any) {
     destroy() {
       this.pdfIframe = null
       this.resolvedUrl = ''
+      this._cachedSource = ''
+      this._cachedSourceType = ''
       super.destroy()
     }
   }

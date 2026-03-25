@@ -4,7 +4,7 @@
  * Exports:
  * - FormIORenderSingleWithSlug - Render single form from schema
  * - FormIORenderWizardWithSlug - Render wizard form from schema
- * - Custom components (SSN, SearchableDropdown)
+ * - Custom components (SearchableDropdown)
  */
 
 export { default as FormIORenderSingleWithSlug } from './FormIORenderSingleWithSlug'
