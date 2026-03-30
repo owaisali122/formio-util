@@ -4,7 +4,6 @@ export interface ProfileFieldSectionSchema {
   type: string
   label: string
   key: string
-  legend: string
   input: boolean
   persistent: boolean
   components: Record<string, unknown>[]
@@ -79,10 +78,9 @@ function defaultChildComponents(): Record<string, unknown>[] {
 export class ProfileFieldSectionComponent {
   static schema(overrides?: Record<string, unknown>): ProfileFieldSectionSchema {
     return {
-      type: PROFILE_FIELD_SECTION_TYPE,
+      type: 'container',
       label: 'Profile Fields Section',
       key: 'profileFieldsSection',
-      legend: 'Profile Fields Section',
       input: false,
       persistent: false,
       components: defaultChildComponents(),
