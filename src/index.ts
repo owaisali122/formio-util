@@ -69,3 +69,9 @@ export {
   OVERLAY_POPUP_TYPE,
 } from './components/OverlayPopup'
 export type { OverlayPopupSchema } from './components/OverlayPopup'
+
+export {
+  ProfileFieldSectionComponent,
+  PROFILE_FIELD_SECTION_TYPE,
+} from './components/ProfileFieldSection'
+export type { ProfileFieldSectionSchema } from './components/ProfileFieldSection'

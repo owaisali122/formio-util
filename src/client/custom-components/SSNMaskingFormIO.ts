@@ -167,18 +167,28 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
       const inp = this._inputEl!
       const pos = inp.selectionStart || 0
       this._rawValue = this._digits(inp.value)
-      inp.value = this._format(this._rawValue)
-      // Adjust cursor for inserted dashes
-      let newPos = pos
-      if (this._rawValue.length > 3 && pos > 3) newPos++
-      if (this._rawValue.length > 5 && pos > 6) newPos++
-      const max = inp.value.length
-      inp.setSelectionRange(Math.min(newPos, max), Math.min(newPos, max))
+      // Show formatted digits while typing only when revealed; otherwise
+      // keep the masked view — the raw value is still captured above.
+      if (this._revealed) {
+        inp.value = this._format(this._rawValue)
+        // Adjust cursor for inserted dashes
+        let newPos = pos
+        if (this._rawValue.length > 3 && pos > 3) newPos++
+        if (this._rawValue.length > 5 && pos > 6) newPos++
+        const max = inp.value.length
+        inp.setSelectionRange(Math.min(newPos, max), Math.min(newPos, max))
+      } else {
+        inp.value = this._masked()
+      }
       this._commit()
     }
 
     _onFocus() {
-      if (this._rawValue) this._inputEl!.value = this._format(this._rawValue)
+      // Only show raw digits when the eye toggle has revealed the value;
+      // otherwise keep the masked display so focus alone never exposes the SSN.
+      if (this._revealed && this._rawValue) {
+        this._inputEl!.value = this._format(this._rawValue)
+      }
     }
 
     _onBlur() {
@@ -198,8 +208,7 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
     _toggle() {
       this._revealed = !this._revealed
       if (this._toggleEl) this._setToggleIcon(this._toggleEl)
-      // Only update display if field is not focused (user may be editing)
-      if (document.activeElement !== this._inputEl) this._syncDisplay()
+      this._syncDisplay()
     }
 
     _setToggleIcon(btn: HTMLButtonElement) {
@@ -210,7 +219,7 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
     // ── Display helpers ──
 
     _syncDisplay() {
-      if (!this._inputEl || document.activeElement === this._inputEl) return
+      if (!this._inputEl) return
       if (!this._rawValue) { this._inputEl.value = ''; return }
       this._inputEl.value = this._revealed ? this._format(this._rawValue) : this._masked()
     }

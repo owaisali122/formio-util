@@ -4,6 +4,7 @@ import { registerSearchableDropdown } from './registries/register-searchable-dro
 import { registerPdfViewer } from './registries/register-pdf-viewer'
 import { registerFileUpload } from './registries/register-file-upload'
 import { registerOverlayPopup } from './registries/register-overlay-popup'
+import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -70,6 +71,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerPdfViewer(Components)
     await registerFileUpload(Components)
     await registerOverlayPopup(Components)
+    await registerProfileFieldSection(Components)
 
     // Register runtime App Detail Ref component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -253,6 +255,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           columns: true,
           panel: true,
           well: true,
+          profileFieldSection: true,
         },
       },
       data: { default: false },
