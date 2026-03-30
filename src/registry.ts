@@ -164,6 +164,27 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
           Components.setComponent('ssn', SSNRuntime as never)
         }
+
+        const FieldsetComponent = (FormioModuleObj.Components as any)?.components?.fieldset
+        if (FieldsetComponent) {
+          const { default: createProfileFieldSectionClass } = await import('./client/custom-components/ProfileFieldSectionFormIO')
+          const ProfileFieldSectionRuntime = createProfileFieldSectionClass(FieldsetComponent)
+          const ExistingProfileFieldSection = (Components as any).components?.profileFieldSection
+          if (ExistingProfileFieldSection) {
+            if (ExistingProfileFieldSection.editForm) ProfileFieldSectionRuntime.editForm = ExistingProfileFieldSection.editForm
+            if (ExistingProfileFieldSection.builderInfo) {
+              Object.defineProperty(ProfileFieldSectionRuntime, 'builderInfo', {
+                get: () => ExistingProfileFieldSection.builderInfo,
+                configurable: true,
+              })
+            }
+            const origProfileSchema = ExistingProfileFieldSection.schema
+            if (typeof origProfileSchema === 'function') {
+              ProfileFieldSectionRuntime.schema = origProfileSchema.bind(ExistingProfileFieldSection)
+            }
+          }
+          Components.setComponent('profileFieldSection', ProfileFieldSectionRuntime as never)
+        }
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer

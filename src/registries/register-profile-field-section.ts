@@ -2,7 +2,6 @@ import { ProfileFieldSectionComponent, PROFILE_FIELD_SECTION_TYPE } from '../com
 import type { FormioComponents } from './types'
 
 export async function registerProfileFieldSection(Components: FormioComponents): Promise<void> {
-  // Use fieldset as the base — it extends NestedComponent and supports child components.
   const FieldsetComponent = (Components.components as any).fieldset as any
 
   class ProfileFieldSection extends FieldsetComponent {
@@ -14,8 +13,50 @@ export async function registerProfileFieldSection(Components: FormioComponents):
       return ProfileFieldSectionComponent.builderInfo
     }
 
-    // No editForm override — inherits from FieldsetComponent so the builder
-    // provides all standard tabs and allows normal child component editing.
+  static editForm(...extend: any[]) {
+  const baseEditForm = FieldsetComponent.editForm
+    ? FieldsetComponent.editForm(...extend)
+    : { components: [] }
+
+  return {
+    ...baseEditForm,
+    components: (baseEditForm.components || []).map((item: any) => {
+      if (item.key === 'tabs' && Array.isArray(item.components)) {
+        return {
+          ...item,
+          components: item.components
+            .filter((tab: any) => tab.key !== 'layout')
+            .map((tab: any) => {
+              if (tab.key === 'api' && Array.isArray(tab.components)) {
+                return {
+                  ...tab,
+                  components: tab.components.map((field: any) => {
+                    if (field.key === 'key') {
+                      return {
+                        ...field,
+                        label: 'Property Name (Optional)',
+                        required: false,
+                        validate: {
+                          ...(field.validate || {}),
+                          required: false,
+                        },
+                      }
+                    }
+
+                    return field
+                  }),
+                }
+              }
+
+              return tab
+            }),
+        }
+      }
+
+      return item
+    }),
+  }
+}
 
     get defaultSchema() {
       return ProfileFieldSection.schema()
