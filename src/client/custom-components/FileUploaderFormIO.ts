@@ -7,8 +7,7 @@
  * Schema properties (from designer):
  *   type: 'fileUploader', uploadButtonLabel, uploadIcon, multiple,
  *   allowedFileTypes, acceptedExtensions, maxFileSize, maxFiles,
- *   deferredUpload, allowRemove, showFileList, showFileSize,
- *   scanEnabled, scanRequired, showScanStatus
+ *   deferredUpload, allowRemove, showFileList, showFileSize, scanEnabled
  */
 
 import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../../components/FileUploader'

@@ -20,8 +20,6 @@ export interface FileUploaderSchema {
   showFileList: boolean
   showFileSize: boolean
   scanEnabled: boolean
-  scanRequired: boolean
-  showScanStatus: boolean
   [k: string]: unknown
 }
 
@@ -47,8 +45,6 @@ export class FileUploaderComponent {
       showFileList: true,
       showFileSize: true,
       scanEnabled: false,
-      scanRequired: false,
-      showScanStatus: false,
       ...overrides,
     }
   }
@@ -253,24 +249,6 @@ export class FileUploaderComponent {
                   defaultValue: false,
                   description: 'Enable virus/malware scanning on uploaded files.',
                   weight: 10,
-                },
-                {
-                  type: 'checkbox',
-                  key: 'scanRequired',
-                  label: 'Scan Required Before Submit',
-                  input: true,
-                  defaultValue: false,
-                  description: 'Require files to pass scanning before the form can be submitted.',
-                  weight: 20,
-                },
-                {
-                  type: 'checkbox',
-                  key: 'showScanStatus',
-                  label: 'Show Scan Status',
-                  input: true,
-                  defaultValue: false,
-                  description: 'Display a scan status indicator next to each file.',
-                  weight: 30,
                 },
               ],
             },
