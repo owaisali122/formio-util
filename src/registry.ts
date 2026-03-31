@@ -3,6 +3,7 @@ import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
 // import { registerPdfViewer } from './registries/register-pdf-viewer' // removed
 // import { registerFileUpload } from './registries/register-file-upload' // removed
+import { registerFileUploader } from './registries/register-file-uploader'
 import { registerOverlayPopup } from './registries/register-overlay-popup'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import type { FormioComponents } from './registries/types'
@@ -70,6 +71,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerSearchableDropdown(Components)
     // await registerPdfViewer(Components) // removed
     // await registerFileUpload(Components) // removed
+    await registerFileUploader(Components)
     await registerOverlayPopup(Components)
     await registerProfileFieldSection(Components)
 
@@ -91,6 +93,24 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // PdfViewer runtime registration removed
 
         // FileUpload runtime registration removed
+
+        const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploaderFormIO')
+        const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
+        const ExistingFileUploader = (Components as any).components?.fileUploader
+        if (ExistingFileUploader) {
+          if (ExistingFileUploader.editForm) FileUploaderRuntime.editForm = ExistingFileUploader.editForm
+          if (ExistingFileUploader.builderInfo) {
+            Object.defineProperty(FileUploaderRuntime, 'builderInfo', {
+              get: () => ExistingFileUploader.builderInfo,
+              configurable: true,
+            })
+          }
+          const origFileUploaderSchema = ExistingFileUploader.schema
+          if (typeof origFileUploaderSchema === 'function') {
+            FileUploaderRuntime.schema = origFileUploaderSchema.bind(ExistingFileUploader)
+          }
+        }
+        Components.setComponent('fileUploader', FileUploaderRuntime as never)
 
         const { default: createOverlayPopupClass } = await import('./client/custom-components/OverlayPopupFormIO')
         const OverlayPopupRuntime = createOverlayPopupClass(FieldComponent)
@@ -232,6 +252,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           searchableDropdown: true,
           pdfViewer: true,
           fileUpload: true,
+          fileUploader: true,
           overlayPopup: true,
         },
       },

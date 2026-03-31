@@ -57,6 +57,12 @@ export type { SearchableDropdownReactProps } from './components/SearchableDropdo
 // ...FileUpload exports removed...
 
 export {
+  FileUploaderComponent,
+  FILE_UPLOADER_TYPE,
+} from './components/FileUploader'
+export type { FileUploaderSchema } from './components/FileUploader'
+
+export {
   OverlayPopupComponent,
   OVERLAY_POPUP_TYPE,
 } from './components/OverlayPopup'
