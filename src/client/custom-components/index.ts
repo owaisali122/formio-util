@@ -8,8 +8,8 @@
 
 export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
 export { SearchableDropdownReact, type SearchableDropdownProps } from './SearchableDropdown'
-export { default as createPdfViewerClass } from './PdfViewerFormIO'
-export { default as createFileUploadClass } from './FileUploadFormIO'
+// ...createPdfViewerClass removed...
+// ...createFileUploadClass removed...
 export { default as createOverlayPopupClass } from './OverlayPopupFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'

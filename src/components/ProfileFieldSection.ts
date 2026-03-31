@@ -79,7 +79,7 @@ export class ProfileFieldSectionComponent {
   static schema(overrides?: Record<string, unknown>): ProfileFieldSectionSchema {
     return {
       type: 'container',
-      label: 'Profile Fields Section',
+      label: 'Profile Fields',
       key: 'profileFieldsSection',
       input: false,
       persistent: false,
@@ -90,7 +90,7 @@ export class ProfileFieldSectionComponent {
 
   static get builderInfo() {
     return {
-      title: 'Profile Fields Section',
+      title: 'Profile Fields',
       group: 'layout',
       icon: 'th-list',
       weight: 25,

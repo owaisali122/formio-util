@@ -1,8 +1,8 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
-import { registerPdfViewer } from './registries/register-pdf-viewer'
-import { registerFileUpload } from './registries/register-file-upload'
+// import { registerPdfViewer } from './registries/register-pdf-viewer' // removed
+// import { registerFileUpload } from './registries/register-file-upload' // removed
 import { registerOverlayPopup } from './registries/register-overlay-popup'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import type { FormioComponents } from './registries/types'
@@ -68,8 +68,8 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerAppDetailRef(Components)
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
-    await registerPdfViewer(Components)
-    await registerFileUpload(Components)
+    // await registerPdfViewer(Components) // removed
+    // await registerFileUpload(Components) // removed
     await registerOverlayPopup(Components)
     await registerProfileFieldSection(Components)
 
@@ -88,41 +88,9 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
 
-        const { default: createPdfViewerClass } = await import('./client/custom-components/PdfViewerFormIO')
-        const PdfViewerRuntime = createPdfViewerClass(FieldComponent)
-        const ExistingPdfViewer = (Components as any).components?.pdfViewer
-        if (ExistingPdfViewer) {
-          if (ExistingPdfViewer.editForm) PdfViewerRuntime.editForm = ExistingPdfViewer.editForm
-          if (ExistingPdfViewer.builderInfo) {
-            Object.defineProperty(PdfViewerRuntime, 'builderInfo', {
-              get: () => ExistingPdfViewer.builderInfo,
-              configurable: true,
-            })
-          }
-          const origPdfSchema = ExistingPdfViewer.schema
-          if (typeof origPdfSchema === 'function') {
-            PdfViewerRuntime.schema = origPdfSchema.bind(ExistingPdfViewer)
-          }
-        }
-        Components.setComponent('pdfViewer', PdfViewerRuntime as never)
+        // PdfViewer runtime registration removed
 
-        const { default: createFileUploadClass } = await import('./client/custom-components/FileUploadFormIO')
-        const FileUploadRuntime = createFileUploadClass(FieldComponent)
-        const ExistingFileUpload = (Components as any).components?.fileUpload
-        if (ExistingFileUpload) {
-          if (ExistingFileUpload.editForm) FileUploadRuntime.editForm = ExistingFileUpload.editForm
-          if (ExistingFileUpload.builderInfo) {
-            Object.defineProperty(FileUploadRuntime, 'builderInfo', {
-              get: () => ExistingFileUpload.builderInfo,
-              configurable: true,
-            })
-          }
-          const origFileSchema = ExistingFileUpload.schema
-          if (typeof origFileSchema === 'function') {
-            FileUploadRuntime.schema = origFileSchema.bind(ExistingFileUpload)
-          }
-        }
-        Components.setComponent('fileUpload', FileUploadRuntime as never)
+        // FileUpload runtime registration removed
 
         const { default: createOverlayPopupClass } = await import('./client/custom-components/OverlayPopupFormIO')
         const OverlayPopupRuntime = createOverlayPopupClass(FieldComponent)

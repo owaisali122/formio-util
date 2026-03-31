@@ -52,17 +52,9 @@ export type { SearchableDropdownItem } from './components/SearchableDropdown'
 export { SearchableDropdownReact } from './components/SearchableDropdownReact'
 export type { SearchableDropdownReactProps } from './components/SearchableDropdownReact'
 
-export {
-  PdfViewerComponent,
-  PDF_VIEWER_TYPE,
-} from './components/PdfViewer'
-export type { PdfViewerSchema } from './components/PdfViewer'
+// ...PdfViewer exports removed...
 
-export {
-  FileUploadComponent,
-  FILE_UPLOAD_TYPE,
-} from './components/FileUpload'
-export type { FileUploadSchema } from './components/FileUpload'
+// ...FileUpload exports removed...
 
 export {
   OverlayPopupComponent,
