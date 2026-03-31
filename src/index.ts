@@ -52,10 +52,6 @@ export type { SearchableDropdownItem } from './components/SearchableDropdown'
 export { SearchableDropdownReact } from './components/SearchableDropdownReact'
 export type { SearchableDropdownReactProps } from './components/SearchableDropdownReact'
 
-// ...PdfViewer exports removed...
-
-// ...FileUpload exports removed...
-
 export {
   FileUploaderComponent,
   FILE_UPLOADER_TYPE,

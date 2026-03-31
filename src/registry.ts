@@ -1,8 +1,6 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
-// import { registerPdfViewer } from './registries/register-pdf-viewer' // removed
-// import { registerFileUpload } from './registries/register-file-upload' // removed
 import { registerFileUploader } from './registries/register-file-uploader'
 import { registerOverlayPopup } from './registries/register-overlay-popup'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
@@ -69,8 +67,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerAppDetailRef(Components)
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
-    // await registerPdfViewer(Components) // removed
-    // await registerFileUpload(Components) // removed
     await registerFileUploader(Components)
     await registerOverlayPopup(Components)
     await registerProfileFieldSection(Components)
@@ -89,10 +85,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // For each runtime class, preserve the designer statics (editForm,
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
-
-        // PdfViewer runtime registration removed
-
-        // FileUpload runtime registration removed
 
         const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploaderFormIO')
         const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
@@ -251,7 +243,6 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           ssn: true,
           searchableDropdown: true,
           pdfViewer: true,
-          fileUpload: true,
           fileUploader: true,
           overlayPopup: true,
         },
