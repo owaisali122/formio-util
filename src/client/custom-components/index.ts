@@ -12,3 +12,15 @@ export { default as createFileUploaderClass } from './FileUploaderFormIO'
 export { default as createOverlayPopupClass } from './OverlayPopupFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
+export {
+  createTanStackTableClass,
+  DataGridReact,
+  type DataGridReactProps,
+  fetchServerData,
+  resolvePath,
+  type DataGridFetchParams,
+  type DataGridFetchResult,
+  type DataGridGroupRow,
+  type DataGridRow,
+  type DataGridServiceConfig,
+} from './data-grid'

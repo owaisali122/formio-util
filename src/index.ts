@@ -69,3 +69,9 @@ export {
   PROFILE_FIELD_SECTION_TYPE,
 } from './components/ProfileFieldSection'
 export type { ProfileFieldSectionSchema } from './components/ProfileFieldSection'
+
+export {
+  TanStackTableComponent,
+  TANSTACK_TABLE_TYPE,
+} from './components/DataGrid'
+export type { DataGridSchema, DataGridColumn } from './components/DataGrid'

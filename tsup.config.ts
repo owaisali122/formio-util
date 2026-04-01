@@ -11,8 +11,8 @@ export default defineConfig({
   format: ['cjs', 'esm'],
   dts: true,
   sourcemap: true,
-  clean: true,
-  external: ['formiojs', 'react', 'react-dom', 'react-select', 'react-select/async'],
+  clean: false,
+  external: ['formiojs', 'react', 'react-dom', 'react-select', 'react-select/async', '@tanstack/react-table'],
   splitting: false,
   treeshake: true,
   esbuildOptions(options) {

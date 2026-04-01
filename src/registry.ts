@@ -4,6 +4,7 @@ import { registerSearchableDropdown } from './registries/register-searchable-dro
 import { registerFileUploader } from './registries/register-file-uploader'
 import { registerOverlayPopup } from './registries/register-overlay-popup'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
+import { registerTanStackTable } from './registries/register-data-grid'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -70,6 +71,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileUploader(Components)
     await registerOverlayPopup(Components)
     await registerProfileFieldSection(Components)
+    await registerTanStackTable(Components)
 
     // Register runtime App Detail Ref component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -165,6 +167,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
           Components.setComponent('profileFieldSection', ProfileFieldSectionRuntime as never)
         }
+
+        // TanStack Table runtime
+        const { default: createTanStackTableClass } = await import('./client/custom-components/data-grid/DataGridFormIO')
+        const TanStackTableRuntime = createTanStackTableClass(FieldComponent)
+        const ExistingTanStackTable = (Components as any).components?.tanstackTable
+        if (ExistingTanStackTable) {
+          if (ExistingTanStackTable.editForm) TanStackTableRuntime.editForm = ExistingTanStackTable.editForm
+          if (ExistingTanStackTable.builderInfo) {
+            Object.defineProperty(TanStackTableRuntime, 'builderInfo', {
+              get: () => ExistingTanStackTable.builderInfo,
+              configurable: true,
+            })
+          }
+          const origTanStackTableSchema = ExistingTanStackTable.schema
+          if (typeof origTanStackTableSchema === 'function') {
+            TanStackTableRuntime.schema = origTanStackTableSchema.bind(ExistingTanStackTable)
+          }
+        }
+        Components.setComponent('tanstackTable', TanStackTableRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
@@ -242,9 +263,9 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
-          pdfViewer: true,
           fileUploader: true,
           overlayPopup: true,
+          tanstackTable: true,
         },
       },
       advanced: false,

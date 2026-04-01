@@ -56,12 +56,14 @@
     "postgres": ">=3.4.4"
   },
   "peerDependencies": {
+    "@tanstack/react-table": ">=8.0.0",
     "formiojs": "^4.21.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "react-select": ">=5.0.0"
   },
   "devDependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "formiojs": "^4.21.7",
