@@ -9,7 +9,6 @@
 export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
 export { SearchableDropdownReact, type SearchableDropdownProps } from './SearchableDropdown'
 export { default as createFileUploaderClass } from './FileUploaderFormIO'
-export { default as createOverlayPopupClass } from './OverlayPopupFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
 export {

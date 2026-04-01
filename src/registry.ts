@@ -2,7 +2,6 @@ import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registrie
 import { registerSSN } from './registries/register-ssn'
 import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
 import { registerFileUploader } from './registries/register-file-uploader'
-import { registerOverlayPopup } from './registries/register-overlay-popup'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
 import type { FormioComponents } from './registries/types'
@@ -69,7 +68,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerSSN(Components)
     await registerSearchableDropdown(Components)
     await registerFileUploader(Components)
-    await registerOverlayPopup(Components)
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)
 
@@ -105,24 +103,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileUploader', FileUploaderRuntime as never)
-
-        const { default: createOverlayPopupClass } = await import('./client/custom-components/OverlayPopupFormIO')
-        const OverlayPopupRuntime = createOverlayPopupClass(FieldComponent)
-        const ExistingOverlayPopup = (Components as any).components?.overlayPopup
-        if (ExistingOverlayPopup) {
-          if (ExistingOverlayPopup.editForm) OverlayPopupRuntime.editForm = ExistingOverlayPopup.editForm
-          if (ExistingOverlayPopup.builderInfo) {
-            Object.defineProperty(OverlayPopupRuntime, 'builderInfo', {
-              get: () => ExistingOverlayPopup.builderInfo,
-              configurable: true,
-            })
-          }
-          const origOverlaySchema = ExistingOverlayPopup.schema
-          if (typeof origOverlaySchema === 'function') {
-            OverlayPopupRuntime.schema = origOverlaySchema.bind(ExistingOverlayPopup)
-          }
-        }
-        Components.setComponent('overlayPopup', OverlayPopupRuntime as never)
 
         const TextFieldComponent = (FormioModuleObj.Components as any)?.components?.textfield
         if (TextFieldComponent) {
@@ -264,7 +244,6 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           ssn: true,
           searchableDropdown: true,
           fileUploader: true,
-          overlayPopup: true,
           tanstackTable: true,
         },
       },
