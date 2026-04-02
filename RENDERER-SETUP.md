@@ -1,8 +1,7 @@
 # Renderer Setup (Install to Usage)
 
 This is the minimal setup for a consumer app that wants to use:
-- `FormIORenderSingleWithSlug`
-- `FormIORenderWizardWithSlug` (managed mode)
+- `FormIORenderWithSlug` (unified entry point for both single forms and wizard managed mode)
 
 ## 1) Install
 
@@ -88,11 +87,11 @@ import { getFormBySlug } from 'kolea-shared-package/server'
 ```tsx
 'use client'
 
-import { FormIORenderSingleWithSlug } from 'kolea-shared-package/client'
+import { FormIORenderWithSlug } from 'kolea-shared-package/client'
 
 export default function ContactFormPage() {
   return (
-    <FormIORenderSingleWithSlug
+    <FormIORenderWithSlug
       slug="contact-us"
       onSubmit={async (data) => {
         await fetch('/api/forms/submit', {
@@ -116,7 +115,7 @@ export default function ContactFormPage() {
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { FormIORenderWizardWithSlug } from 'kolea-shared-package/client'
+import { FormIORenderWithSlug } from 'kolea-shared-package/client'
 
 export default function WizardNewPage() {
   const router = useRouter()
@@ -125,7 +124,7 @@ export default function WizardNewPage() {
   const [recordId, setRecordId] = useState<number | null>(null)
 
   return (
-    <FormIORenderWizardWithSlug
+    <FormIORenderWithSlug
       slug={slug}
       recordId={recordId ?? undefined}
       createRecord={async (data) => {
@@ -162,7 +161,7 @@ export default function WizardNewPage() {
 'use client'
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { FormIORenderWizardWithSlug } from 'kolea-shared-package/client'
+import { FormIORenderWithSlug } from 'kolea-shared-package/client'
 
 export default function WizardEditPage() {
   const params = useParams()
@@ -172,7 +171,7 @@ export default function WizardEditPage() {
   const recordId = Number(params.id)
 
   return (
-    <FormIORenderWizardWithSlug
+    <FormIORenderWithSlug
       slug={slug}
       recordId={recordId}
       loadRecord={async (id) => {

@@ -157,63 +157,26 @@ export function MyForm({ schema }: Props) {
 
 #### 3.2. Rendering by form slug (recommended pattern)
 
-This pattern matches the conceptual flow in `formio-renderer-integration.md`.
+The library provides `FormIORenderWithSlug`, a unified entry point that handles schema fetching,
+display type detection (single form vs wizard), and rendering internally.
 
 ```typescript
 'use client'
 
-import { useEffect, useState } from 'react'
-import { FormRenderer, type FormRendererSchema } from 'kolea-shared-package'
+import { FormIORenderWithSlug } from 'kolea-shared-package/client'
 
-type Props = {
-  slug: string
-}
-
-export function FormIORenderSingleWithSlug({ slug }: Props) {
-  const [schema, setSchema] = useState<FormRendererSchema | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadSchema() {
-      try {
-        setError(null)
-        setSchema(null)
-
-        const base = process.env.NEXT_PUBLIC_FORMBUILDER_API // e.g. https://cms.example.com/api/formBuilder
-        const url = `${base}?where[slug][equals]=${encodeURIComponent(slug)}`
-        const res = await fetch(url)
-        if (!res.ok) throw new Error(`Form not found: ${slug}`)
-
-        const json = await res.json()
-        const doc = json.docs?.[0] ?? json
-        const schema = (doc.schema ?? doc) as FormRendererSchema
-
-        if (!cancelled) setSchema(schema)
-      } catch (err: any) {
-        if (!cancelled) setError(err?.message ?? 'Failed to load form')
-      }
-    }
-
-    void loadSchema()
-    return () => {
-      cancelled = true
-    }
-  }, [slug])
-
-  if (error) return <div>Error: {error}</div>
-  if (!schema) return <div>Loading form…</div>
-
+export default function ContactFormPage() {
   return (
-    <FormRenderer
-      schema={schema}
+    <FormIORenderWithSlug
+      slug="contact-us"
       onSubmit={async (data) => {
         await fetch('/api/forms/submit', {
           method: 'POST',
-          body: JSON.stringify({ formSlug: slug, data }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data }),
         })
       }}
+      onError={(msg) => console.error(msg)}
     />
   )
 }

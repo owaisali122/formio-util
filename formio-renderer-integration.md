@@ -26,33 +26,41 @@ The renderer will fetch forms via: `{formsListUrl}?where[slug][equals]=your-form
 
 ---
 
-## Wrapper Components
+## Wrapper Component
 
-The library provides wrapper components that handle all complexity internally:
+The library provides a unified wrapper component that handles all complexity internally.
+It inspects the form schema `display` field and automatically routes to the correct render flow (single form or wizard).
 
-### FormIORenderSingleWithSlug
-For single-page forms. State management included.
+### FormIORenderWithSlug
+Unified entry point for both single-page forms and wizard forms.
 
 ```typescript
-interface FormIORenderSingleWithSlug {
+interface FormIORenderWithSlugProps {
   slug: string
+
+  // Common
   initialData?: Record<string, any>
-  onSubmit: (data: Record<string, any>) => Promise<void>
-  onError?: (error: Error) => void
-}
-```
+  onError?: (error: string) => void
 
-### FormIORenderWizardWithSlug
-For multi-step forms. Navigation and state managed internally.
+  // Single form mode (display === "form")
+  onSubmit?: (data: Record<string, any>, formInstanceRef?: React.MutableRefObject<any>) => void | Promise<void>
+  onCancel?: () => void
 
-```typescript
-interface FormIORenderWizardWithSlug {
-  slug: string
-  onSuccess: () => void
-  onError?: (error: Error) => void
-  onNext?: (state: { formInstanceRef: RefObject, slug: string }) => void
-  onPrevious?: (state: { formInstanceRef: RefObject, slug: string }) => void
-  onSaveExit?: (state: { formInstanceRef: RefObject, slug: string }) => void
+  // Wizard mode (display === "wizard")
+  recordId?: number | null
+  initialPage?: number
+  maxFilledStep?: number
+  onSuccess?: () => void
+  onPrevious?: (state: WizardState) => void | Promise<void>
+  onNext?: (state: WizardState) => void | Promise<void>
+  onSaveExit?: (state: WizardState) => void | Promise<void>
+  navigationClassName?: string
+  loadRecord?: (recordId: number) => LoadRecordResult | Promise<LoadRecordResult>
+  saveRecord?: (recordId: number, data: Record<string, any>, step: number) => Promise<boolean>
+  createRecord?: (data: Record<string, any>) => Promise<{ id: number } | null>
+  onRecordCreated?: (recordId: number, data?: Record<string, any>, step?: number) => void
+  onExit?: () => void
+  getWizardEditUrl?: (recordId: number, step: number) => string
 }
 ```
 
@@ -73,7 +81,7 @@ interface FormIORenderWizardWithSlug {
 Render a form with submit handler:
 
 ```typescript
-<FormIORenderSingleWithSlug
+<FormIORenderWithSlug
   slug="user-registration"
   initialData={prefillData}
   onSubmit={async (data) => {
@@ -97,17 +105,16 @@ Render a form with submit handler:
 
 ## Wizard Form
 
-Use a wizard wrapper component. All state and navigation handled internally:
+Use the same unified wrapper component. All state and navigation handled internally:
 
 ```typescript
-<FormIORenderWizardWithSlug
+<FormIORenderWithSlug
   slug="wizard-form"
   onSuccess={() => router.push('/submissions')}
   onError={(err) => console.error(err)}
   onNext={(state) => {
     // Auto-triggered: Next clicked
     // state.formInstanceRef.current = form instance
-    // state.slug = form slug
   }}
   onPrevious={(state) => {
     // Auto-triggered: Previous clicked

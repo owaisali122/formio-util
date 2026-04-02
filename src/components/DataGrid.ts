@@ -312,6 +312,16 @@ export class TanStackTableComponent {
               label: 'Data Source',
               key: 'dataSourceTab',
               components: [
+                { type: 'textfield', key: 'apiEndpoint', label: 'API Endpoint', input: true, placeholder: '/api/data', description: 'URL for data fetching. Used when no renderer-side fetchData handler is registered.', weight: 10 },
+                {
+                  type: 'select',
+                  key: 'apiMethod',
+                  label: 'HTTP Method',
+                  input: true,
+                  defaultValue: 'GET',
+                  data: { values: [{ label: 'GET', value: 'GET' }, { label: 'POST', value: 'POST' }] },
+                  weight: 20,
+                },
                 { type: 'textfield', key: 'dataPath', label: 'Data Path in Response', input: true, defaultValue: 'data', description: 'Dot-path to rows array in response (e.g. "data", "results.items")', weight: 30 },
                 { type: 'textfield', key: 'totalCountPath', label: 'Total Count Path', input: true, defaultValue: 'total', description: 'Dot-path to total row count in response', weight: 40 },
                 { type: 'textfield', key: 'pageParamName', label: 'Page Param Name', input: true, defaultValue: 'page', weight: 50 },

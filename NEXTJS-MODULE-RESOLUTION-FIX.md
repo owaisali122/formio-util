@@ -105,4 +105,4 @@ You can keep a path alias for types if you want, but the **dependency** (Step 2)
 After that, both of these should resolve:
 
 - `import { BootstrapProvider, configure } from 'kolea-shared-package'`
-- `import { FormIORenderSingleWithSlug } from 'kolea-shared-package/client'`
+- `import { FormIORenderWithSlug } from 'kolea-shared-package/client'`

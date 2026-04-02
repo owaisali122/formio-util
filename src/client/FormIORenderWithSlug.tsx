@@ -25,46 +25,6 @@ export interface WizardState {
 /** Result of loading a record for edit; step is 0-based. */
 export type LoadRecordResult = { data: Record<string, any>; step?: number } | null
 
-/**
- * Wrapper for wizard form: loads schema by slug, hides default wizard buttons,
- * renders custom Previous / Save & Exit / Next (or Submit) buttons.
- *
- * Managed mode (recommended): pass loadRecord + saveRecord + getWizardEditUrl + onExit (edit)
- * or createRecord + onRecordCreated + onExit (new). Library then handles load, save, step, URL, and exit.
- * Unmanaged: pass initialData/initialPage/maxFilledStep and onPrevious/onNext/onSaveExit; app does all API and URL.
- */
-interface FormIORenderWizardWithSlugProps {
-  slug: string
-  recordId?: number | null
-  initialData?: Record<string, any>
-  initialPage?: number
-  maxFilledStep?: number
-  onSuccess?: () => void
-  onError?: (error: string) => void
-  /** Called when Previous is clicked; app does wizard.prevPage() and URL update. */
-  onPrevious?: (state: WizardState) => void | Promise<void>
-  /** Called only when current step is valid; app does API call and redirect / wizard.nextPage(). */
-  onNext?: (state: WizardState) => void | Promise<void>
-  /** Called when Save & Exit is clicked; app saves data and redirects to list. */
-  onSaveExit?: (state: WizardState) => void | Promise<void>
-  /** Optional class name for the navigation buttons container. */
-  navigationClassName?: string
-
-  // --- Managed mode: library does load, save, URL, exit ---
-  /** Load record for edit; return { data, step } or Promise. Sync return (e.g. from cache) avoids loading flash. */
-  loadRecord?: (recordId: number) => LoadRecordResult | Promise<LoadRecordResult>
-  /** Save record (edit). Library calls with (recordId, dataWithStep, step). Library adds _wizardStep to data. */
-  saveRecord?: (recordId: number, data: Record<string, any>, step: number) => Promise<boolean>
-  /** Create record (new). Library calls on first Next or Save & Exit when recordId is null. */
-  createRecord?: (data: Record<string, any>) => Promise<{ id: number } | null>
-  /** After creating a record (new flow), library calls this with (recordId, dataWithStep, step) so app can cache and navigate to /wizard/[id]. */
-  onRecordCreated?: (recordId: number, data?: Record<string, any>, step?: number) => void
-  /** Library calls this after Save & Exit or final Submit so app can redirect to list. */
-  onExit?: () => void
-  /** Library uses this to update URL after Previous/Next in edit mode. */
-  getWizardEditUrl?: (recordId: number, step: number) => string
-}
-
 const FormLoading = () => <div className="formio-loading">Loading form...</div>
 const FormErrorComponent = ({ message }: { message: string }) => (
   <div className="formio-error" role="alert" style={{ color: 'red', padding: '12px', border: '1px solid red', borderRadius: '4px' }}>
@@ -73,7 +33,7 @@ const FormErrorComponent = ({ message }: { message: string }) => (
 )
 
 /**
- * Hide default wizard navigation buttons via config (matches medquest_kolea).
+ * Hide default wizard navigation buttons via config.
  * Panel-level: each panel gets buttonSettings so built-in Previous/Next/Cancel/Submit are hidden.
  * Form-level: createFormOptions.buttonSettings hides them at form level; app renders custom buttons.
  */
@@ -95,46 +55,54 @@ function cleanFormData(raw: Record<string, any>): Record<string, any> {
   return d
 }
 
-export default function FormIORenderWizardWithSlug({
-  slug,
-  recordId = null,
-  initialData,
-  initialPage,
-  maxFilledStep,
-  onError,
-  onPrevious,
-  onNext,
-  onSaveExit,
-  navigationClassName = 'form-navigation mt-6 flex flex-wrap gap-3',
-  loadRecord,
-  saveRecord,
-  createRecord,
-  onRecordCreated,
-  onExit,
-  getWizardEditUrl,
-}: FormIORenderWizardWithSlugProps) {
+/**
+ * Unified Form.io renderer entry point.
+ *
+ * Fetches form schema by slug, inspects `schema.display`, and internally
+ * renders the correct flow:
+ *  - display === "wizard" → wizard navigation with Previous / Save & Exit / Next buttons
+ *  - otherwise → single-form rendering with onSubmit
+ *
+ * Managed wizard mode (recommended): pass loadRecord + saveRecord + getWizardEditUrl + onExit (edit)
+ * or createRecord + onRecordCreated + onExit (new). Library then handles load, save, step, URL, and exit.
+ * Unmanaged wizard: pass initialData/initialPage/maxFilledStep and onPrevious/onNext/onSaveExit.
+ */
+export interface FormIORenderWithSlugProps {
+  slug: string
+
+  // --- Common ---
+  initialData?: Record<string, any>
+  onError?: (error: string) => void
+
+  // --- Single form mode (display === "form") ---
+  onSubmit?: (data: Record<string, any>, formInstanceRef?: React.MutableRefObject<any>) => void | Promise<void>
+  onCancel?: () => void
+
+  // --- Wizard mode (display === "wizard") ---
+  recordId?: number | null
+  initialPage?: number
+  maxFilledStep?: number
+  onSuccess?: () => void
+  onPrevious?: (state: WizardState) => void | Promise<void>
+  onNext?: (state: WizardState) => void | Promise<void>
+  onSaveExit?: (state: WizardState) => void | Promise<void>
+  navigationClassName?: string
+  loadRecord?: (recordId: number) => LoadRecordResult | Promise<LoadRecordResult>
+  saveRecord?: (recordId: number, data: Record<string, any>, step: number) => Promise<boolean>
+  createRecord?: (data: Record<string, any>) => Promise<{ id: number } | null>
+  onRecordCreated?: (recordId: number, data?: Record<string, any>, step?: number) => void
+  onExit?: () => void
+  getWizardEditUrl?: (recordId: number, step: number) => string
+}
+
+export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
+  const { slug, onError } = props
   const [formMeta, setFormMeta] = useState<{ id: number; schema: any } | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
-  const [isSaving, setIsSaving] = useState(false)
-
-  // Managed edit: record load state (library loads when loadRecord + recordId provided)
-  const [recordLoading, setRecordLoading] = useState(false)
-  const [recordLoadError, setRecordLoadError] = useState<string | null>(null)
-  const [recordInitialData, setRecordInitialData] = useState<Record<string, any> | undefined>(undefined)
-  const [recordInitialPage, setRecordInitialPage] = useState<number | undefined>(undefined)
-  const [recordMaxFilledStep, setRecordMaxFilledStep] = useState<number | undefined>(undefined)
-
-  const effectiveInitialData = recordInitialData !== undefined ? recordInitialData : initialData
-  const effectiveInitialPage = recordInitialPage !== undefined ? recordInitialPage : initialPage
-  const effectiveMaxFilledStep = recordMaxFilledStep !== undefined ? recordMaxFilledStep : maxFilledStep
-
-  const formInstanceRef = useRef<any>(null)
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
 
-  // Schema load: only when slug changes (onError in ref to avoid re-fetch on every app re-render)
+  // Schema load
   useEffect(() => {
     if (!slug) return
     const load = async () => {
@@ -160,6 +128,64 @@ export default function FormIORenderWizardWithSlug({
     }
     load()
   }, [slug])
+
+  if (loadError) return <FormErrorComponent message={loadError} />
+  if (!formMeta) return <FormLoading />
+
+  const display = formMeta.schema?.display
+
+  if (display === 'wizard') {
+    return <WizardRenderer formMeta={formMeta} {...props} />
+  }
+
+  return (
+    <FormRenderer
+      schema={formMeta.schema}
+      onSubmit={props.onSubmit}
+      submission={props.initialData}
+      readOnly={false}
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Internal wizard renderer (not exported)
+// ---------------------------------------------------------------------------
+
+function WizardRenderer({
+  formMeta,
+  recordId = null,
+  initialData,
+  initialPage,
+  maxFilledStep,
+  onError,
+  onPrevious,
+  onNext,
+  onSaveExit,
+  navigationClassName = 'form-navigation mt-6 flex flex-wrap gap-3',
+  loadRecord,
+  saveRecord,
+  createRecord,
+  onRecordCreated,
+  onExit,
+  getWizardEditUrl,
+}: FormIORenderWithSlugProps & { formMeta: { id: number; schema: any } }) {
+  const [currentPage, setCurrentPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Managed edit: record load state
+  const [recordLoading, setRecordLoading] = useState(false)
+  const [recordLoadError, setRecordLoadError] = useState<string | null>(null)
+  const [recordInitialData, setRecordInitialData] = useState<Record<string, any> | undefined>(undefined)
+  const [recordInitialPage, setRecordInitialPage] = useState<number | undefined>(undefined)
+  const [recordMaxFilledStep, setRecordMaxFilledStep] = useState<number | undefined>(undefined)
+
+  const effectiveInitialData = recordInitialData !== undefined ? recordInitialData : initialData
+  const effectiveInitialPage = recordInitialPage !== undefined ? recordInitialPage : initialPage
+  const effectiveMaxFilledStep = recordMaxFilledStep !== undefined ? recordMaxFilledStep : maxFilledStep
+
+  const formInstanceRef = useRef<any>(null)
 
   // Managed edit: load record when loadRecord + recordId provided
   const recordIdRef = useRef<number | null>(null)
@@ -218,13 +244,13 @@ export default function FormIORenderWizardWithSlug({
     const total = Array.isArray(pages) ? pages.length : 1
     return {
       formInstanceRef,
-      formId: formMeta?.id ?? 0,
+      formId: formMeta.id,
       recordId: recordId ?? null,
       currentPage: page,
       totalPages: total,
       data: { ...(form?.submission?.data ?? {}) },
     }
-  }, [formMeta?.id, recordId])
+  }, [formMeta.id, recordId])
 
   const handlePrevious = useCallback(async () => {
     const state = getState()
@@ -441,14 +467,13 @@ export default function FormIORenderWizardWithSlug({
 
   // Hooks must run before any early return (Rules of Hooks)
   const schema = useMemo(() => {
-    if (!formMeta?.schema) return null
     const s = JSON.parse(JSON.stringify(formMeta.schema))
     if (s.display === 'wizard') {
       s.settings = { ...(s.settings || {}), wizardHeaderType: 'Vertical' }
       hidePanelButtons(s.components || [])
     }
     return s
-  }, [formMeta?.schema])
+  }, [formMeta.schema])
 
   const createFormOptions = useMemo((): Record<string, unknown> => {
     const opts: Record<string, unknown> = { noAlerts: true, readOnly: false }
@@ -465,8 +490,7 @@ export default function FormIORenderWizardWithSlug({
     return opts
   }, [schema?.display])
 
-  if (loadError) return <FormErrorComponent message={loadError} />
-  if (!formMeta || !schema) return <FormLoading />
+  if (!schema) return <FormLoading />
 
   const isManagedEdit = loadRecord != null && recordId != null
   if (isManagedEdit && recordLoading) return <FormLoading />

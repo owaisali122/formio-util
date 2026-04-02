@@ -8,8 +8,7 @@ For consumer app setup, use `RENDERER-SETUP.md`.
 Renderer flow in this library includes:
 - `FormRenderer` core mount/render lifecycle
 - Wrapper APIs:
-  - `FormIORenderSingleWithSlug`
-  - `FormIORenderWizardWithSlug`
+  - `FormIORenderWithSlug` (unified entry point for both single form and wizard)
 - Runtime custom component:
   - `appDetailRefRuntime`
 - CSS/runtime assets via `BootstrapProvider`
@@ -21,8 +20,7 @@ Renderer flow in this library includes:
 - `src/styles/formio-overrides.ts`
 - `src/components/AppDetailRefRuntime.ts`
 - `src/utils/formio-app-detail-ref-logic.ts`
-- `src/client/FormIORenderSingleWithSlug.tsx`
-- `src/client/FormIORenderWizardWithSlug.tsx`
+- `src/client/FormIORenderWithSlug.tsx`
 - `src/registry.ts`
 
 ## Build and local dev
@@ -74,7 +72,7 @@ pnpm typecheck
 
 ### 4) Wizard managed mode contracts
 
-`FormIORenderWizardWithSlug` managed mode:
+`FormIORenderWithSlug` with wizard display managed mode:
 - Edit flow: `loadRecord`, `saveRecord`, `getWizardEditUrl`, `onExit`
 - New flow: `createRecord`, `onRecordCreated`, optional `saveRecord`, `onExit`
 - `_wizardStep` is written by library before save calls.
