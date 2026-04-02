@@ -69,3 +69,9 @@ export {
   TANSTACK_TABLE_TYPE,
 } from './components/DataGrid'
 export type { DataGridSchema, DataGridColumn } from './components/DataGrid'
+
+export {
+  GenericPopupComponent,
+  GENERIC_POPUP_TYPE,
+} from './components/GenericPopup'
+export type { GenericPopupSchema, GenericPopupButtonSchema } from './components/GenericPopup'

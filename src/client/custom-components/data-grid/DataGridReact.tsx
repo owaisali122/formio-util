@@ -16,6 +16,8 @@ import {
 } from '@tanstack/react-table'
 import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGridRow } from './DataGridService'
 import type { DataGridColumn } from '../../../components/DataGrid'
+import { openPopup } from '../../popup/popupStore'
+import type { PopupButton, PopupConfig } from '../../popup/PopupTypes'
 
 // ─── Props ───────────────────────────────────────────────────────────
 
@@ -44,6 +46,13 @@ export interface DataGridReactProps {
   detailFields: string[]
   // row navigation
   rowClickUrl: string
+  enableRowClickNavigation?: boolean
+  /** Called when an 'edit' action is triggered on a row */
+  onEdit?: (row: DataGridRow) => void
+  /** Called when a 'delete' action is triggered on a row */
+  onDelete?: (row: DataGridRow) => void
+  /** Called when row click navigation is triggered (if enableRowClickNavigation is true) */
+  onRowClick?: (row: DataGridRow) => void
   // action column
   actionColumnEnabled: boolean
   actionColumnLabel: string
@@ -167,6 +176,7 @@ export function DataGridReact(props: DataGridReactProps) {
     groupingEnabled, groupingField,
     expansionEnabled, groupedRowExpansion, detailFields,
     rowClickUrl,
+    enableRowClickNavigation, onEdit, onDelete, onRowClick,
     actionColumnEnabled, actionColumnLabel, actionColumnActions,
     toolbarEnabled, emptyStateText, loadingText, errorText,
     fetchData,
@@ -316,7 +326,42 @@ export function DataGridReact(props: DataGridReactProps) {
 
     // Action column (appended at the end)
     if (actionColumnEnabled) {
-      let actions: { icon?: string; text?: string; url?: string }[] = []
+      let actions: {
+        icon?: string
+        text?: string
+        /** Navigation URL — supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
+        url?: string
+        /**
+         * Action type. Defaults to 'url'.
+         * - 'url'   : navigate to action.url (existing behaviour)
+         * - 'popup' : open the generic popup with action.popup config and row data as payload
+         */
+        type?: 'url' | 'popup' | 'edit' | 'delete'
+        /** Popup configuration for type='popup' actions */
+        popup?: {
+          title?: string
+          message?: string
+          variant?: string
+          size?: string
+          icon?: string
+          /** JSON array of PopupButton definitions */
+          buttons?: string
+          showCloseIcon?: boolean
+          closeOnBackdrop?: boolean
+          closeOnEscape?: boolean
+          /**
+           * Handler type for the popup confirm action.
+           * - 'delete' : calls the renderer-registered onDelete handler
+           * - 'edit'   : calls the renderer-registered onEdit handler
+           * - omitted  : falls back to apiEndpoint fetch (legacy)
+           */
+          type?: 'delete' | 'edit'
+          /** @deprecated Use popup.type='delete' with registered handler instead. */
+          apiEndpoint?: string
+          /** @deprecated Use popup.type with registered handler instead. */
+          apiMethod?: string
+        }
+      }[] = []
       try { actions = JSON.parse(actionColumnActions || '[]') } catch { /* invalid JSON */ }
       if (!Array.isArray(actions)) actions = []
 
@@ -334,7 +379,50 @@ export function DataGridReact(props: DataGridReactProps) {
                 title={action.text || ''}
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (action.url) {
+                  if (action.type === 'edit') {
+                    if (onEdit) onEdit(row.original)
+                  } else if (action.type === 'delete') {
+                    if (onDelete) onDelete(row.original)
+                  } else if (action.type === 'popup' && action.popup) {
+                    // Build popup config from action definition
+                    let buttons: PopupButton[] | undefined
+                    if (action.popup.buttons) {
+                      try {
+                        const parsed = JSON.parse(action.popup.buttons)
+                        if (Array.isArray(parsed) && parsed.length > 0) buttons = parsed
+                      } catch { /* fall back to variant defaults */ }
+                    }
+                    const config: PopupConfig = {
+                      title: action.popup.title,
+                      message: action.popup.message,
+                      variant: (action.popup.variant as PopupConfig['variant']) ?? 'confirm',
+                      size: (action.popup.size as PopupConfig['size']) ?? 'md',
+                      icon: action.popup.icon,
+                      buttons,
+                      showCloseIcon: action.popup.showCloseIcon !== false,
+                      closeOnBackdrop: action.popup.closeOnBackdrop === true,
+                      closeOnEscape: action.popup.closeOnEscape !== false,
+                      onAction: (actionKey) => {
+                        // Only act on the confirming action (not cancel)
+                        if (actionKey === 'cancel') return
+                        const popupType = action.popup?.type
+                        if (popupType === 'delete') {
+                          if (onDelete) onDelete(row.original)
+                        } else if (popupType === 'edit') {
+                          if (onEdit) onEdit(row.original)
+                        } else {
+                          // Legacy: direct API call via apiEndpoint
+                          const endpoint = action.popup?.apiEndpoint
+                          if (!endpoint) return
+                          const method = (action.popup?.apiMethod || 'DELETE').toUpperCase()
+                          const resolvedUrl = interpolateUrl(endpoint, row.original)
+                          fetch(resolvedUrl, { method }).catch(() => {})
+                        }
+                      },
+                    }
+                    // Pass the full row data as popup payload so onAction handlers have context
+                    openPopup(config, { ...row.original })
+                  } else if (action.url) {
                     window.location.href = interpolateUrl(action.url, row.original)
                   }
                 }}
@@ -569,12 +657,18 @@ export function DataGridReact(props: DataGridReactProps) {
           <tbody>
             {table.getRowModel().rows.map((row) => {
               const isGroupRow = row.getIsGrouped()
-              const hasRowNav = !!rowClickUrl && !isGroupRow
+              const hasRowNav = !isGroupRow && (enableRowClickNavigation ? !!onRowClick : !!rowClickUrl)
               return (
                 <React.Fragment key={row.id}>
                   <tr
                     style={{ ...(isGroupRow ? S.groupRow : undefined), ...(hasRowNav ? S.clickableRow : undefined) }}
-                    onClick={hasRowNav ? () => { window.location.href = interpolateUrl(rowClickUrl, row.original) } : undefined}
+                    onClick={hasRowNav ? () => {
+                      if (enableRowClickNavigation && onRowClick) {
+                        onRowClick(row.original)
+                      } else if (rowClickUrl) {
+                        window.location.href = interpolateUrl(rowClickUrl, row.original)
+                      }
+                    } : undefined}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} style={S.td}>

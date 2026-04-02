@@ -22,4 +22,7 @@ export {
   type DataGridGroupRow,
   type DataGridRow,
   type DataGridServiceConfig,
+  registerTanStackTableHandlers,
+  getTanStackTableHandlers,
+  type TanStackTableActionHandlers,
 } from './data-grid'

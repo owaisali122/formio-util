@@ -12,3 +12,8 @@ export {
   type DataGridRow,
   type DataGridServiceConfig,
 } from './DataGridService'
+export {
+  registerTanStackTableHandlers,
+  getTanStackTableHandlers,
+  type TanStackTableActionHandlers,
+} from './DataGridActionHandlers'

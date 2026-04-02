@@ -4,6 +4,7 @@ import React from 'react'
 import type { DataGridReactProps } from './DataGridReact'
 import type { DataGridFetchParams, DataGridFetchResult, DataGridServiceConfig } from './DataGridService'
 import { fetchServerData } from './DataGridService'
+import { getTanStackTableHandlers } from './DataGridActionHandlers'
 import type { DataGridColumn } from '../../../components/DataGrid'
 import { TANSTACK_TABLE_TYPE } from '../../../components/DataGrid'
 
@@ -153,6 +154,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
         .split(',')
         .map((s: string) => s.trim())
         .filter(Boolean)
+      const handlers = getTanStackTableHandlers()
 
       this.reactRoot.render(
         React.createElement(Cmp, {
@@ -174,6 +176,10 @@ export default function createTanStackTableClass(FieldComponent: any) {
           groupedRowExpansion: c.groupedRowExpansion === true,
           detailFields,
           rowClickUrl: c.rowClickUrl || '',
+          enableRowClickNavigation: c.enableRowClickNavigation === true,
+          onEdit: handlers.onEdit,
+          onDelete: handlers.onDelete,
+          onRowClick: handlers.onRowClick,
           actionColumnEnabled: c.actionColumnEnabled === true,
           actionColumnLabel: c.actionColumnLabel || '',
           actionColumnActions: c.actionColumnActions || '',
@@ -191,6 +197,11 @@ export default function createTanStackTableClass(FieldComponent: any) {
      * Requires apiEndpoint to be configured in the component schema.
      */
     buildFetcher(): (params: DataGridFetchParams) => Promise<DataGridFetchResult> {
+      const handlers = getTanStackTableHandlers()
+      if (handlers.fetchData) {
+        return handlers.fetchData
+      }
+
       const c = this.component
 
       if (!c.apiEndpoint) {

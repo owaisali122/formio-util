@@ -5,6 +5,7 @@
  * - FormIORenderSingleWithSlug - Render single form from schema
  * - FormIORenderWizardWithSlug - Render wizard form from schema
  * - Custom components (SearchableDropdown)
+ * - Popup system (PopupContainer, usePopup, openPopup, closePopup, types)
  */
 
 export { default as FormIORenderSingleWithSlug } from './FormIORenderSingleWithSlug'
@@ -13,3 +14,6 @@ export type { WizardState, LoadRecordResult } from './FormIORenderWizardWithSlug
 
 // Custom components
 export * from './custom-components'
+
+// Popup system
+export * from './popup'

@@ -47,8 +47,10 @@ export interface DataGridSchema {
   groupedRowExpansion: boolean
   detailFields: string
   // data source
-  apiEndpoint: string
-  apiMethod: string
+  /** @deprecated Configure via renderer-side registerTanStackTableHandlers({ fetchData }) instead */
+  apiEndpoint?: string
+  /** @deprecated Configure via renderer-side registerTanStackTableHandlers({ fetchData }) instead */
+  apiMethod?: string
   dataPath: string
   totalCountPath: string
   pageParamName: string
@@ -57,7 +59,9 @@ export interface DataGridSchema {
   sortDirectionParamName: string
   groupParamName: string
   // row navigation
-  rowClickUrl: string
+  /** @deprecated Use enableRowClickNavigation + registered onRowClick handler instead */
+  rowClickUrl?: string
+  enableRowClickNavigation?: boolean
   // action column
   actionColumnEnabled: boolean
   actionColumnLabel: string
@@ -121,6 +125,7 @@ export class TanStackTableComponent {
       groupParamName: 'group',
       // row navigation
       rowClickUrl: '',
+      enableRowClickNavigation: false,
       // action column
       actionColumnEnabled: false,
       actionColumnLabel: '',
@@ -285,14 +290,7 @@ export class TanStackTableComponent {
                 },
                 // Row Navigation
                 { type: 'htmlelement', tag: 'h5', content: 'Row Navigation', weight: 59 },
-                {
-                  type: 'textfield',
-                  key: 'rowClickUrl',
-                  label: 'Row Click URL',
-                  input: true,
-                  description: 'URL template for row click navigation. Use {{fieldKey}} for dynamic values (e.g. "/details/{{id}}"). Leave empty to disable.',
-                  weight: 60,
-                },
+                { type: 'checkbox', key: 'enableRowClickNavigation', label: 'Enable Row Click Navigation', input: true, defaultValue: false, description: 'When enabled, clicking a row calls the renderer-registered navigation handler with the row data.', weight: 60 },
                 // Action Column
                 { type: 'htmlelement', tag: 'h5', content: 'Action Column', weight: 69 },
                 { type: 'checkbox', key: 'actionColumnEnabled', label: 'Enable Action Column', input: true, defaultValue: false, weight: 70 },
@@ -303,8 +301,8 @@ export class TanStackTableComponent {
                   label: 'Actions (JSON)',
                   input: true,
                   rows: 5,
-                  placeholder: '[{"icon":"fa fa-edit","text":"Edit","url":"/edit/{{id}}"},{"icon":"fa fa-trash","url":"/delete/{{id}}"}]',
-                  description: 'JSON array of actions. Each: {"icon":"<class>","text":"<optional>","url":"/path/{{fieldKey}}"}. Use {{fieldKey}} for dynamic values.',
+                  placeholder: '[{"icon":"fa fa-edit","text":"Edit","type":"edit"},{"icon":"fa fa-trash","text":"Delete","type":"delete"}]',
+                  description: 'JSON array of actions. Each: {"icon":"<class>","text":"<optional>","type":"edit|delete|popup|url"}. Types "edit" and "delete" call renderer-registered handlers. Type "popup" opens a popup. Type "url" navigates to action.url with {{fieldKey}} interpolation.',
                   weight: 90,
                 },
               ],
@@ -314,16 +312,6 @@ export class TanStackTableComponent {
               label: 'Data Source',
               key: 'dataSourceTab',
               components: [
-                { type: 'textfield', key: 'apiEndpoint', label: 'API Endpoint', input: true, placeholder: '/api/data', weight: 10 },
-                {
-                  type: 'select',
-                  key: 'apiMethod',
-                  label: 'HTTP Method',
-                  input: true,
-                  defaultValue: 'GET',
-                  data: { values: [{ label: 'GET', value: 'GET' }, { label: 'POST', value: 'POST' }] },
-                  weight: 20,
-                },
                 { type: 'textfield', key: 'dataPath', label: 'Data Path in Response', input: true, defaultValue: 'data', description: 'Dot-path to rows array in response (e.g. "data", "results.items")', weight: 30 },
                 { type: 'textfield', key: 'totalCountPath', label: 'Total Count Path', input: true, defaultValue: 'total', description: 'Dot-path to total row count in response', weight: 40 },
                 { type: 'textfield', key: 'pageParamName', label: 'Page Param Name', input: true, defaultValue: 'page', weight: 50 },

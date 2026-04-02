@@ -4,6 +4,7 @@ import { registerSearchableDropdown } from './registries/register-searchable-dro
 import { registerFileUploader } from './registries/register-file-uploader'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
+import { registerGenericPopup } from './registries/register-generic-popup'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -70,6 +71,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileUploader(Components)
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)
+    await registerGenericPopup(Components)
 
     // Register runtime App Detail Ref component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -166,6 +168,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('tanstackTable', TanStackTableRuntime as never)
+
+        // Generic Popup runtime
+        const { createGenericPopupClass } = await import('./client/custom-components/GenericPopupFormIO')
+        const GenericPopupRuntime = createGenericPopupClass(FieldComponent)
+        const ExistingGenericPopup = (Components as any).components?.genericPopup
+        if (ExistingGenericPopup) {
+          if (ExistingGenericPopup.editForm) GenericPopupRuntime.editForm = ExistingGenericPopup.editForm
+          if (ExistingGenericPopup.builderInfo) {
+            Object.defineProperty(GenericPopupRuntime, 'builderInfo', {
+              get: () => ExistingGenericPopup.builderInfo,
+              configurable: true,
+            })
+          }
+          const origGenericPopupSchema = ExistingGenericPopup.schema
+          if (typeof origGenericPopupSchema === 'function') {
+            GenericPopupRuntime.schema = origGenericPopupSchema.bind(ExistingGenericPopup)
+          }
+        }
+        Components.setComponent('genericPopup', GenericPopupRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
