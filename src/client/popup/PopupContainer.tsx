@@ -5,6 +5,9 @@
  * It subscribes to popupStore and renders the modal UI via ReactDOM.createPortal
  * to document.body, guaranteeing it always sits above every z-index layer.
  *
+ * Uses Bootstrap 3 modal classes. All Bootstrap CSS is available inside the
+ * `.modal` div because bootstrap-dialogs.ts scopes full Bootstrap to `.modal`.
+ *
  * Usage in your app layout:
  *   import { PopupContainer } from '@your-org/kolea-shared-package/client'
  *   // Place once at app root:
@@ -43,24 +46,16 @@ const DEFAULT_ICONS: Record<PopupVariant, string> = {
   custom: '',
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// Bootstrap 3 size modifier classes (md = default, no extra class needed)
+const SIZE_CLASS: Record<string, string> = { sm: 'modal-sm', md: '', lg: 'modal-lg' }
 
-const SIZE_WIDTH: Record<string, number> = { sm: 380, md: 520, lg: 720 }
-
-const VARIANT_ICON_COLOR: Record<string, string> = {
-  alert: '#3b82f6',
-  confirm: '#6366f1',
-  warning: '#f59e0b',
-  delete: '#ef4444',
-  custom: '#6b7280',
-}
-
-const VARIANT_BTN_COLOR: Record<string, { bg: string; text: string; hover: string }> = {
-  primary:   { bg: '#3b82f6', text: '#fff', hover: '#2563eb' },
-  secondary: { bg: '#e5e7eb', text: '#374151', hover: '#d1d5db' },
-  danger:    { bg: '#ef4444', text: '#fff', hover: '#dc2626' },
-  warning:   { bg: '#f59e0b', text: '#fff', hover: '#d97706' },
-  success:   { bg: '#10b981', text: '#fff', hover: '#059669' },
+// Bootstrap 3 uses btn-default for the "secondary" semantic variant
+const BTN_CLASS: Record<string, string> = {
+  primary: 'btn-primary',
+  secondary: 'btn-default',
+  danger: 'btn-danger',
+  warning: 'btn-warning',
+  success: 'btn-success',
 }
 
 // ─── Internal Modal ───────────────────────────────────────────────────────────
@@ -73,7 +68,7 @@ function Modal({ state }: ModalProps) {
   const { config, payload } = state
   const variant = config.variant ?? 'custom'
   const size = config.size ?? 'md'
-  const width = SIZE_WIDTH[size] ?? 520
+  const sizeClass = SIZE_CLASS[size] ?? ''
   const showCloseIcon = config.showCloseIcon !== false
   const closeOnBackdrop = config.closeOnBackdrop === true
   const closeOnEscape = config.closeOnEscape !== false
@@ -83,7 +78,6 @@ function Modal({ state }: ModalProps) {
     : DEFAULT_BUTTONS[variant]
 
   const iconClass = config.icon ?? (DEFAULT_ICONS[variant] || '')
-  const iconColor = VARIANT_ICON_COLOR[variant] ?? '#6b7280'
 
   // Escape key
   useEffect(() => {
@@ -93,9 +87,9 @@ function Modal({ state }: ModalProps) {
     return () => document.removeEventListener('keydown', handler)
   }, [closeOnEscape])
 
-  // Focus trap — focus the modal panel when it mounts
-  const panelRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { panelRef.current?.focus() }, [])
+  // Focus the dialog panel when it mounts
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { dialogRef.current?.focus() }, [])
 
   const handleAction = useCallback((btn: PopupButton) => {
     if (btn.disabled) return
@@ -103,144 +97,90 @@ function Modal({ state }: ModalProps) {
     config.onAction?.(btn.actionKey, payload as PopupPayload)
   }, [config, payload])
 
-  const backdropStyle: React.CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    zIndex: 9999,
-    background: 'rgba(0,0,0,0.45)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '16px',
-  }
-
-  const panelStyle: React.CSSProperties = {
-    position: 'relative',
-    background: '#fff',
-    borderRadius: 8,
-    boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-    width: '100%',
-    maxWidth: width,
-    outline: 'none',
-    fontFamily: 'inherit',
-    fontSize: 14,
-  }
-
-  const headerStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '18px 20px 12px',
-    borderBottom: '1px solid #e5e7eb',
-  }
-
-  const bodyStyle: React.CSSProperties = {
-    padding: '16px 20px',
-    color: '#374151',
-    lineHeight: 1.6,
-    wordBreak: 'break-word',
-  }
-
-  const footerStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 8,
-    padding: '12px 20px 18px',
-    borderTop: '1px solid #e5e7eb',
-  }
-
   return (
-    <div
-      style={backdropStyle}
-      onClick={closeOnBackdrop ? () => closePopup() : undefined}
-      aria-modal="true"
-      role="dialog"
-      aria-labelledby="popup-title"
-    >
+      /*
+       * Bootstrap 3 modal — descendant classes (.modal-dialog, .modal-content, etc.)
+       * are styled by bootstrap-dialogs.ts which scopes full BS3 CSS to :is(..., .modal).
+       *
+       * However, the .modal element itself is the scope root, so BS3's own .modal rules
+       * (position:fixed, inset:0) don't apply to it — we must provide those inline.
+       * The semi-transparent background replaces a separate .modal-backdrop element.
+       */
       <div
-        ref={panelRef}
-        style={panelStyle}
+        className="modal fade in"
+        style={{
+          display: 'block',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1050,
+          overflowX: 'hidden',
+          overflowY: 'auto',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        }}
         tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="popup-title"
+        onClick={closeOnBackdrop ? () => closePopup() : undefined}
       >
-        {/* Header */}
-        <div style={headerStyle}>
-          {iconClass && (
-            <i
-              className={iconClass}
-              style={{ fontSize: 20, color: iconColor, flexShrink: 0 }}
-              aria-hidden="true"
-            />
-          )}
-          {config.title && (
-            <span
-              id="popup-title"
-              style={{ flex: 1, fontWeight: 600, fontSize: 16, color: '#111827' }}
-            >
-              {config.title}
-            </span>
-          )}
-          {showCloseIcon && (
-            <button
-              aria-label="Close"
-              onClick={() => closePopup()}
-              style={{
-                marginLeft: 'auto',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 18,
-                color: '#9ca3af',
-                lineHeight: 1,
-                padding: '0 2px',
-                flexShrink: 0,
-              }}
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <div
+          ref={dialogRef}
+          className={`modal-dialog${sizeClass ? ` ${sizeClass}` : ''}`}
+          role="document"
+          tabIndex={-1}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-content">
 
-        {/* Body */}
-        {config.message && (
-          <div style={bodyStyle}>
-            {config.message}
+            {/* Header — Bootstrap 3: close button must come before the title */}
+            <div className="modal-header">
+              {showCloseIcon && (
+                <button
+                  type="button"
+                  className="close"
+                  aria-label="Close"
+                  onClick={() => closePopup()}
+                >
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              )}
+              <h4 className="modal-title" id="popup-title">
+                {iconClass && (
+                  <i className={iconClass} aria-hidden="true" style={{ marginRight: 8 }} />
+                )}
+                {config.title}
+              </h4>
+            </div>
+
+            {/* Body */}
+            {config.message && (
+              <div className="modal-body">
+                {config.message}
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="modal-footer">
+              {buttons.map((btn) => (
+                <button
+                  key={btn.actionKey}
+                  type="button"
+                  className={`btn ${BTN_CLASS[btn.variant ?? 'secondary'] ?? 'btn-default'}`}
+                  disabled={btn.disabled}
+                  onClick={() => handleAction(btn)}
+                >
+                  {btn.icon && <i className={btn.icon} aria-hidden="true" style={{ marginRight: 4 }} />}
+                  {btn.label}
+                </button>
+              ))}
+            </div>
+
           </div>
-        )}
-
-        {/* Footer */}
-        <div style={footerStyle}>
-          {buttons.map((btn) => {
-            const colors = VARIANT_BTN_COLOR[btn.variant ?? 'secondary'] ?? VARIANT_BTN_COLOR.secondary
-            return (
-              <button
-                key={btn.actionKey}
-                disabled={btn.disabled}
-                onClick={() => handleAction(btn)}
-                style={{
-                  padding: '7px 18px',
-                  border: 'none',
-                  borderRadius: 5,
-                  cursor: btn.disabled ? 'not-allowed' : 'pointer',
-                  fontWeight: 500,
-                  fontSize: 13,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: colors.bg,
-                  color: colors.text,
-                  opacity: btn.disabled ? 0.55 : 1,
-                  transition: 'background 0.15s',
-                }}
-              >
-                {btn.icon && <i className={btn.icon} aria-hidden="true" />}
-                {btn.label}
-              </button>
-            )
-          })}
         </div>
       </div>
-    </div>
   )
 }
 
