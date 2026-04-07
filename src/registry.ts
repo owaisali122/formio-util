@@ -5,6 +5,7 @@ import { registerFileUploader } from './registries/register-file-uploader'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
 import { registerGenericPopup } from './registries/register-generic-popup'
+import { registerProgressBar } from './registries/register-progress-bar'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -72,6 +73,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)
     await registerGenericPopup(Components)
+    await registerProgressBar(Components)
 
     // Register runtime App Detail Ref component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -187,6 +189,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('genericPopup', GenericPopupRuntime as never)
+
+        // Progress Bar runtime
+        const { createProgressBarClass } = await import('./client/custom-components/ProgressBarFormIO')
+        const ProgressBarRuntime = createProgressBarClass(FieldComponent)
+        const ExistingProgressBar = (Components as any).components?.progressBar
+        if (ExistingProgressBar) {
+          if (ExistingProgressBar.editForm) ProgressBarRuntime.editForm = ExistingProgressBar.editForm
+          if (ExistingProgressBar.builderInfo) {
+            Object.defineProperty(ProgressBarRuntime, 'builderInfo', {
+              get: () => ExistingProgressBar.builderInfo,
+              configurable: true,
+            })
+          }
+          const origProgressBarSchema = ExistingProgressBar.schema
+          if (typeof origProgressBarSchema === 'function') {
+            ProgressBarRuntime.schema = origProgressBarSchema.bind(ExistingProgressBar)
+          }
+        }
+        Components.setComponent('progressBar', ProgressBarRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer

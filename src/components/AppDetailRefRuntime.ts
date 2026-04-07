@@ -84,8 +84,91 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
       return super.setValue(value, flags)
     }
 
+    // ---------------------------------------------------------------------------
+    // Wizard-in-wizard navigation helpers
+    // Used by FormIORenderWithSlug when the parent form is also a wizard.
+    // See: FormIORenderWithSlug.tsx → findActiveReferencedWizardsOnPage
+    // ---------------------------------------------------------------------------
+
+    /** Returns true if the embedded form is a wizard (has multiple navigable pages). */
+    isReferencedWizard(): boolean {
+      return Array.isArray(this.embeddedForm?.pages) && this.embeddedForm.pages.length > 0
+    }
+
+    /**
+     * Returns true if this component is currently visible and has an active embedded wizard.
+     * Used to skip hidden or conditionally-invisible referenced wizards (Case 7).
+     */
+    isReferencedWizardVisible(): boolean {
+      if (!this.isReferencedWizard()) return false
+      return (this as any).visible !== false
+    }
+
+    /**
+     * Validates only the current step of the embedded wizard.
+     * Called by the parent wizard Next handler (Case 8) so that only the current
+     * nested step is checked — later steps have not been filled yet and must not block.
+     */
+    validateReferencedCurrentStep(dirty = true): boolean {
+      const wizard = this.embeddedForm
+      if (!wizard) return true
+      const page = wizard.page ?? 0
+      const currentPanel = Array.isArray(wizard.pages) ? wizard.pages[page] : null
+      const subData = wizard.submission?.data ?? {}
+      let valid: boolean
+      if (currentPanel && typeof currentPanel.checkValidity === 'function') {
+        valid = currentPanel.checkValidity(subData, dirty, subData, false)
+      } else {
+        valid = (wizard.checkValidity?.(subData, dirty, subData, false) ?? true) !== false
+      }
+      if (!valid) {
+        this.setCustomValidity('Please complete the required fields in this step.', dirty)
+        if (typeof wizard.showErrors === 'function') wizard.showErrors()
+      } else {
+        this.setCustomValidity('')
+      }
+      return valid
+    }
+
+    /** Navigates the embedded wizard forward by one step (no-op when on last step). */
+    goToReferencedNextStep(): void {
+      if (this.embeddedForm && typeof this.embeddedForm.nextPage === 'function') {
+        this.embeddedForm.nextPage()
+      }
+    }
+
+    /** Navigates the embedded wizard backward by one step (no-op when on first step). */
+    goToReferencedPreviousStep(): void {
+      if (this.embeddedForm && typeof this.embeddedForm.prevPage === 'function') {
+        this.embeddedForm.prevPage()
+      }
+    }
+
+    /** Returns true if the embedded wizard is currently on its first step (Case 9). */
+    isReferencedFirstStep(): boolean {
+      return (this.embeddedForm?.page ?? 0) === 0
+    }
+
+    /** Returns true if the embedded wizard is currently on its last step (Case 10). */
+    isReferencedLastStep(): boolean {
+      const wizard = this.embeddedForm
+      if (!wizard) return true
+      const page = wizard.page ?? 0
+      const total = Array.isArray(wizard.pages) ? wizard.pages.length : 1
+      return page >= total - 1
+    }
+
     checkValidity(data: any, dirty?: boolean, row?: any, silentCheck?: boolean) {
       if (this.embeddedForm && typeof this.embeddedForm.checkValidity === 'function') {
+        // Case 1 – Wizard-in-wizard: validate ONLY the current nested step.
+        // The parent wizard navigates step-by-step, so validating the whole embedded
+        // wizard would fail before the user reaches later steps.
+        // This only applies when the root (parent) form is itself a wizard.
+        if (this.isReferencedWizard() && Array.isArray((this as any).root?.pages)) {
+          return this.validateReferencedCurrentStep(!!dirty)
+        }
+        // Case 2/3/4 – non-wizard embedded form, or wizard inside a non-wizard parent:
+        // validate the entire embedded form as before.
         const subData = this.embeddedForm.submission?.data ?? {}
         const valid = this.embeddedForm.checkValidity(subData, true, subData)
         if (!valid) {
@@ -148,11 +231,28 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
             return null
           }
           const schemaClone = JSON.parse(JSON.stringify(schema))
-          return Formio.createForm(placeholder, schemaClone, {
+
+          // Case 1 – Wizard-in-wizard: hide the embedded wizard's own navigation buttons.
+          // The parent wizard (FormIORenderWithSlug) drives navigation via delegation.
+          // Cases 2/3/4/5: keep default behaviour (buttons visible).
+          const embeddedDisplay: string = schemaClone?.display ?? 'form'
+          const parentIsWizard = Array.isArray((this as any).root?.pages)
+          const createFormOpts: Record<string, any> = {
             readOnly: this.options?.readOnly ?? false,
             noAlerts: true,
             form: schemaClone,
-          })
+          }
+          if (parentIsWizard && embeddedDisplay === 'wizard') {
+            createFormOpts.buttonSettings = {
+              showPrevious: false,
+              showNext: false,
+              showCancel: false,
+              showSubmit: false,
+            }
+            createFormOpts.allowPrevious = false
+          }
+
+          return Formio.createForm(placeholder, schemaClone, createFormOpts)
         })
         .then(async (form: any) => {
           if (!form) return

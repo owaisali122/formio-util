@@ -75,3 +75,9 @@ export {
   GENERIC_POPUP_TYPE,
 } from './components/GenericPopup'
 export type { GenericPopupSchema, GenericPopupButtonSchema } from './components/GenericPopup'
+
+export {
+  ProgressBarComponent,
+  PROGRESS_BAR_TYPE,
+} from './components/ProgressBar'
+export type { ProgressBarSchema } from './components/ProgressBar'

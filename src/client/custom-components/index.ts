@@ -6,11 +6,12 @@
  * - SearchableDropdownReact - React component for the dropdown
  */
 
-export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
+export {  default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
 export { SearchableDropdownReact, type SearchableDropdownProps } from './SearchableDropdown'
 export { default as createFileUploaderClass } from './FileUploaderFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
+export { default as createProgressBarClass } from './ProgressBarFormIO'
 export {
   createTanStackTableClass,
   DataGridReact,

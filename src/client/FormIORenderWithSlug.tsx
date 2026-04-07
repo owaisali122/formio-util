@@ -149,6 +149,49 @@ export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Wizard-in-wizard: find active referenced wizards on the current parent page
+// ---------------------------------------------------------------------------
+
+/**
+ * Walks the Form.io component tree for the given parent wizard page and returns
+ * all AppDetailRefRuntime instances whose embedded form is itself a wizard AND
+ * that are currently visible (not hidden / conditionally invisible).
+ *
+ * Navigation delegation rule (Case 6):
+ * Only the FIRST visible referenced wizard on the current page is controlled.
+ * This keeps the implementation deterministic and safe. If multiple nested wizards
+ * are present on the same parent page, only the first one receives delegated
+ * navigation; the rest are left in their current state.
+ */
+function findActiveReferencedWizardsOnPage(wizard: any, pageIndex: number): any[] {
+  const pages: any[] = wizard?.pages ?? []
+  const panel = pages[pageIndex]
+  if (!panel) return []
+
+  const results: any[] = []
+
+  function walkComponents(comps: any[]): void {
+    if (!Array.isArray(comps)) return
+    for (const comp of comps) {
+      if (
+        comp?.type === 'appDetailRefRuntime' &&
+        typeof comp.isReferencedWizard === 'function' &&
+        comp.isReferencedWizard() &&
+        typeof comp.isReferencedWizardVisible === 'function' &&
+        comp.isReferencedWizardVisible()
+      ) {
+        results.push(comp)
+      }
+      // Recurse into nested component containers (columns, panels, etc.)
+      if (comp?.components?.length) walkComponents(comp.components)
+    }
+  }
+
+  walkComponents(panel?.components ?? [])
+  return results
+}
+
+// ---------------------------------------------------------------------------
 // Internal wizard renderer (not exported)
 // ---------------------------------------------------------------------------
 
@@ -257,6 +300,22 @@ function WizardRenderer({
     const form = state.formInstanceRef?.current
     const wizard = form?.root || form
     const pageBefore = state.currentPage
+
+    // --- Wizard-in-wizard delegation (Case 1) ---
+    // If the current parent page contains a visible referenced wizard that is NOT
+    // on its first internal step, delegate Previous navigation to it only.
+    // The parent wizard only goes back once the nested wizard reaches its first step.
+    // Rule (Case 6): only the first visible referenced wizard on this page is controlled.
+    const nestedWizards = findActiveReferencedWizardsOnPage(wizard, pageBefore)
+    const activeNested = nestedWizards[0] ?? null
+    if (activeNested && !activeNested.isReferencedFirstStep()) {
+      // Nested wizard still has previous steps — go back in nested wizard only.
+      activeNested.goToReferencedPreviousStep()
+      return
+    }
+    // If nested wizard is on its first step (Case 9), or there is no nested wizard
+    // (Cases 2/4/5), fall through to normal parent-wizard Previous below.
+
     const targetPage = Math.max(0, pageBefore - 1)
     if (wizard && typeof (wizard as any).prevPage === 'function') {
       (wizard as any).prevPage()
@@ -301,6 +360,21 @@ function WizardRenderer({
       ? currentStepPanel.checkValidity(data, true, data, false)
       : (wizard?.checkValidity?.(data, true, data, false) ?? form.checkValidity?.(data, true, data, false) !== false)
     if (!isValid) return
+
+    // --- Wizard-in-wizard delegation (Case 1) ---
+    // If the current parent page contains a visible referenced wizard, delegate
+    // Next navigation to it first. The parent wizard only advances once the
+    // nested wizard has exhausted its own internal steps.
+    // Rule (Case 6): only the first visible referenced wizard on this page is controlled.
+    const nestedWizards = findActiveReferencedWizardsOnPage(wizard, step)
+    const activeNested = nestedWizards[0] ?? null
+    if (activeNested && !activeNested.isReferencedLastStep()) {
+      // Nested wizard still has internal steps to go through — advance it only.
+      activeNested.goToReferencedNextStep()
+      return
+    }
+    // If activeNested is on its last step (Case 10), or there is no nested wizard
+    // (Cases 2/4/5), fall through to normal parent-wizard navigation below.
 
     const pageBefore = state.currentPage
     const total = state.totalPages || 1
