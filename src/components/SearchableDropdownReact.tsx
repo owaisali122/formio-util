@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import AsyncSelect from 'react-select/async'
-import type { MultiValue, SingleValue, StylesConfig } from 'react-select'
+import React, { useState, useCallback, useRef, useMemo } from 'react'
+import Select from 'react-select'
+import type { SingleValue, StylesConfig, InputActionMeta } from 'react-select'
 import type { SearchableDropdownItem } from './SearchableDropdown'
 
 interface OptionType {
@@ -11,250 +11,387 @@ interface OptionType {
   data?: SearchableDropdownItem
 }
 
-export interface SearchableDropdownReactProps {
+// â”€â”€ Address Autocomplete types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+interface AddressSuggestion {
+  street_line: string
+  secondary?: string
+  city: string
+  state: string
+  zipcode: string
+  entries: number | string
+}
+
+export interface AddressApiConfig {
+  url?: string
+  partnerId?: string
+  username?: string
+  password?: string
+}
+
+export interface AddressResult {
+  streetLine: string
+  secondary: string
+  city: string
+  state: string
+  zipcode: string
+}
+
+export interface AddressMapping {
+  streetLine?: string
+  secondary?: string
+  city?: string
+  state?: string
+  zipcode?: string
+}
+
+function buildSelectedParam(s: AddressSuggestion): string {
+  const parts: string[] = [s.street_line.trim()]
+  const sec = s.secondary?.trim()
+  if (sec) parts.push(sec)
+  parts.push(`(${s.entries})`)
+  parts.push(s.city)
+  parts.push(s.state)
+  parts.push(s.zipcode)
+  return parts.join(' ')
+}
+
+function buildAddressDisplayLabel(s: AddressSuggestion): string {
+  const streetParts = [s.street_line?.trim(), s.secondary?.trim()].filter(Boolean)
+  const streetLine = streetParts.join(' ')
+  const cityStateZip = [s.city, `${s.state} ${s.zipcode}`.trim()].filter(Boolean).join(', ')
+  return [streetLine, cityStateZip].filter(Boolean).join(', ')
+}
+
+/** The shape stored in Form.io submission data for this component */
+export interface SmartStreetValue {
+  selectedLabel: string
+  address: AddressResult
+}
+
+export interface SmartStreetProps {
   name: string
-  apiUrl: string
-  isMultiple?: boolean
   placeholder?: string
   minSearchLength?: number
   debounceDelay?: number
-  value?: SearchableDropdownItem | SearchableDropdownItem[] | string | string[] | null
-  onChange?: (value: SearchableDropdownItem | SearchableDropdownItem[] | null) => void
+  value?: SmartStreetValue | null
+  onChange?: (value: SmartStreetValue | null) => void
+  addressApiConfig?: AddressApiConfig
+  addressMapping?: AddressMapping
+  onAddressSelected?: (address: AddressResult) => void
 }
 
-const customStyles: StylesConfig<OptionType, boolean> = {
+// Backward-compatible type alias
+export type SearchableDropdownReactProps = SmartStreetProps
+
+const selectStyles: StylesConfig<OptionType, false> = {
   control: (base, state) => ({
     ...base,
     borderColor: state.isFocused ? '#80bdff' : '#ced4da',
     boxShadow: state.isFocused ? '0 0 0 0.2rem rgba(0,123,255,.25)' : 'none',
-    '&:hover': {
-      borderColor: state.isFocused ? '#80bdff' : '#ced4da',
-    },
+    '&:hover': { borderColor: state.isFocused ? '#80bdff' : '#ced4da' },
     minHeight: '38px',
     minWidth: 0,
   }),
-  valueContainer: (base) => ({
-    ...base,
-    flexWrap: 'wrap' as const,
-    overflow: 'visible',
-  }),
-  multiValue: (base) => ({
-    ...base,
-    backgroundColor: '#e7f1ff',
-    borderRadius: '4px',
-  }),
-  multiValueLabel: (base) => ({
-    ...base,
-    color: '#0056b3',
-    fontWeight: 500,
-  }),
-  multiValueRemove: (base) => ({
-    ...base,
-    color: '#0056b3',
-    '&:hover': {
-      backgroundColor: '#b8d4ff',
-      color: '#003d82',
-    },
-  }),
-  placeholder: (base) => ({
-    ...base,
-    color: '#6c757d',
-  }),
+  valueContainer: (base) => ({ ...base, flexWrap: 'wrap' as const, overflow: 'visible' }),
+  placeholder: (base) => ({ ...base, color: '#6c757d' }),
   option: (base, state) => ({
     ...base,
-    backgroundColor: state.isSelected
-      ? '#007bff'
-      : state.isFocused
-        ? '#f8f9fa'
-        : 'white',
+    backgroundColor: state.isSelected ? '#007bff' : state.isFocused ? '#f8f9fa' : 'white',
     color: state.isSelected ? 'white' : '#212529',
-    '&:hover': {
-      backgroundColor: state.isSelected ? '#007bff' : '#e9ecef',
-    },
+    '&:hover': { backgroundColor: state.isSelected ? '#007bff' : '#e9ecef' },
   }),
 }
 
-function buildFetchUrl(baseUrl: string, query: string): string | null {
-  if (!baseUrl || typeof baseUrl !== 'string') return null
-  const trimmed = baseUrl.trim()
-  if (!trimmed) return null
+const EMPTY_ADDRESS: AddressResult = { streetLine: '', secondary: '', city: '', state: '', zipcode: '' }
 
-  if (trimmed.includes('${query}') || trimmed.includes('{query}')) {
-    return trimmed
-      .replace('${query}', encodeURIComponent(query))
-      .replace('{query}', encodeURIComponent(query))
-  }
-
-  const separator = trimmed.includes('?') ? '&' : '?'
-  return `${trimmed}${separator}query=${encodeURIComponent(query)}`
-}
-
-function toOption(item: SearchableDropdownItem): OptionType {
-  return { value: item.id, label: item.value, data: item }
-}
-
-function toOptionFromValue(
-  v: SearchableDropdownItem | string,
-): OptionType {
-  if (typeof v === 'object' && v !== null && 'id' in v && 'value' in v) {
-    return toOption(v)
-  }
-  return { value: String(v), label: String(v) }
-}
-
-export function SearchableDropdownReact({
+function SmartStreetInner({
   name,
-  apiUrl,
-  isMultiple = false,
-  placeholder = 'Type to search...',
+  placeholder = 'Type to search address...',
   minSearchLength = 2,
   debounceDelay = 300,
   value,
   onChange,
-}: SearchableDropdownReactProps) {
-  const [selectedValue, setSelectedValue] = useState<OptionType | OptionType[] | null>(null)
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (!value || (Array.isArray(value) && value.length === 0)) {
-      setSelectedValue(isMultiple ? [] : null)
-      return
+  addressApiConfig,
+  addressMapping,
+  onAddressSelected,
+}: SmartStreetProps) {
+  const [options, setOptions] = useState<OptionType[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [menuIsOpen, setMenuIsOpen] = useState(false)
+  const [selectedValue, setSelectedValue] = useState<OptionType | null>(() => {
+    // Restore from saved value on mount (edit mode)
+    if (value?.selectedLabel && value?.address) {
+      return { value: value.selectedLabel, label: value.selectedLabel }
     }
+    return null
+  })
+  const [lastResult, setLastResult] = useState<AddressResult | null>(() => {
+    // Restore from saved value on mount (edit mode)
+    return value?.address ?? null
+  })
 
-    if (isMultiple && Array.isArray(value)) {
-      setSelectedValue(value.map(toOptionFromValue))
-    } else if (!Array.isArray(value)) {
-      setSelectedValue(toOptionFromValue(value as SearchableDropdownItem | string))
-    }
-  }, [value, isMultiple])
+  const inputRef = useRef('')
+  const requestIdRef = useRef(0)
+  const finalizedRef = useRef(!!value?.address)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loadOptions = useCallback(
-    (inputValue: string): Promise<OptionType[]> => {
-      return new Promise((resolve) => {
-        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+  // Resolve display labels from mapping config (fallback to defaults)
+  const labels = useMemo(() => ({
+    streetLine: addressMapping?.streetLine || 'Street Address',
+    secondary: addressMapping?.secondary || 'Unit / Secondary',
+    city: addressMapping?.city || 'City',
+    state: addressMapping?.state || 'State',
+    zipcode: addressMapping?.zipcode || 'Zipcode',
+  }), [
+    addressMapping?.streetLine,
+    addressMapping?.secondary,
+    addressMapping?.city,
+    addressMapping?.state,
+    addressMapping?.zipcode,
+  ])
 
-        if (inputValue.length < minSearchLength) {
-          resolve([])
-          return
-        }
+  const fetchSuggestions = useCallback(
+    async (query: string, selected: string | null): Promise<AddressSuggestion[]> => {
+      const baseUrl =
+        addressApiConfig?.url ||
+        'https://gtw-oci.statehub.hawaii.gov/oci-psd91/API/address/autocomplete'
+      let url = `${baseUrl}?getaddress=${encodeURIComponent(query)}`
+      if (selected) url += `&selected=${encodeURIComponent(selected)}`
 
-        debounceTimerRef.current = setTimeout(async () => {
-          try {
-            const url = buildFetchUrl(apiUrl, inputValue)
-            if (!url) { resolve([]); return }
+      const headers: Record<string, string> = { Accept: 'application/json' }
+      if (addressApiConfig?.username && addressApiConfig?.password) {
+        headers['Authorization'] =
+          `Basic ${btoa(`${addressApiConfig.username}:${addressApiConfig.password}`)}`
+      }
+      if (addressApiConfig?.partnerId) {
+        headers['partner-id'] = addressApiConfig.partnerId
+      }
 
-            const response = await fetch(url, {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-            })
-
-            if (!response.ok) {
-              console.error('SearchableDropdown: API returned', response.status, response.statusText)
-              resolve([])
-              return
-            }
-
-            const data = await response.json()
-            if (!data || typeof data !== 'object') { resolve([]); return }
-
-            const items: SearchableDropdownItem[] = Array.isArray(data.results)
-              ? data.results
-              : Array.isArray(data)
-                ? data
-                : []
-
-            resolve(
-              items
-                .filter((item) => item && item.id && item.value)
-                .map(toOption),
-            )
-          } catch (err) {
-            console.error('SearchableDropdown: fetch error', err)
-            resolve([])
-          }
-        }, debounceDelay)
-      })
+      const resp = await fetch(url, { method: 'GET', headers })
+      if (!resp.ok) return []
+      const data = await resp.json()
+      return Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
     },
-    [apiUrl, minSearchLength, debounceDelay],
+    [addressApiConfig?.url, addressApiConfig?.username, addressApiConfig?.password, addressApiConfig?.partnerId],
+  )
+
+  const doSearch = useCallback(
+    (query: string, selected: string | null) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+
+      const delay = selected ? 0 : debounceDelay
+      const reqId = ++requestIdRef.current
+      setIsLoading(true)
+
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const results = await fetchSuggestions(query, selected)
+          if (requestIdRef.current !== reqId) return
+
+          const opts = results.map((s) => ({
+            value: buildSelectedParam(s),
+            label: buildAddressDisplayLabel(s),
+            data: s as unknown as SearchableDropdownItem,
+          }))
+          setOptions(opts)
+          if (opts.length > 0) setMenuIsOpen(true)
+        } catch (err) {
+          if (requestIdRef.current === reqId) {
+            console.error('SmartStreet: fetch error', err)
+            setOptions([])
+          }
+        } finally {
+          if (requestIdRef.current === reqId) setIsLoading(false)
+        }
+      }, delay)
+    },
+    [fetchSuggestions, debounceDelay],
+  )
+
+  const handleInputChange = useCallback(
+    (newInput: string, { action }: InputActionMeta) => {
+      if (action !== 'input-change') return
+      inputRef.current = newInput
+
+      if (finalizedRef.current) {
+        finalizedRef.current = false
+        setSelectedValue(null)
+        setLastResult(null)
+        onAddressSelected?.(EMPTY_ADDRESS)
+      }
+
+      if (newInput.length < minSearchLength) {
+        setOptions([])
+        return
+      }
+      doSearch(newInput, null)
+    },
+    [minSearchLength, doSearch, onAddressSelected],
+  )
+
+  const finalizeAddress = useCallback(
+    (newVal: OptionType, addr: AddressSuggestion, suggestion: AddressSuggestion) => {
+      finalizedRef.current = true
+      setSelectedValue(newVal)
+      setOptions([])
+      setMenuIsOpen(false)
+      const result: AddressResult = {
+        streetLine: addr.street_line || suggestion.street_line || '',
+        secondary: addr.secondary ?? suggestion.secondary ?? '',
+        city: addr.city || suggestion.city || '',
+        state: addr.state || suggestion.state || '',
+        zipcode: addr.zipcode || suggestion.zipcode || '',
+      }
+      setLastResult(result)
+      // Store structured data for persistence
+      const storedValue: SmartStreetValue = { selectedLabel: newVal.label, address: result }
+      onChange?.(storedValue)
+      onAddressSelected?.(result)
+    },
+    [onChange, onAddressSelected],
   )
 
   const handleChange = useCallback(
-    (newValue: MultiValue<OptionType> | SingleValue<OptionType>) => {
-      if (isMultiple) {
-        const multi = newValue as MultiValue<OptionType>
-        if (multi && multi.length > 0) {
-          const items = multi
-            .map((v) => v.data as SearchableDropdownItem)
-            .filter((obj): obj is SearchableDropdownItem => obj != null)
-          setSelectedValue([...multi])
-          onChange?.(items.length > 0 ? items : null)
+    async (newVal: SingleValue<OptionType>) => {
+      if (!newVal?.data) {
+        finalizedRef.current = false
+        setSelectedValue(null)
+        setLastResult(null)
+        setOptions([])
+        setMenuIsOpen(false)
+        onChange?.(null)
+        onAddressSelected?.(EMPTY_ADDRESS)
+        return
+      }
+
+      const suggestion = newVal.data as unknown as AddressSuggestion
+      const selected = buildSelectedParam(suggestion)
+
+      setIsLoading(true)
+      try {
+        const results = await fetchSuggestions(inputRef.current, selected)
+
+        if (results.length === 1 && Number(results[0]?.entries || 0) <= 1) {
+          finalizeAddress(newVal, results[0], suggestion)
+        } else if (results.length > 0) {
+          const subOpts = results.map((s) => ({
+            value: buildSelectedParam(s),
+            label: buildAddressDisplayLabel(s),
+            data: s as unknown as SearchableDropdownItem,
+          }))
+          setOptions(subOpts)
+          setMenuIsOpen(true)
         } else {
-          setSelectedValue([])
-          onChange?.(null)
+          finalizeAddress(newVal, suggestion, suggestion)
         }
-      } else {
-        const single = newValue as SingleValue<OptionType>
-        if (single?.data) {
-          setSelectedValue(single)
-          onChange?.(single.data)
-        } else {
-          setSelectedValue(null)
-          onChange?.(null)
-        }
+      } catch (err) {
+        console.error('SmartStreet: final lookup error', err)
+        finalizeAddress(newVal, suggestion, suggestion)
+      } finally {
+        setIsLoading(false)
       }
     },
-    [isMultiple, onChange],
+    [fetchSuggestions, finalizeAddress, onChange, onAddressSelected],
   )
 
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
-    }
-  }, [])
-
   return (
-    <div className="searchable-dropdown-react-wrapper" style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}>
-      <AsyncSelect<OptionType, boolean>
+    <div className="smart-street-wrapper" style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}>
+      <Select<OptionType>
         name={name}
-        isMulti={isMultiple}
-        cacheOptions
-        defaultOptions={
-          selectedValue
-            ? (Array.isArray(selectedValue) ? selectedValue : [selectedValue])
-            : false
-        }
-        loadOptions={loadOptions}
-        onChange={handleChange}
+        options={options}
+        isLoading={isLoading}
         value={selectedValue}
+        onChange={handleChange as any}
+        onInputChange={handleInputChange}
+        menuIsOpen={menuIsOpen}
+        onMenuOpen={() => setMenuIsOpen(true)}
+        onMenuClose={() => { if (!isLoading) setMenuIsOpen(false) }}
+        closeMenuOnSelect={false}
+        filterOption={() => true}
         placeholder={placeholder}
         noOptionsMessage={({ inputValue }) =>
-          inputValue.length < minSearchLength
-            ? `Type at least ${minSearchLength} characters to search`
-            : 'No options found'
+          isLoading
+            ? 'Searching...'
+            : inputValue.length < minSearchLength
+              ? `Type at least ${minSearchLength} characters`
+              : 'No addresses found'
         }
-        loadingMessage={() => 'Searching...'}
-        styles={customStyles}
+        loadingMessage={() => 'Searching addresses...'}
+        styles={selectStyles}
         isClearable
         classNamePrefix="react-select"
+        blurInputOnSelect={false}
       />
+
+      {/* Address result card — populated values */}
+      {lastResult && !menuIsOpen && (
+        <div
+          className="address-result-card"
+          style={{
+            marginTop: 8,
+            padding: '10px 14px',
+            background: '#f8fafb',
+            border: '1px solid #d0dde8',
+            borderRadius: 6,
+            fontSize: '0.875rem',
+            color: '#333',
+            lineHeight: 1.6,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Selected Address
+          </div>
+          <div><strong>{labels.streetLine}:</strong> {lastResult.streetLine}</div>
+          {lastResult.secondary && <div><strong>{labels.secondary}:</strong> {lastResult.secondary}</div>}
+          <div><strong>{labels.city}:</strong> {lastResult.city}</div>
+          <div><strong>{labels.state}:</strong> {lastResult.state}</div>
+          <div><strong>{labels.zipcode}:</strong> {lastResult.zipcode}</div>
+        </div>
+      )}
+
+      {/* Address fields preview — empty state */}
+      {!lastResult && !menuIsOpen && (
+        <div
+          className="address-fields-preview"
+          style={{
+            marginTop: 8,
+            padding: '10px 14px',
+            background: '#fafafa',
+            border: '1px dashed #ccc',
+            borderRadius: 6,
+            fontSize: '0.875rem',
+            color: '#888',
+            lineHeight: 1.6,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.75rem', color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Address Fields
+          </div>
+          <div><strong>{labels.streetLine}:</strong> —</div>
+          <div><strong>{labels.secondary}:</strong> —</div>
+          <div><strong>{labels.city}:</strong> —</div>
+          <div><strong>{labels.state}:</strong> —</div>
+          <div><strong>{labels.zipcode}:</strong> —</div>
+        </div>
+      )}
+
       <input
         type="hidden"
         name={name}
         className="searchable-dropdown-hidden-value"
         data-key={name}
-        value={JSON.stringify(
-          isMultiple
-            ? (Array.isArray(selectedValue) ? selectedValue : [])
-                .map((v) => v?.data as SearchableDropdownItem)
-                .filter((obj): obj is SearchableDropdownItem => obj != null)
-            : (selectedValue && !Array.isArray(selectedValue)
-                ? (selectedValue as OptionType).data
-                : null),
-        )}
+        value={JSON.stringify(selectedValue?.data ?? null)}
         readOnly
       />
     </div>
   )
 }
 
-export default SearchableDropdownReact
+export const SmartStreet = React.memo(SmartStreetInner)
+
+// Backward-compatible export name
+export const SearchableDropdownReact = SmartStreet
+
+export default SmartStreet
+

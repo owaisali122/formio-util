@@ -4,33 +4,32 @@ import {
   SearchableDropdownComponent,
   SEARCHABLE_DROPDOWN_TYPE,
 } from '../components/SearchableDropdown'
-import type { SearchableDropdownItem } from '../components/SearchableDropdown'
+import type { AddressResult, SmartStreetValue } from '../components/SearchableDropdownReact'
 import type { FormioComponents } from './types'
 
 type ReactComponent = React.ComponentType<any>
-let SearchableDropdownReact: ReactComponent | null = null
+let SmartStreetComponent: ReactComponent | null = null
 
 async function loadReactComponent(): Promise<ReactComponent | null> {
-  if (!SearchableDropdownReact) {
+  if (!SmartStreetComponent) {
     const mod = await import('../components/SearchableDropdownReact')
-    SearchableDropdownReact = mod.SearchableDropdownReact
+    SmartStreetComponent = mod.SmartStreet
   }
-  return SearchableDropdownReact
+  return SmartStreetComponent
 }
 
-const ROOT_KEY = '__searchableDropdownRoot'
+const ROOT_KEY = '__smartStreetRoot'
 
 export async function registerSearchableDropdown(Components: FormioComponents): Promise<void> {
   const FieldComponent = (Components.components as any).field as any
 
-  class SearchableDropdown extends FieldComponent {
+  class SmartStreet extends FieldComponent {
     private reactRoot: Root | null = null
     private reactContainer: HTMLDivElement | null = null
-    private currentValue: SearchableDropdownItem | SearchableDropdownItem[] | string | string[] | null = null
-    private isMultiple: boolean = false
-    private apiUrl: string = ''
+    private currentValue: SmartStreetValue | null = null
     private _initialValueTimeout: ReturnType<typeof setTimeout> | null = null
-    private _onChangeBound: (v: SearchableDropdownItem | SearchableDropdownItem[] | null) => void
+    private _onChangeBound: (v: SmartStreetValue | null) => void
+    private _onAddressSelectedBound: (address: AddressResult) => void
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -48,29 +47,25 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
     }
 
     get defaultSchema() {
-      return SearchableDropdown.schema()
+      return SmartStreet.schema()
     }
 
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
-      let rawUrl = component.data?.url || ''
-      if (rawUrl.includes('%7B') || rawUrl.includes('%7D') || rawUrl.includes('%24')) {
-        try { rawUrl = decodeURIComponent(rawUrl) } catch { /* keep encoded */ }
-      }
-      this.apiUrl = rawUrl
-      this.isMultiple = component.multiple ?? false
       this.currentValue = null
       const key = component.key
       if (data && key && data[key]) this.currentValue = data[key]
-      this._onChangeBound = (v: SearchableDropdownItem | SearchableDropdownItem[] | null) =>
+      this._onChangeBound = (v: SmartStreetValue | null) =>
         this.handleReactChange(v)
+      this._onAddressSelectedBound = (address: AddressResult) =>
+        this.handleAddressSelected(address)
     }
 
     render() {
       return super.render(`
-        <div ref="searchableDropdownContainer" class="formio-searchable-dropdown" style="width:100%;min-height:38px;">
-          <div class="searchable-dropdown-loading-placeholder" style="padding:10px;color:#666;">
-            Loading dropdown...
+        <div ref="smartStreetContainer" class="formio-smart-street" style="width:100%;min-height:38px;">
+          <div class="smart-street-loading-placeholder" style="padding:10px;color:#666;">
+            Loading Smart Street...
           </div>
         </div>
       `)
@@ -78,8 +73,8 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
 
     attach(element: HTMLElement) {
       const result = super.attach(element)
-      this.loadRefs(element, { searchableDropdownContainer: 'single' })
-      const container = (this.refs as any)?.searchableDropdownContainer
+      this.loadRefs(element, { smartStreetContainer: 'single' })
+      const container = (this.refs as any)?.smartStreetContainer
       if (container) this.mountReactComponent(container as HTMLElement)
       if (!this.currentValue) {
         this._initialValueTimeout = setTimeout(() => {
@@ -93,34 +88,15 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
     tryLoadInitialValue() {
       const key = this.component?.key
       if (!key) return
-      if (
-        this.currentValue &&
-        ((Array.isArray(this.currentValue) && this.currentValue.length > 0) ||
-          (typeof this.currentValue === 'string' && this.currentValue.length > 0) ||
-          (typeof this.currentValue === 'object' && !Array.isArray(this.currentValue)))
-      ) return
+      if (this.currentValue) return
 
-      let value: SearchableDropdownItem | SearchableDropdownItem[] | string | string[] | null = null
-      if (this.data?.[key]) value = this.data[key]
-      if (!value && this.element) {
-        const hidden = this.element.querySelector(
-          'input.searchable-dropdown-hidden-value',
-        ) as HTMLInputElement | null
-        if (hidden?.value) {
-          try {
-            const parsed = JSON.parse(hidden.value)
-            const isValid =
-              parsed &&
-              ((Array.isArray(parsed) && parsed.length > 0) ||
-                (typeof parsed === 'string' && parsed.length > 0) ||
-                (typeof parsed === 'object' && parsed !== null && 'id' in parsed && 'value' in parsed))
-            if (isValid) value = parsed
-          } catch { /* ignore parse errors */ }
-        }
+      let value: SmartStreetValue | null = null
+      if (this.data?.[key] && typeof this.data[key] === 'object' && this.data[key]?.selectedLabel) {
+        value = this.data[key]
       }
       if (value) {
         this.currentValue = value
-        if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+        if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
       }
     }
 
@@ -176,19 +152,52 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
       if (!this.reactRoot) return
       this.reactRoot.render(
         React.createElement(Component, {
-          name: this.component.key || 'searchableDropdown',
-          apiUrl: this.apiUrl,
-          isMultiple: this.isMultiple,
-          placeholder: this.component.placeholder || 'Type to search...',
+          name: this.component.key || 'smartStreet',
+          placeholder: this.component.placeholder || 'Type to search address...',
           minSearchLength: this.component.minSearchLength ?? 2,
           debounceDelay: this.component.debounceDelay ?? 300,
           value: this.currentValue,
           onChange: this._onChangeBound,
+          addressApiConfig: this.component.addressApi || undefined,
+          addressMapping: this.component.addressMapping || undefined,
+          onAddressSelected: this._onAddressSelectedBound,
         }),
       )
     }
 
-    handleReactChange(newValue: SearchableDropdownItem | SearchableDropdownItem[] | null) {
+    /**
+     * Called when the user selects a final address suggestion.
+     * Uses the component's addressMapping config to find and populate
+     * the related form fields via Form.io's getComponent / setValue APIs.
+     */
+    handleAddressSelected(address: AddressResult) {
+      const mapping = (this.component.addressMapping || {}) as Record<string, string>
+      const root = this.root
+
+      const fieldValues: Record<string, string> = {
+        streetLine: address.streetLine,
+        secondary: address.secondary,
+        city: address.city,
+        state: address.state,
+        zipcode: address.zipcode,
+      }
+
+      Object.entries(mapping).forEach(([field, targetKey]) => {
+        if (!targetKey) return
+        const value = fieldValues[field] ?? ''
+        // Prefer Form.io's component API so that validation + events fire
+        const comp = root?.getComponent ? root.getComponent(targetKey) : null
+        if (comp) {
+          comp.setValue(value)
+          comp.triggerChange?.()
+        } else if (root?.data) {
+          // Fallback: set directly on submission data
+          root.data[targetKey] = value
+        }
+      })
+    }
+
+    handleReactChange(newValue: SmartStreetValue | null) {
       this.currentValue = newValue
       const key = this.component.key
       if (this.data && key) this.data[key] = newValue
@@ -202,11 +211,11 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
 
     setValue(value: any, flags?: any) {
       if (value === undefined) return
-      const isEmpty = value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
       if (value === this.currentValue) return super.setValue(value, flags)
       this.currentValue = value
-      if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+      if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
       return super.setValue(value, flags)
     }
 
@@ -216,11 +225,11 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
 
     set dataValue(value: any) {
       if (value === undefined) return
-      const isEmpty = value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
       if (value === this.currentValue) return
       this.currentValue = value
-      if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+      if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
     }
 
     checkValidity(data: any, dirty: boolean, rowData: any) {
@@ -228,35 +237,12 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
       if (!valid) return false
 
       const value = this.currentValue
-      const isEmpty =
-        value === null ||
-        value === undefined ||
-        value === '' ||
-        (Array.isArray(value) && value.length === 0)
+      const isEmpty = value === null || value === undefined || value === ''
 
       if (isEmpty && this.component.validate?.required) {
         const msg = this.component.validate.customMessage || 'This field is required'
         this.setCustomValidity(msg, dirty)
         return false
-      }
-
-      if (this.isMultiple && Array.isArray(value)) {
-        const min = Number(this.component.validate?.minSelectedCount) || 0
-        const max = Number(this.component.validate?.maxSelectedCount) || 0
-        if (min > 0 && value.length < min) {
-          this.setCustomValidity(
-            this.component.validate?.customMessage || `Please select at least ${min} item${min !== 1 ? 's' : ''}`,
-            dirty,
-          )
-          return false
-        }
-        if (max > 0 && value.length > max) {
-          this.setCustomValidity(
-            this.component.validate?.customMessage || `Please select no more than ${max} item${max !== 1 ? 's' : ''}`,
-            dirty,
-          )
-          return false
-        }
       }
 
       return true
@@ -281,5 +267,5 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
     setItems() { return }
   }
 
-  Components.setComponent(SEARCHABLE_DROPDOWN_TYPE, SearchableDropdown)
+  Components.setComponent(SEARCHABLE_DROPDOWN_TYPE, SmartStreet)
 }

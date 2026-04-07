@@ -1,15 +1,13 @@
 /**
- * FormIO: Searchable Dropdown Component
+ * FormIO: Smart Street Component
  *
- * Wraps a React-based async searchable dropdown (react-select) inside a
+ * Wraps a React-based address autocomplete (react-select) inside a
  * FormIO field. The React component is lazily loaded on first mount.
- *
- * Schema: type: 'searchableDropdown', key, label, data.url (API endpoint),
- *   multiple, placeholder, minSearchLength, debounceDelay
  */
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
+import type { AddressResult, SmartStreetValue } from '../../components/SearchableDropdownReact'
 
 export interface ApiResponseItem {
   id: string
@@ -18,71 +16,63 @@ export interface ApiResponseItem {
   city: string
 }
 
-let SearchableDropdownReact: React.ComponentType<any> | null = null
+let SmartStreetComponent: React.ComponentType<any> | null = null
 
 async function loadReactComponent() {
-  if (!SearchableDropdownReact) {
-    const module = await import('./SearchableDropdown')
-    SearchableDropdownReact = module.SearchableDropdownReact
+  if (!SmartStreetComponent) {
+    const module = await import('../../components/SearchableDropdownReact')
+    SmartStreetComponent = module.SmartStreet
   }
-  return SearchableDropdownReact
+  return SmartStreetComponent
 }
 
-const ROOT_KEY = '__searchableDropdownRoot'
+const ROOT_KEY = '__smartStreetRoot'
 
 export function createSearchableDropdownClass(FieldComponent: any) {
-  return class SearchableDropdownFormIO extends FieldComponent {
+  return class SmartStreetFormIO extends FieldComponent {
     reactRoot: Root | null = null
     reactContainer: any | null = null
-    currentValue: ApiResponseItem | ApiResponseItem[] | string | string[] | null = null
-    isMultiple: boolean = false
-    apiUrl: string = ''
+    currentValue: SmartStreetValue | null = null
     _initialValueTimeout: ReturnType<typeof setTimeout> | null = null
-    _onChangeBound: (v: ApiResponseItem | ApiResponseItem[] | null) => void
+    _onChangeBound: (v: SmartStreetValue | null) => void
+    _onAddressSelectedBound: (address: AddressResult) => void
 
     static schema(...extend: any[]) {
       return FieldComponent.schema({
         type: 'searchableDropdown',
-        label: 'Searchable Dropdown',
-        key: 'searchableDropdown',
-        dataSrc: 'custom',
-        multiple: false,
+        label: 'Smart Street',
+        key: 'smartStreet',
       }, ...extend)
     }
 
     static get builderInfo() {
       return {
-        title: 'Searchable Dropdown',
+        title: 'Smart Street',
         group: 'basic',
-        icon: 'search',
+        icon: 'map-marker',
         weight: 30,
-        schema: SearchableDropdownFormIO.schema(),
+        schema: SmartStreetFormIO.schema(),
       }
     }
 
     get defaultSchema() {
-      return SearchableDropdownFormIO.schema()
+      return SmartStreetFormIO.schema()
     }
 
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
-      let rawUrl = component.data?.url || ''
-      if (rawUrl.includes('%7B') || rawUrl.includes('%7D') || rawUrl.includes('%24')) {
-        try { rawUrl = decodeURIComponent(rawUrl) } catch {}
-      }
-      this.apiUrl = rawUrl
-      this.isMultiple = component.multiple ?? false
       this.currentValue = null
       const key = component.key
       if (data && key && data[key]) this.currentValue = data[key]
       this._onChangeBound = (v) => this.handleReactChange(v)
+      this._onAddressSelectedBound = (address) => this.handleAddressSelected(address)
     }
 
     render() {
       return super.render(`
-        <div ref="searchableDropdownContainer" class="formio-searchable-dropdown" style="width: 100%; min-height: 38px;">
-          <div class="searchable-dropdown-loading-placeholder" style="padding: 10px; color: #666;">
-            Loading dropdown...
+        <div ref="smartStreetContainer" class="formio-smart-street" style="width: 100%; min-height: 38px;">
+          <div class="smart-street-loading-placeholder" style="padding: 10px; color: #666;">
+            Loading Smart Street...
           </div>
         </div>
       `)
@@ -90,8 +80,8 @@ export function createSearchableDropdownClass(FieldComponent: any) {
 
     attach(element: HTMLElement) {
       const result = super.attach(element)
-      this.loadRefs(element, { searchableDropdownContainer: 'single' })
-      const container = (this.refs as any)?.searchableDropdownContainer
+      this.loadRefs(element, { smartStreetContainer: 'single' })
+      const container = (this.refs as any)?.smartStreetContainer
       if (container) this.mountReactComponent(container as HTMLElement)
       if (!this.currentValue) {
         this._initialValueTimeout = setTimeout(() => {
@@ -105,30 +95,15 @@ export function createSearchableDropdownClass(FieldComponent: any) {
     tryLoadInitialValue() {
       const key = this.component?.key
       if (!key) return
-      if (this.currentValue && (
-        (Array.isArray(this.currentValue) && this.currentValue.length > 0) ||
-        (typeof this.currentValue === 'string' && this.currentValue.length > 0)
-      )) return
+      if (this.currentValue) return
 
-      let value: ApiResponseItem | ApiResponseItem[] | string | string[] | null = null
-      if (this.data?.[key]) value = this.data[key]
-      if (!value && this.element) {
-        const hiddenInput = this.element.querySelector('input.searchable-dropdown-hidden-value') as HTMLInputElement | null
-        if (hiddenInput?.value) {
-          try {
-            const parsed = JSON.parse(hiddenInput.value)
-            const isValid = parsed && (
-              (Array.isArray(parsed) && parsed.length > 0) ||
-              (typeof parsed === 'string' && parsed.length > 0) ||
-              (typeof parsed === 'object' && parsed !== null && 'id' in parsed && 'value' in parsed)
-            )
-            if (isValid) value = parsed
-          } catch {}
-        }
+      let value: SmartStreetValue | null = null
+      if (this.data?.[key] && typeof this.data[key] === 'object' && this.data[key]?.selectedLabel) {
+        value = this.data[key]
       }
       if (value) {
         this.currentValue = value
-        if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+        if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
       }
     }
 
@@ -183,18 +158,48 @@ export function createSearchableDropdownClass(FieldComponent: any) {
     renderReactComponent(Component: React.ComponentType<any>) {
       if (!this.reactRoot) return
       this.reactRoot.render(React.createElement(Component, {
-        name: this.component.key || 'searchableDropdown',
-        apiUrl: this.apiUrl,
-        isMultiple: this.isMultiple,
-        placeholder: this.component.placeholder || 'Type to search...',
+        name: this.component.key || 'smartStreet',
+        placeholder: this.component.placeholder || 'Type to search address...',
         minSearchLength: this.component.minSearchLength ?? 2,
         debounceDelay: this.component.debounceDelay ?? 300,
         value: this.currentValue,
         onChange: this._onChangeBound,
+        addressApiConfig: this.component.addressApi || undefined,
+        addressMapping: this.component.addressMapping || undefined,
+        onAddressSelected: this._onAddressSelectedBound,
       }))
     }
 
-    handleReactChange(newValue: ApiResponseItem | ApiResponseItem[] | null) {
+    /**
+     * Populates related address fields after the user selects a final suggestion.
+     * Uses Form.io's getComponent / setValue APIs where available.
+     */
+    handleAddressSelected(address: AddressResult) {
+      const mapping = (this.component.addressMapping || {}) as Record<string, string>
+      const root = this.root
+
+      const fieldValues: Record<string, string> = {
+        streetLine: address.streetLine,
+        secondary: address.secondary,
+        city: address.city,
+        state: address.state,
+        zipcode: address.zipcode,
+      }
+
+      Object.entries(mapping).forEach(([field, targetKey]) => {
+        if (!targetKey) return
+        const value = fieldValues[field] ?? ''
+        const comp = root?.getComponent ? root.getComponent(targetKey) : null
+        if (comp) {
+          comp.setValue(value)
+          comp.triggerChange?.()
+        } else if (root?.data) {
+          root.data[targetKey] = value
+        }
+      })
+    }
+
+    handleReactChange(newValue: SmartStreetValue | null) {
       this.currentValue = newValue
       const key = this.component.key
       if (this.data && key) this.data[key] = newValue
@@ -208,11 +213,11 @@ export function createSearchableDropdownClass(FieldComponent: any) {
 
     setValue(value: any, flags?: any) {
       if (value === undefined) return
-      const isEmpty = value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
       if (value === this.currentValue) return super.setValue(value, flags)
       this.currentValue = value
-      if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+      if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
       return super.setValue(value, flags)
     }
 
@@ -222,11 +227,11 @@ export function createSearchableDropdownClass(FieldComponent: any) {
 
     set dataValue(value: any) {
       if (value === undefined) return
-      const isEmpty = value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
       if (value === this.currentValue) return
       this.currentValue = value
-      if (this.reactRoot && SearchableDropdownReact) this.renderReactComponent(SearchableDropdownReact)
+      if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
     }
 
     destroy() {

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import AsyncSelect from 'react-select/async'
-import { MultiValue, SingleValue, StylesConfig } from 'react-select'
+import Select from 'react-select'
+import { MultiValue, SingleValue, StylesConfig, InputActionMeta } from 'react-select'
 
 interface OptionType {
   value: string
@@ -19,6 +20,11 @@ export interface SearchableDropdownProps {
   debounceDelay?: number
   value?: ApiResponseItem | ApiResponseItem[] | string | string[]
   onChange?: (value: ApiResponseItem | ApiResponseItem[] | null) => void
+  // ── Address autocomplete mode (opt-in; backward-compatible) ──
+  addressAutocomplete?: boolean
+  addressApiConfig?: AddressApiConfig
+  /** Called with structured address after final suggestion selection */
+  onAddressSelected?: (address: AddressResult) => void
 }
 
 // Custom styles for react-select to match FormIO styling
@@ -82,6 +88,58 @@ interface ApiResponseItem {
   city: string
 }
 
+// ── Address Autocomplete types ────────────────────────────────────────────────
+
+/** Raw suggestion shape from the address autocomplete API */
+interface AddressSuggestion {
+  street_line: string
+  secondary?: string
+  city: string
+  state: string
+  zipcode: string
+  entries: number | string
+  country?: string
+}
+
+/** API configuration — read from the Designer component schema */
+export interface AddressApiConfig {
+  url?: string
+  partnerId?: string
+  username?: string
+  password?: string
+  defaultCountry?: string
+}
+
+/** Structured address passed to the FormIO wrapper after final selection */
+export interface AddressResult {
+  country: string
+  streetLine: string
+  secondary: string
+  city: string
+  state: string
+  zipcode: string
+}
+
+/** Constructs the `selected` query param: street_line [secondary] (entries) city state zipcode */
+function buildSelectedParam(s: AddressSuggestion): string {
+  const parts: string[] = [s.street_line.trim()]
+  const sec = s.secondary?.trim()
+  if (sec) parts.push(sec)
+  parts.push(`(${s.entries})`)
+  parts.push(s.city)
+  parts.push(s.state)
+  parts.push(s.zipcode)
+  return parts.join(' ')
+}
+
+/** User-friendly label: "6200 Eubank Blvd NE Apt 112, Albuquerque, NM 87111" */
+function buildAddressDisplayLabel(s: AddressSuggestion): string {
+  const streetParts = [s.street_line?.trim(), s.secondary?.trim()].filter(Boolean)
+  const streetLine = streetParts.join(' ')
+  const cityStateZip = [s.city, `${s.state} ${s.zipcode}`.trim()].filter(Boolean).join(', ')
+  return [streetLine, cityStateZip].filter(Boolean).join(', ')
+}
+
 // Build fetch URL with query
 function buildFetchUrl(baseUrl: string, query: string): string | null {
   if (!baseUrl || typeof baseUrl !== 'string') {
@@ -134,10 +192,24 @@ export function SearchableDropdownReact({
   debounceDelay = 300,
   value,
   onChange,
+  addressAutocomplete = false,
+  addressApiConfig,
+  onAddressSelected,
 }: SearchableDropdownProps) {
+  // ── Standard mode state ───────────────────────────────────────────────────
   const [selectedValue, setSelectedValue] = useState<OptionType | OptionType[] | null>(null)
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const initialValueSetRef = useRef(false)
+
+  // ── Address mode state (always initialised; used only when addressAutocomplete=true) ──
+  const [addressOptions, setAddressOptions] = useState<OptionType[]>([])
+  const [addressIsLoading, setAddressIsLoading] = useState(false)
+  const [addressMenuIsOpen, setAddressMenuIsOpen] = useState(false)
+  const [addressSelectedValue, setAddressSelectedValue] = useState<OptionType | null>(null)
+  const addressInputRef = useRef('')
+  const addressRequestIdRef = useRef(0)
+  /** true once user accepted a final address → next keystroke clears populated fields */
+  const addressFinalizedRef = useRef(false)
 
   // Validate apiUrl on mount
   useEffect(() => {
@@ -323,6 +395,215 @@ export function SearchableDropdownReact({
     }
   }, [])
 
+  // ── Address Autocomplete mode ─────────────────────────────────────────────
+
+  const fetchAddressSuggestions = useCallback(
+    async (query: string, selected: string | null): Promise<AddressSuggestion[]> => {
+      const baseUrl =
+        addressApiConfig?.url ||
+        'https://gtw-oci.statehub.hawaii.gov/oci-psd91/API/address/autocomplete'
+      let url = `${baseUrl}?getaddress=${encodeURIComponent(query)}`
+      if (selected) url += `&selected=${encodeURIComponent(selected)}`
+
+      const headers: Record<string, string> = { Accept: 'application/json' }
+      if (addressApiConfig?.username && addressApiConfig?.password) {
+        headers['Authorization'] =
+          `Basic ${btoa(`${addressApiConfig.username}:${addressApiConfig.password}`)}`
+      }
+      if (addressApiConfig?.partnerId) {
+        headers['partner-id'] = addressApiConfig.partnerId
+      }
+
+      const resp = await fetch(url, { method: 'GET', headers })
+      if (!resp.ok) return []
+      const data = await resp.json()
+      return Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
+    },
+    [addressApiConfig],
+  )
+
+  const doAddressSearch = useCallback(
+    (query: string, selected: string | null) => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      const delay = selected ? 0 : debounceDelay
+      const requestId = ++addressRequestIdRef.current
+      setAddressIsLoading(true)
+
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const results = await fetchAddressSuggestions(query, selected)
+          if (addressRequestIdRef.current !== requestId) return
+
+          const opts = results.map((s) => ({
+            value: buildSelectedParam(s),
+            label: buildAddressDisplayLabel(s),
+            data: s as unknown as ApiResponseItem,
+          }))
+          setAddressOptions(opts)
+          if (opts.length > 0) setAddressMenuIsOpen(true)
+        } catch (err) {
+          if (addressRequestIdRef.current === requestId) {
+            console.error('AddressAutocomplete: suggestion fetch error', err)
+            setAddressOptions([])
+          }
+        } finally {
+          if (addressRequestIdRef.current === requestId) setAddressIsLoading(false)
+        }
+      }, delay)
+    },
+    [fetchAddressSuggestions, debounceDelay],
+  )
+
+  const handleAddressInputChange = useCallback(
+    (newInput: string, { action }: InputActionMeta) => {
+      if (action !== 'input-change') return
+      addressInputRef.current = newInput
+
+      if (addressFinalizedRef.current) {
+        addressFinalizedRef.current = false
+        setAddressSelectedValue(null)
+        onAddressSelected?.({
+          country: '', streetLine: '', secondary: '', city: '', state: '', zipcode: '',
+        })
+      }
+
+      if (newInput.length < minSearchLength) {
+        setAddressOptions([])
+        return
+      }
+      doAddressSearch(newInput, null)
+    },
+    [minSearchLength, doAddressSearch, onAddressSelected],
+  )
+
+  const handleAddressChange = useCallback(
+    async (newVal: SingleValue<OptionType>) => {
+      if (!newVal?.data) {
+        addressFinalizedRef.current = false
+        setAddressSelectedValue(null)
+        setAddressOptions([])
+        setAddressMenuIsOpen(false)
+        onChange?.(null)
+        onAddressSelected?.({
+          country: '', streetLine: '', secondary: '', city: '', state: '', zipcode: '',
+        })
+        return
+      }
+
+      const suggestion = newVal.data as unknown as AddressSuggestion
+      const selected = buildSelectedParam(suggestion)
+      setAddressIsLoading(true)
+
+      try {
+        const results = await fetchAddressSuggestions(addressInputRef.current, selected)
+        const defaultCountry = addressApiConfig?.defaultCountry || 'USA'
+
+        if (results.length === 1 && Number(results[0]?.entries || 0) <= 1) {
+          const addr = results[0]
+          addressFinalizedRef.current = true
+          setAddressSelectedValue(newVal)
+          setAddressOptions([])
+          setAddressMenuIsOpen(false)
+          onChange?.(newVal.data)
+          onAddressSelected?.({
+            country: addr.country || defaultCountry,
+            streetLine: addr.street_line || suggestion.street_line || '',
+            secondary: addr.secondary ?? suggestion.secondary ?? '',
+            city: addr.city || suggestion.city || '',
+            state: addr.state || suggestion.state || '',
+            zipcode: addr.zipcode || suggestion.zipcode || '',
+          })
+        } else if (results.length > 0) {
+          const subOpts = results.map((s) => ({
+            value: buildSelectedParam(s),
+            label: buildAddressDisplayLabel(s),
+            data: s as unknown as ApiResponseItem,
+          }))
+          setAddressOptions(subOpts)
+          setAddressMenuIsOpen(true)
+        } else {
+          addressFinalizedRef.current = true
+          setAddressSelectedValue(newVal)
+          setAddressOptions([])
+          setAddressMenuIsOpen(false)
+          onChange?.(newVal.data)
+          onAddressSelected?.({
+            country: suggestion.country || defaultCountry,
+            streetLine: suggestion.street_line || '',
+            secondary: suggestion.secondary ?? '',
+            city: suggestion.city || '',
+            state: suggestion.state || '',
+            zipcode: suggestion.zipcode || '',
+          })
+        }
+      } catch (err) {
+        console.error('AddressAutocomplete: final lookup error', err)
+        addressFinalizedRef.current = true
+        setAddressSelectedValue(newVal)
+        setAddressOptions([])
+        setAddressMenuIsOpen(false)
+        onChange?.(newVal.data)
+        onAddressSelected?.({
+          country: suggestion.country || addressApiConfig?.defaultCountry || 'USA',
+          streetLine: suggestion.street_line || '',
+          secondary: suggestion.secondary ?? '',
+          city: suggestion.city || '',
+          state: suggestion.state || '',
+          zipcode: suggestion.zipcode || '',
+        })
+      } finally {
+        setAddressIsLoading(false)
+      }
+    },
+    [fetchAddressSuggestions, onChange, onAddressSelected, addressApiConfig],
+  )
+
+  // ── Address mode render ───────────────────────────────────────────────────
+  if (addressAutocomplete) {
+    return (
+      <div
+        className="searchable-dropdown-react-wrapper address-autocomplete-mode"
+        style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}
+      >
+        <Select<OptionType>
+          name={name}
+          options={addressOptions}
+          isLoading={addressIsLoading}
+          value={addressSelectedValue}
+          onChange={handleAddressChange as any}
+          onInputChange={handleAddressInputChange}
+          menuIsOpen={addressMenuIsOpen}
+          onMenuOpen={() => setAddressMenuIsOpen(true)}
+          onMenuClose={() => { if (!addressIsLoading) setAddressMenuIsOpen(false) }}
+          closeMenuOnSelect={false}
+          filterOption={() => true}
+          placeholder={placeholder}
+          noOptionsMessage={({ inputValue }) =>
+            addressIsLoading
+              ? 'Searching...'
+              : inputValue.length < minSearchLength
+                ? `Type at least ${minSearchLength} characters to search`
+                : 'No addresses found'
+          }
+          loadingMessage={() => 'Searching addresses...'}
+          styles={customStyles as StylesConfig<OptionType, false>}
+          isClearable
+          classNamePrefix="react-select"
+          blurInputOnSelect={false}
+        />
+        <input
+          type="hidden"
+          name={name}
+          className="searchable-dropdown-hidden-value"
+          data-key={name}
+          value={JSON.stringify(addressSelectedValue?.data ?? null)}
+          readOnly
+        />
+      </div>
+    )
+  }
+
+  // ── Standard mode render ──────────────────────────────────────────────────
   return (
     <div className="searchable-dropdown-react-wrapper" style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}>
       <AsyncSelect<OptionType, boolean>

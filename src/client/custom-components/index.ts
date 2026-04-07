@@ -2,12 +2,10 @@
  * Custom FormIO Components for Renderer
  * 
  * Exports:
- * - createSearchableDropdownClass - Async searchable dropdown
- * - SearchableDropdownReact - React component for the dropdown
+ * - createSearchableDropdownClass - Smart Street address autocomplete (factory for consumer apps)
  */
 
-export {  default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
-export { SearchableDropdownReact, type SearchableDropdownProps } from './SearchableDropdown'
+export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
 export { default as createFileUploaderClass } from './FileUploaderFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'

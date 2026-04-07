@@ -49,8 +49,8 @@ export {
 } from './components/SearchableDropdown'
 export type { SearchableDropdownItem } from './components/SearchableDropdown'
 
-export { SearchableDropdownReact } from './components/SearchableDropdownReact'
-export type { SearchableDropdownReactProps } from './components/SearchableDropdownReact'
+export { SmartStreet, SearchableDropdownReact } from './components/SearchableDropdownReact'
+export type { SmartStreetProps, SmartStreetValue, SearchableDropdownReactProps, AddressApiConfig, AddressResult, AddressMapping } from './components/SearchableDropdownReact'
 
 export {
   FileUploaderComponent,
