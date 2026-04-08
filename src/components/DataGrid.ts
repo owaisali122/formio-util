@@ -46,7 +46,9 @@ export interface DataGridSchema {
   expansionEnabled: boolean
   groupedRowExpansion: boolean
   detailFields: string
-  // data source
+  // data source — API type selection
+  /** API type: 'custom' for standard endpoints, 'secure' for authenticated endpoints */
+  apiType: 'custom' | 'secure'
   /** @deprecated Configure via renderer-side registerTanStackTableHandlers({ fetchData }) instead */
   apiEndpoint?: string
   /** @deprecated Configure via renderer-side registerTanStackTableHandlers({ fetchData }) instead */
@@ -58,6 +60,15 @@ export interface DataGridSchema {
   sortFieldParamName: string
   sortDirectionParamName: string
   groupParamName: string
+  // secure API configuration (visible when apiType = 'secure')
+  /** Authentication type for secure API */
+  authType?: 'basic'
+  /** Basic Auth username (stored in schema, not exposed in rendered output) */
+  authUsername?: string
+  /** Basic Auth password (stored in schema, not exposed in rendered output) */
+  authPassword?: string
+  /** partner-id header value for secure API calls */
+  partnerId?: string
   // row navigation
   /** @deprecated Use enableRowClickNavigation + registered onRowClick handler instead */
   rowClickUrl?: string
@@ -114,6 +125,7 @@ export class TanStackTableComponent {
       groupedRowExpansion: false,
       detailFields: '',
       // data source
+      apiType: 'custom',
       apiEndpoint: '',
       apiMethod: 'GET',
       dataPath: 'data',
@@ -123,6 +135,11 @@ export class TanStackTableComponent {
       sortFieldParamName: 'sortField',
       sortDirectionParamName: 'sortDirection',
       groupParamName: 'group',
+      // secure API (defaults empty — only used when apiType = 'secure')
+      authType: 'basic',
+      authUsername: '',
+      authPassword: '',
+      partnerId: '',
       // row navigation
       rowClickUrl: '',
       enableRowClickNavigation: false,
@@ -312,6 +329,19 @@ export class TanStackTableComponent {
               label: 'Data Source',
               key: 'dataSourceTab',
               components: [
+                // API type dropdown — controls which fields are visible below
+                {
+                  type: 'select',
+                  key: 'apiType',
+                  label: 'API Type',
+                  input: true,
+                  defaultValue: 'custom',
+                  data: { values: [{ label: 'Custom API', value: 'custom' }, { label: 'Secure API', value: 'secure' }] },
+                  description: 'Select Custom API for standard endpoints, or Secure API for endpoints requiring authentication and headers.',
+                  weight: 5,
+                },
+
+                // ── Fields common to both API types ──
                 { type: 'textfield', key: 'apiEndpoint', label: 'API Endpoint', input: true, placeholder: '/api/data', description: 'URL for data fetching. Used when no renderer-side fetchData handler is registered.', weight: 10 },
                 {
                   type: 'select',
@@ -322,6 +352,53 @@ export class TanStackTableComponent {
                   data: { values: [{ label: 'GET', value: 'GET' }, { label: 'POST', value: 'POST' }] },
                   weight: 20,
                 },
+
+                // ── Secure API fields — shown only when apiType = 'secure' ──
+                {
+                  type: 'select',
+                  key: 'authType',
+                  label: 'Authentication Type',
+                  input: true,
+                  defaultValue: 'basic',
+                  data: { values: [{ label: 'Basic Auth', value: 'basic' }] },
+                  description: 'Authentication method for the secure API endpoint.',
+                  weight: 25,
+                  conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
+                },
+                {
+                  type: 'textfield',
+                  key: 'authUsername',
+                  label: 'Basic Auth Username',
+                  input: true,
+                  placeholder: 'Enter username',
+                  description: 'Username for Basic Authentication.',
+                  weight: 26,
+                  // Show when apiType is secure and authType is basic
+                  conditional: { json: { and: [{ '===': [{ var: 'data.apiType' }, 'secure'] }, { '===': [{ var: 'data.authType' }, 'basic'] }] } },
+                },
+                {
+                  type: 'password',
+                  key: 'authPassword',
+                  label: 'Basic Auth Password',
+                  input: true,
+                  placeholder: 'Enter password',
+                  description: 'Password for Basic Authentication. Value is masked in the UI.',
+                  weight: 27,
+                  // Show when apiType is secure and authType is basic
+                  conditional: { json: { and: [{ '===': [{ var: 'data.apiType' }, 'secure'] }, { '===': [{ var: 'data.authType' }, 'basic'] }] } },
+                },
+                {
+                  type: 'textfield',
+                  key: 'partnerId',
+                  label: 'Partner ID Header',
+                  input: true,
+                  placeholder: 'Enter partner-id value',
+                  description: 'Value for the partner-id HTTP header sent with secure API requests.',
+                  weight: 28,
+                  conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
+                },
+
+                // ── Response mapping fields (common to both types) ──
                 { type: 'textfield', key: 'dataPath', label: 'Data Path in Response', input: true, defaultValue: 'data', description: 'Dot-path to rows array in response (e.g. "data", "results.items")', weight: 30 },
                 { type: 'textfield', key: 'totalCountPath', label: 'Total Count Path', input: true, defaultValue: 'total', description: 'Dot-path to total row count in response', weight: 40 },
                 { type: 'textfield', key: 'pageParamName', label: 'Page Param Name', input: true, defaultValue: 'page', weight: 50 },

@@ -53,11 +53,18 @@ export interface DataGridServiceConfig {
   sortDirectionParamName: string
   groupParamName: string
   searchParamName: string
+  // Secure API configuration (optional — used when apiType = 'secure')
+  apiType?: 'custom' | 'secure'
+  authType?: 'basic'
+  authUsername?: string
+  authPassword?: string
+  partnerId?: string
 }
 
 /**
  * Generic fetch function for server-side mode.
  * Builds query params from the component schema config and normalises the response.
+ * Supports secure API calls with Basic Auth and partner-id header.
  */
 export async function fetchServerData(
   config: DataGridServiceConfig,
@@ -79,7 +86,21 @@ export async function fetchServerData(
     url.searchParams.set(config.groupParamName, params.group)
   }
 
-  const res = await fetch(url.toString(), { method: config.apiMethod })
+  // Build request headers — add auth/partner-id for secure API
+  const headers: Record<string, string> = {}
+  if (config.apiType === 'secure') {
+    if (config.authType === 'basic' && config.authUsername) {
+      headers['Authorization'] = `Basic ${btoa(`${config.authUsername}:${config.authPassword || ''}`)}`
+    }
+    if (config.partnerId) {
+      headers['partner-id'] = config.partnerId
+    }
+  }
+
+  const res = await fetch(url.toString(), {
+    method: config.apiMethod,
+    ...(Object.keys(headers).length > 0 ? { headers } : {}),
+  })
   if (!res.ok) throw new Error(`Data fetch failed: ${res.status}`)
 
   const json = await res.json()

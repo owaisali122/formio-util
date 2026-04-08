@@ -13,6 +13,7 @@ import {
   type ExpandedState,
   type GroupingState,
   type PaginationState,
+  type ColumnOrderState,
 } from '@tanstack/react-table'
 import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGridRow } from './DataGridService'
 import type { DataGridColumn } from '../../../components/DataGrid'
@@ -79,6 +80,13 @@ const S = {
   table: { width: '100%', borderCollapse: 'collapse' as const, border: '1px solid #ddd' } as React.CSSProperties,
   th: { padding: '8px 10px', background: '#f5f5f5', borderBottom: '2px solid #ddd', textAlign: 'left' as const, fontWeight: 600, fontSize: 12, cursor: 'default', userSelect: 'none' as const, whiteSpace: 'nowrap' as const } as React.CSSProperties,
   thSortable: { cursor: 'pointer' } as React.CSSProperties,
+  /** Drag-and-drop: visual cue when a column header is being dragged */
+  thDragging: { opacity: 0.5, background: '#e0e4ea' } as React.CSSProperties,
+  thDragOver: { borderLeft: '2px solid #4a90d9' } as React.CSSProperties,
+  /** Sort indicator styles */
+  sortIndicator: { marginLeft: 4, fontSize: 10, display: 'inline-block' } as React.CSSProperties,
+  sortActive: { color: '#333' } as React.CSSProperties,
+  sortInactive: { color: '#bbb' } as React.CSSProperties,
   td: { padding: '6px 10px', borderBottom: '1px solid #eee', fontSize: 13 } as React.CSSProperties,
   groupRow: { background: '#f0f4ff', fontWeight: 600 } as React.CSSProperties,
   detailRow: { background: '#fafafa' } as React.CSSProperties,
@@ -204,6 +212,11 @@ export function DataGridReact(props: DataGridReactProps) {
   const [grouping, setGrouping] = useState<GroupingState>(
     groupingEnabled && groupingField ? [groupingField] : [],
   )
+
+  // Column reorder state — drag-and-drop reordering is UI-only, not persisted
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
+  const dragColumnRef = useRef<string | null>(null)
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
   // ── Debounced search ──
   useEffect(() => {
@@ -439,6 +452,11 @@ export function DataGridReact(props: DataGridReactProps) {
     return result
   }, [colDefs, sortingEnabled, expansionEnabled, actionColumnEnabled, actionColumnLabel, actionColumnActions])
 
+  // Initialize column order from column definitions (reset on column config changes)
+  useEffect(() => {
+    setColumnOrder(tanCols.map((c) => c.id!).filter(Boolean))
+  }, [tanCols])
+
   // ── Is server-side grouped response? ──
   const isGroupedResponse = groupedData.length > 0
 
@@ -450,10 +468,12 @@ export function DataGridReact(props: DataGridReactProps) {
       pagination,
       sorting,
       expanded,
+      columnOrder,
       grouping: !isGroupedResponse ? grouping : [],
       // Client-side global filter — ignored in server mode
       ...(globalSearchEnabled && dataMode === 'client' ? { globalFilter: debouncedSearch } : {}),
     },
+    onColumnOrderChange: setColumnOrder,
     // Pagination
     ...(paginationEnabled
       ? dataMode === 'client'
@@ -633,21 +653,72 @@ export function DataGridReact(props: DataGridReactProps) {
       {renderToolbar()}
       <div style={S.tableScroll}>
       {isGroupedResponse ? renderGroupedTable() : (
-        <table style={S.table}>
+        <table style={{ ...S.table, tableLayout: 'auto' }}>
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
                   const canSort = header.column.getCanSort()
                   const sortDir = header.column.getIsSorted()
+                  const colId = header.column.id
+                  // Drag-and-drop: only data columns are draggable (not __expand / __action)
+                  const isDraggable = colId !== '__expand' && colId !== '__action'
+                  const isDragOver = dragOverColumnId === colId
+
                   return (
                     <th
                       key={header.id}
-                      style={{ ...S.th, ...(canSort ? S.thSortable : {}), ...(header.column.getSize() ? { width: header.column.getSize() } : {}) }}
+                      style={{
+                        ...S.th,
+                        ...(canSort ? S.thSortable : {}),
+                        // Auto-width: let browser determine from content, use explicit size only as hint
+                        ...(header.column.getSize() ? { minWidth: header.column.getSize() } : {}),
+                        ...(isDragOver ? S.thDragOver : {}),
+                        ...(dragColumnRef.current === colId ? S.thDragging : {}),
+                      }}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      // Drag-and-drop column reordering handlers
+                      draggable={isDraggable}
+                      onDragStart={isDraggable ? (e) => {
+                        dragColumnRef.current = colId
+                        e.dataTransfer.effectAllowed = 'move'
+                      } : undefined}
+                      onDragOver={isDraggable ? (e) => {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = 'move'
+                        if (dragOverColumnId !== colId) setDragOverColumnId(colId)
+                      } : undefined}
+                      onDragLeave={isDraggable ? () => {
+                        if (dragOverColumnId === colId) setDragOverColumnId(null)
+                      } : undefined}
+                      onDrop={isDraggable ? (e) => {
+                        e.preventDefault()
+                        setDragOverColumnId(null)
+                        const dragId = dragColumnRef.current
+                        if (!dragId || dragId === colId) return
+                        // Reorder columns — swap dragged column to drop target position
+                        setColumnOrder((prev) => {
+                          const order = [...prev]
+                          const fromIdx = order.indexOf(dragId)
+                          const toIdx = order.indexOf(colId)
+                          if (fromIdx === -1 || toIdx === -1) return prev
+                          order.splice(fromIdx, 1)
+                          order.splice(toIdx, 0, dragId)
+                          return order
+                        })
+                      } : undefined}
+                      onDragEnd={() => {
+                        dragColumnRef.current = null
+                        setDragOverColumnId(null)
+                      }}
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      {sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' : ''}
+                      {/* Sort indicator: visible on all sortable columns */}
+                      {canSort && (
+                        <span style={{ ...S.sortIndicator, ...(sortDir ? S.sortActive : S.sortInactive) }}>
+                          {sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' : ' ⇅'}
+                        </span>
+                      )}
                     </th>
                   )
                 })}

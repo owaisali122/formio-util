@@ -219,6 +219,12 @@ export default function createTanStackTableClass(FieldComponent: any) {
         sortDirectionParamName: c.sortDirectionParamName || 'sortDirection',
         groupParamName: c.groupParamName || 'group',
         searchParamName: c.searchParamName || 'search',
+        // Secure API configuration — passed through from component schema
+        apiType: c.apiType || 'custom',
+        authType: c.authType || 'basic',
+        authUsername: c.authUsername || '',
+        authPassword: c.authPassword || '',
+        partnerId: c.partnerId || '',
       }
       return (params) => fetchServerData(config, params)
     }
