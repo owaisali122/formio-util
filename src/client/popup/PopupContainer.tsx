@@ -156,11 +156,17 @@ function Modal({ state }: ModalProps) {
             </div>
 
             {/* Body */}
-            {config.message && (
+            {config.htmlContent ? (
+              <div
+                className="modal-body"
+                dangerouslySetInnerHTML={{ __html: config.htmlContent }}
+                ref={(el) => { if (el && config.onMount) config.onMount(el) }}
+              />
+            ) : config.message ? (
               <div className="modal-body">
                 {config.message}
               </div>
-            )}
+            ) : null}
 
             {/* Footer */}
             <div className="modal-footer">

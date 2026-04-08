@@ -10,6 +10,8 @@ export { default as createFileUploaderClass } from './FileUploaderFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
 export { default as createProgressBarClass } from './ProgressBarFormIO'
+export { default as createFileViewerClass } from './FileViewerFormIO'
+export { default as createFileDownloadClass } from './FileDownloadFormIO'
 export {
   createTanStackTableClass,
   DataGridReact,

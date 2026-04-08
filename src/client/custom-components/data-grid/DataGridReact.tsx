@@ -111,6 +111,62 @@ function interpolateUrl(template: string, row: DataGridRow): string {
   )
 }
 
+// ─── File viewer helpers (used by 'fileViewer' action type) ──────────
+
+/** Detect content category from Content-Type header */
+function _categoryFromContentType(ct: string): 'image' | 'pdf' | 'video' | 'audio' | 'unknown' {
+  const t = ct.toLowerCase()
+  if (t.includes('pdf')) return 'pdf'
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('video/')) return 'video'
+  if (t.startsWith('audio/')) return 'audio'
+  return 'unknown'
+}
+
+const _FILE_EXT_MAP: Record<string, 'image' | 'pdf' | 'video' | 'audio'> = {
+  jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
+  pdf: 'pdf',
+  mp4: 'video', webm: 'video', ogg: 'video', ogv: 'video', mov: 'video',
+  mp3: 'audio', wav: 'audio', oga: 'audio', m4a: 'audio', flac: 'audio',
+}
+
+function _getFileExt(url: string): string {
+  try {
+    const p = new URL(url, 'https://x').pathname
+    const d = p.lastIndexOf('.')
+    return d === -1 ? '' : p.slice(d + 1).toLowerCase()
+  } catch {
+    const d = url.lastIndexOf('.')
+    return d === -1 ? '' : url.slice(d + 1).toLowerCase().split(/[?#]/)[0]
+  }
+}
+
+function _escAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function _buildFileViewerHtml(url: string, pdfViewerMode?: string, fileType?: string): string {
+  const ext = _getFileExt(url)
+  const cat = (fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) ?? _FILE_EXT_MAP[ext] ?? 'unknown'
+  const safe = _escAttr(url)
+  switch (cat) {
+    case 'image':
+      return `<div style="text-align:center;"><img src="${safe}" alt="Preview" style="max-width:100%;height:auto;display:block;margin:0 auto;" /></div>`
+    case 'pdf': {
+      const src = pdfViewerMode === 'google'
+        ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
+        : url
+      return `<iframe src="${_escAttr(src)}" style="width:100%;height:70vh;border:none;" title="PDF Document" allow="fullscreen"></iframe>`
+    }
+    case 'video':
+      return `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;" preload="metadata"><source src="${safe}" />Your browser does not support video playback.</video>`
+    case 'audio':
+      return `<div style="padding:20px;"><audio controls style="width:100%;" preload="metadata"><source src="${safe}" />Your browser does not support audio playback.</audio></div>`
+    default:
+      return `<div style="padding:30px;text-align:center;color:#888;font-size:14px;"><i class="fa fa-file-o" style="font-size:36px;margin-bottom:12px;display:block;"></i>Preview not available for this file type.</div>`
+  }
+}
+
 /** Parsed icon rule: value pattern → icon class + optional text */
 interface IconRule {
   pattern: string
@@ -349,7 +405,7 @@ export function DataGridReact(props: DataGridReactProps) {
          * - 'url'   : navigate to action.url (existing behaviour)
          * - 'popup' : open the generic popup with action.popup config and row data as payload
          */
-        type?: 'url' | 'popup' | 'edit' | 'delete'
+        type?: 'url' | 'popup' | 'edit' | 'delete' | 'fileViewer' | 'fileDownload'
         /** Popup configuration for type='popup' actions */
         popup?: {
           title?: string
@@ -374,6 +430,58 @@ export function DataGridReact(props: DataGridReactProps) {
           /** @deprecated Use popup.type with registered handler instead. */
           apiMethod?: string
         }
+        /**
+         * File viewer configuration for type='fileViewer' actions.
+         * Opens the resolved file URL inside the popup modal.
+         * Supports images, PDFs, video, and audio.
+         */
+        fileViewer?: {
+          /**
+           * File URL source. Supports two modes:
+           *
+           * 1. **Template** (contains `{{fieldKey}}`):
+           *    Values are URL-encoded and interpolated into the template.
+           *    e.g. `"/api/file-preview{{link}}"` or `"https://cdn.example.com/{{id}}/file"`
+           *
+           * 2. **Raw field name** (no `{{}}`):
+           *    Reads the field value directly from the row data.
+           *    e.g. `"link"` → uses `row["link"]` as-is.
+           */
+          fileUrlField?: string
+          /**
+           * @deprecated Use `fileUrlField` with `{{fieldKey}}` template syntax instead.
+           * Kept for backward compatibility.
+           */
+          fileUrl?: string
+          /**
+           * Modal title. Supports {{fieldKey}} interpolation (values are NOT encoded).
+           * e.g. `"{{formName}}"`
+           */
+          title?: string
+          /** PDF viewer mode. If omitted, the component auto-detects and fetches. */
+          pdfViewerMode?: 'direct' | 'google' | 'fetch'
+          /** Force file type. If omitted, auto-detected from Content-Type header. */
+          fileType?: 'pdf' | 'image' | 'video' | 'audio'
+        }
+        /**
+         * File download configuration for type='fileDownload' actions.
+         * Fetches the file and initiates a browser download.
+         */
+        fileDownload?: {
+          /**
+           * File URL source. Same as fileViewer:
+           * Template (`{{fieldKey}}`) → interpolated, else raw field read.
+           */
+          fileUrlField?: string
+          /** @deprecated Use `fileUrlField`. */
+          fileUrl?: string
+          /**
+           * Optional file name. Supports two modes:
+           * - Template: `"{{formName}}"` → interpolated from row data (no encoding)
+           * - Raw field name: `"formName"` → reads `row["formName"]` directly
+           */
+          fileNameField?: string
+        }
       }[] = []
       try { actions = JSON.parse(actionColumnActions || '[]') } catch { /* invalid JSON */ }
       if (!Array.isArray(actions)) actions = []
@@ -396,6 +504,137 @@ export function DataGridReact(props: DataGridReactProps) {
                     if (onEdit) onEdit(row.original)
                   } else if (action.type === 'delete') {
                     if (onDelete) onDelete(row.original)
+                  } else if (action.type === 'fileViewer' && action.fileViewer) {
+                    const fv = action.fileViewer
+                    // Resolve file URL: template (has {{}}) → interpolate (no encoding), else raw field read
+                    let resolvedUrl = ''
+                    if (fv.fileUrlField) {
+                      resolvedUrl = fv.fileUrlField.includes('{{')
+                        ? fv.fileUrlField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[fv.fileUrlField] ?? '')
+                    } else if (fv.fileUrl) {
+                      resolvedUrl = interpolateUrl(fv.fileUrl, row.original)
+                    }
+                    if (!resolvedUrl) return
+
+                    // Interpolate title without URL encoding
+                    const resolvedTitle = fv.title
+                      ? fv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                      : (action.text || 'File Preview')
+
+                    const fetchUrl = resolvedUrl
+
+                    // Determine approach from extension (quick check for known direct-embeddable types)
+                    const extCat = _FILE_EXT_MAP[_getFileExt(resolvedUrl)]
+                    const mode = fv.pdfViewerMode || (extCat === 'image' ? 'direct' : 'fetch')
+
+                    if (mode === 'direct' && extCat) {
+                      // Known extension, direct embed (images, known static PDFs, etc.)
+                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'direct', fv.fileType || extCat)
+                      openPopup({
+                        title: resolvedTitle,
+                        icon: action.icon || 'fa fa-eye',
+                        variant: 'custom',
+                        size: 'lg',
+                        htmlContent: viewerHtml,
+                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
+                        showCloseIcon: true,
+                        closeOnBackdrop: true,
+                        closeOnEscape: true,
+                      }, { ...row.original })
+                    } else if (mode === 'google') {
+                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'google', fv.fileType || 'pdf')
+                      openPopup({
+                        title: resolvedTitle,
+                        icon: action.icon || 'fa fa-eye',
+                        variant: 'custom',
+                        size: 'lg',
+                        htmlContent: viewerHtml,
+                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
+                        showCloseIcon: true,
+                        closeOnBackdrop: true,
+                        closeOnEscape: true,
+                      }, { ...row.original })
+                    } else {
+                      // Fetch mode (default): download file first, auto-detect type, embed blob
+                      const loadingHtml = '<div style="text-align:center;padding:40px;"><i class="fa fa-spinner fa-spin" style="font-size:28px;color:#337ab7;"></i><p style="margin-top:12px;color:#666;font-size:14px;">Loading preview...</p></div>'
+                      openPopup({
+                        title: resolvedTitle,
+                        icon: action.icon || 'fa fa-eye',
+                        variant: 'custom',
+                        size: 'lg',
+                        htmlContent: loadingHtml,
+                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
+                        showCloseIcon: true,
+                        closeOnBackdrop: true,
+                        closeOnEscape: true,
+                        onMount: (bodyEl: HTMLElement) => {
+                          fetch(fetchUrl, { credentials: 'include' })
+                            .then(r => {
+                              if (!r.ok) throw new Error(`HTTP ${r.status}`)
+                              const ct = r.headers.get('content-type') || ''
+                              return r.blob().then(blob => ({ blob, ct }))
+                            })
+                            .then(({ blob, ct }) => {
+                              const detectedCat = fv.fileType || _categoryFromContentType(ct) || extCat || 'unknown'
+                              const blobUrl = URL.createObjectURL(blob)
+                              if (detectedCat === 'pdf' || detectedCat === 'unknown') {
+                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
+                              } else if (detectedCat === 'image') {
+                                bodyEl.innerHTML = `<div style="text-align:center;"><img src="${_escAttr(blobUrl)}" alt="Preview" style="max-width:100%;height:auto;" /></div>`
+                              } else if (detectedCat === 'video') {
+                                bodyEl.innerHTML = `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></video>`
+                              } else if (detectedCat === 'audio') {
+                                bodyEl.innerHTML = `<div style="padding:20px;"><audio controls style="width:100%;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></audio></div>`
+                              } else {
+                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
+                              }
+                            })
+                            .catch(() => {
+                              bodyEl.innerHTML = `<div style="padding:30px;text-align:center;color:#c00;font-size:14px;"><i class="fa fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;"></i>Failed to load file preview.<br/><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#337ab7;text-decoration:underline;margin-top:8px;display:inline-block;"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
+                            })
+                        },
+                      }, { ...row.original })
+                    }
+                  } else if (action.type === 'fileDownload' && action.fileDownload) {
+                    const fd = action.fileDownload
+                    let dlUrl = ''
+                    if (fd.fileUrlField) {
+                      dlUrl = fd.fileUrlField.includes('{{')
+                        ? fd.fileUrlField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[fd.fileUrlField] ?? '')
+                    } else if (fd.fileUrl) {
+                      dlUrl = interpolateUrl(fd.fileUrl, row.original)
+                    }
+                    if (!dlUrl) return
+
+                    const dlFileName = fd.fileNameField
+                      ? fd.fileNameField.includes('{{')
+                        ? fd.fileNameField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[fd.fileNameField] ?? '')
+                      : ''
+                    const fallbackName = (() => {
+                      try { const p = new URL(dlUrl, window.location.origin).pathname.split('/'); return p[p.length - 1] || 'download' } catch { return 'download' }
+                    })()
+
+                    // Visual feedback on the button
+                    const btnEl = e.currentTarget as HTMLElement
+                    btnEl.style.opacity = '0.4'
+
+                    fetch(dlUrl, { credentials: 'include' })
+                      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob() })
+                      .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = blobUrl
+                        a.download = dlFileName || fallbackName
+                        a.style.display = 'none'
+                        document.body.appendChild(a)
+                        a.click()
+                        setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 200)
+                      })
+                      .catch(() => { window.open(dlUrl, '_blank', 'noopener,noreferrer') })
+                      .finally(() => { btnEl.style.opacity = '1' })
                   } else if (action.type === 'popup' && action.popup) {
                     // Build popup config from action definition
                     let buttons: PopupButton[] | undefined

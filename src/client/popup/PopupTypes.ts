@@ -59,6 +59,16 @@ export interface PopupConfig {
   onAction?: (actionKey: string, payload: PopupPayload) => void
   /** Called whenever the popup closes (via X, backdrop, Escape, or any button with closeOnClick). */
   onClose?: () => void
+  /**
+   * Raw HTML string to render inside the modal body.
+   * When provided, `message` is ignored. Only use with internally-constructed HTML.
+   */
+  htmlContent?: string
+  /**
+   * Called after the modal body element mounts in the DOM.
+   * Use for dynamic content loading (e.g. fetch a file and replace the body).
+   */
+  onMount?: (bodyElement: HTMLElement) => void
 }
 
 /**

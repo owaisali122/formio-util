@@ -81,3 +81,15 @@ export {
   PROGRESS_BAR_TYPE,
 } from './components/ProgressBar'
 export type { ProgressBarSchema } from './components/ProgressBar'
+
+export {
+  FileViewerComponent,
+  FILE_VIEWER_TYPE,
+} from './components/FileViewer'
+export type { FileViewerSchema } from './components/FileViewer'
+
+export {
+  FileDownloadComponent,
+  FILE_DOWNLOAD_TYPE,
+} from './components/FileDownload'
+export type { FileDownloadSchema } from './components/FileDownload'
