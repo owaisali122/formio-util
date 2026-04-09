@@ -4,7 +4,7 @@
  * Extends FieldComponent to render a trigger button inside the form.
  * When clicked, it opens the generic popup via popupStore (root-level rendering).
  *
- * Reference pattern: createSearchableDropdownClass (SearchableDropdownFormIO.ts)
+ * Reference pattern: createSearchableDropdownClass (SmartStreetFormIO.ts)
  */
 
 import type { PopupButton, PopupConfig } from '../popup/PopupTypes'

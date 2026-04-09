@@ -44,13 +44,13 @@ export { SSNComponent, SSN_TYPE } from './components/SSN'
 export type { SSNSchema } from './components/SSN'
 
 export {
-  SearchableDropdownComponent,
+  SmartStreetDropdownComponent,
   SEARCHABLE_DROPDOWN_TYPE,
-} from './components/SearchableDropdown'
-export type { SearchableDropdownItem } from './components/SearchableDropdown'
+} from './components/SmartStreetDropdown'
+export type { SmartStreetDropdownItem } from './components/SmartStreetDropdown'
 
-export { SmartStreet, SearchableDropdownReact } from './components/SearchableDropdownReact'
-export type { SmartStreetProps, SmartStreetValue, SearchableDropdownReactProps, AddressApiConfig, AddressResult, AddressMapping } from './components/SearchableDropdownReact'
+export { SmartStreet } from './components/SmartStreet'
+export type { SmartStreetProps, SmartStreetValue, AddressApiConfig, AddressResult, AddressMapping } from './components/SmartStreet'
 
 export {
   FileUploaderComponent,

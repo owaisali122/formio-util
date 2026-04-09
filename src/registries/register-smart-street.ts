@@ -1,10 +1,10 @@
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
 import {
-  SearchableDropdownComponent,
+  SmartStreetDropdownComponent,
   SEARCHABLE_DROPDOWN_TYPE,
-} from '../components/SearchableDropdown'
-import type { AddressResult, SmartStreetValue } from '../components/SearchableDropdownReact'
+} from '../components/SmartStreetDropdown'
+import type { AddressResult, SmartStreetValue } from '../components/SmartStreet'
 import type { FormioComponents } from './types'
 
 type ReactComponent = React.ComponentType<any>
@@ -12,7 +12,7 @@ let SmartStreetComponent: ReactComponent | null = null
 
 async function loadReactComponent(): Promise<ReactComponent | null> {
   if (!SmartStreetComponent) {
-    const mod = await import('../components/SearchableDropdownReact')
+    const mod = await import('../components/SmartStreet')
     SmartStreetComponent = mod.SmartStreet
   }
   return SmartStreetComponent
@@ -20,7 +20,7 @@ async function loadReactComponent(): Promise<ReactComponent | null> {
 
 const ROOT_KEY = '__smartStreetRoot'
 
-export async function registerSearchableDropdown(Components: FormioComponents): Promise<void> {
+export async function registerSmartStreet(Components: FormioComponents): Promise<void> {
   const FieldComponent = (Components.components as any).field as any
 
   class SmartStreet extends FieldComponent {
@@ -33,17 +33,17 @@ export async function registerSearchableDropdown(Components: FormioComponents): 
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
-        SearchableDropdownComponent.schema(),
+        SmartStreetDropdownComponent.schema(),
         ...extend,
       )
     }
 
     static get builderInfo() {
-      return SearchableDropdownComponent.builderInfo
+      return SmartStreetDropdownComponent.builderInfo
     }
 
     static editForm() {
-      return SearchableDropdownComponent.editForm()
+      return SmartStreetDropdownComponent.editForm()
     }
 
     get defaultSchema() {

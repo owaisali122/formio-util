@@ -7,6 +7,8 @@ export interface DataGridColumn {
   sortable?: boolean
   groupable?: boolean
   width?: string
+  /** Column width as a percentage (e.g. '20' for 20%). Applied as CSS width on the column header, overriding the default TanStack pixel width. */
+  minWidth?: string
   /** Column render type: 'text' (default), 'icon' (icon mapping) */
   renderType?: 'text' | 'icon'
   /** JSON icon mapping for renderType='icon'. Keys are value patterns (case-insensitive).
@@ -207,7 +209,7 @@ export class TanStackTableComponent {
                 {
                   type: 'htmlelement',
                   tag: 'style',
-                  content: '.tanstack-col-grid input[type="text"], .tanstack-col-grid textarea { min-width: 140px; }',
+                  content: '.tanstack-col-grid input[type="text"], .tanstack-col-grid textarea { width: 140px; }',
                   weight: 5,
                 },
                 {
@@ -222,6 +224,7 @@ export class TanStackTableComponent {
                   components: [
                     { type: 'textfield', key: 'label', label: 'Header', input: true, placeholder: 'Column label' },
                     { type: 'textfield', key: 'key', label: 'Field Key', input: true, placeholder: 'data field key' },
+                    { type: 'textfield', key: 'minWidth', label: 'Width (%)', input: true, placeholder: 'e.g. 20', description: 'Column width as a percentage (e.g. enter 20 for 20%). When set, this width is applied directly to the column, overriding the default column sizing.' },
                     { type: 'checkbox', key: 'visible', label: 'Visible', input: true, defaultValue: true },
                     { type: 'checkbox', key: 'sortable', label: 'Sortable', input: true, defaultValue: true },
                     {
@@ -247,7 +250,7 @@ export class TanStackTableComponent {
                 {
                   type: 'htmlelement',
                   tag: 'div',
-                  content: '<small style="color:#666;">Tip: Add columns matching your API response field names. When Render is set to Icon, configure the Icon Map with JSON mapping value patterns to icon classes or {"icon":"...","text":"..."} objects. Additional options (groupable, width) can be set via the JSON schema.</small>',
+                  content: '<small style="color:#666;">Tip: Add columns matching your API response field names. When Render is set to Icon, configure the Icon Map with JSON mapping value patterns to icon classes or {"icon":"...","text":"..."} objects. Additional options (groupable) can be set via the JSON schema.</small>',
                   weight: 20,
                 },
               ],

@@ -4,7 +4,7 @@ import type { FormioComponents } from './types'
 /**
  * Register the Generic Popup designer (builder-side) component.
  *
- * Reference pattern: registerSearchableDropdown (register-searchable-dropdown.ts)
+ * Reference pattern: registerSmartStreet (register-smart-street.ts)
  */
 export async function registerGenericPopup(Components: FormioComponents): Promise<void> {
   const FieldComponent = (Components.components as any).field as any

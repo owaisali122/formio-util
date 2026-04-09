@@ -31,7 +31,7 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
     _buildPreviewKey(): string {
       const c = this.component
       const colSig = (c.columns || []).map((col: any) =>
-        `${col.label || ''}|${col.key || ''}|${col.visible !== false ? '1' : '0'}`,
+        `${col.label || ''}|${col.key || ''}|${col.visible !== false ? '1' : '0'}|${col.minWidth || ''}`,
       ).join(';')
       return [
         c.dataMode || 'client',
@@ -60,7 +60,11 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
       const headerCells = cols.length > 0
         ? cols
             .filter((c: any) => c.visible !== false)
-            .map((c: any) => `<th style="padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;font-size:12px;">${this.t(c.label || c.key || '—')}</th>`)
+            .map((c: any) => {
+              const colW = c.minWidth ? parseInt(c.minWidth, 10) || 0 : 0
+              const colWStyle = colW > 0 ? `;width:${colW}%` : ''
+              return `<th style="padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;font-size:12px${colWStyle};">${this.t(c.label || c.key || '—')}</th>`
+            })
             .join('')
         : '<th style="padding:6px 10px;border:1px solid #ddd;background:#f5f5f5;font-size:12px;color:#999;">No columns configured</th>'
 

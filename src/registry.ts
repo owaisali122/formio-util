@@ -1,6 +1,6 @@
 import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
 import { registerSSN } from './registries/register-ssn'
-import { registerSearchableDropdown } from './registries/register-searchable-dropdown'
+import { registerSmartStreet } from './registries/register-smart-street'
 import { registerFileUploader } from './registries/register-file-uploader'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
@@ -70,7 +70,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
 
     await registerAppDetailRef(Components)
     await registerSSN(Components)
-    await registerSearchableDropdown(Components)
+    await registerSmartStreet(Components)
     await registerFileUploader(Components)
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)

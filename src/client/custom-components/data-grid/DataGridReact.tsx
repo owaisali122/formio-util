@@ -14,6 +14,7 @@ import {
   type GroupingState,
   type PaginationState,
   type ColumnOrderState,
+  type ColumnSizingState,
 } from '@tanstack/react-table'
 import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGridRow } from './DataGridService'
 import type { DataGridColumn } from '../../../components/DataGrid'
@@ -78,7 +79,7 @@ const S = {
   toolbar: { display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', flexWrap: 'wrap' as const } as React.CSSProperties,
   searchInput: { padding: '4px 8px', border: '1px solid #ccc', borderRadius: 3, fontSize: 13, minWidth: 200 } as React.CSSProperties,
   table: { width: '100%', borderCollapse: 'collapse' as const, border: '1px solid #ddd' } as React.CSSProperties,
-  th: { padding: '8px 10px', background: '#f5f5f5', borderBottom: '2px solid #ddd', textAlign: 'left' as const, fontWeight: 600, fontSize: 12, cursor: 'default', userSelect: 'none' as const, whiteSpace: 'nowrap' as const } as React.CSSProperties,
+  th: { padding: '8px 10px', background: '#f5f5f5', borderBottom: '2px solid #ddd', textAlign: 'left' as const, fontWeight: 600, fontSize: 12, cursor: 'default', userSelect: 'none' as const, whiteSpace: 'nowrap' as const, position: 'relative' as const, overflow: 'hidden' as const } as React.CSSProperties,
   thSortable: { cursor: 'pointer' } as React.CSSProperties,
   /** Drag-and-drop: visual cue when a column header is being dragged */
   thDragging: { opacity: 0.5, background: '#e0e4ea' } as React.CSSProperties,
@@ -100,6 +101,11 @@ const S = {
   clickableRow: { cursor: 'pointer' } as React.CSSProperties,
   actionBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 13 } as React.CSSProperties,
   iconCell: { textAlign: 'center' as const, fontSize: 16 } as React.CSSProperties,
+  /** Resize handle — 5px hit-target absolutely positioned at the right edge of each header cell.
+   *  Inline styles are required: Bootstrap CSS is not guaranteed in the renderer context. */
+  resizeHandle: { position: 'absolute' as const, top: 0, right: 0, height: '100%', width: 5, cursor: 'col-resize', userSelect: 'none' as const, touchAction: 'none' as const, zIndex: 1, display: 'flex' as const, alignItems: 'stretch', justifyContent: 'center' } as React.CSSProperties,
+  /** Inner separator line — background is driven by hover/active state at render time */
+  resizeHandleInner: { width: 2, borderRadius: 1, flexShrink: 0, transition: 'background 0.15s' } as React.CSSProperties,
 } as const
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -274,6 +280,10 @@ export function DataGridReact(props: DataGridReactProps) {
   const dragColumnRef = useRef<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
+  // Column resize state — session-only, not persisted
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
+  const [hoveredResizeColId, setHoveredResizeColId] = useState<string | null>(null)
+
   // ── Debounced search ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -365,13 +375,18 @@ export function DataGridReact(props: DataGridReactProps) {
     for (const col of colDefs) {
       if (col.visible === false) continue
       const renderType = col.renderType || 'text'
+      const parsedWidth = col.width ? parseInt(col.width, 10) || undefined : undefined
+      // colWidth is percentage-based — stored as a CSS string, applied as CSS width on <th> directly
+      const cssColWidth = col.minWidth ? `${parseInt(col.minWidth, 10)}%` : undefined
       const colDef: ColumnDef<DataGridRow> = {
         id: col.key,
         accessorKey: col.key,
         header: col.label || col.key,
         enableSorting: sortingEnabled && col.sortable !== false,
         enableGrouping: col.groupable === true,
-        size: col.width ? parseInt(col.width, 10) || undefined : undefined,
+        // Only set TanStack pixel size when no CSS percentage width is configured
+        size: cssColWidth ? undefined : parsedWidth,
+        meta: { colWidth: cssColWidth },
       }
 
       if (renderType === 'icon') {
@@ -703,16 +718,21 @@ export function DataGridReact(props: DataGridReactProps) {
   const table = useReactTable({
     data,
     columns: tanCols,
+    // Column resizing — real-time width update while dragging
+    columnResizeMode: 'onChange',
+    defaultColumn: { minSize: 50 },
     state: {
       pagination,
       sorting,
       expanded,
       columnOrder,
+      columnSizing,
       grouping: !isGroupedResponse ? grouping : [],
       // Client-side global filter — ignored in server mode
       ...(globalSearchEnabled && dataMode === 'client' ? { globalFilter: debouncedSearch } : {}),
     },
     onColumnOrderChange: setColumnOrder,
+    onColumnSizingChange: setColumnSizing,
     // Pagination
     ...(paginationEnabled
       ? dataMode === 'client'
@@ -892,7 +912,7 @@ export function DataGridReact(props: DataGridReactProps) {
       {renderToolbar()}
       <div style={S.tableScroll}>
       {isGroupedResponse ? renderGroupedTable() : (
-        <table style={{ ...S.table, tableLayout: 'auto' }}>
+        <table style={{ ...S.table, tableLayout: 'fixed', width: '100%' }}>
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
@@ -910,8 +930,9 @@ export function DataGridReact(props: DataGridReactProps) {
                       style={{
                         ...S.th,
                         ...(canSort ? S.thSortable : {}),
-                        // Auto-width: let browser determine from content, use explicit size only as hint
-                        ...(header.column.getSize() ? { minWidth: header.column.getSize() } : {}),
+                        // Column width: use configured CSS % width when set, otherwise TanStack's computed px size
+                        width: (header.column.columnDef.meta as { colWidth?: string } | undefined)?.colWidth
+                          ?? header.getSize(),
                         ...(isDragOver ? S.thDragOver : {}),
                         ...(dragColumnRef.current === colId ? S.thDragging : {}),
                       }}
@@ -955,9 +976,31 @@ export function DataGridReact(props: DataGridReactProps) {
                       {/* Sort indicator: visible on all sortable columns */}
                       {canSort && (
                         <span style={{ ...S.sortIndicator, ...(sortDir ? S.sortActive : S.sortInactive) }}>
-                          {sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' : ' ⇅'}
+                          {sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' :  '▼▲'}
                         </span>
                       )}
+                      {/* Column resize handle — drag left/right to adjust column width */}
+                      <div
+                        style={S.resizeHandle}
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseEnter={() => setHoveredResizeColId(colId)}
+                        onMouseLeave={() => setHoveredResizeColId(null)}
+                        draggable={false}
+                      >
+                        {/* Separator line — background is a dynamic runtime value (hover/active state) */}
+                        <div
+                          style={{
+                            ...S.resizeHandleInner,
+                            background: header.column.getIsResizing()
+                              ? '#4a90d9'
+                              : hoveredResizeColId === colId
+                                ? '#aab4c8'
+                                : 'transparent',
+                          }}
+                        />
+                      </div>
                     </th>
                   )
                 })}

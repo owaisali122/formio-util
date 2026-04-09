@@ -3,12 +3,12 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react'
 import Select from 'react-select'
 import type { SingleValue, StylesConfig, InputActionMeta } from 'react-select'
-import type { SearchableDropdownItem } from './SearchableDropdown'
+import type { SmartStreetDropdownItem } from './SmartStreetDropdown'
 
 interface OptionType {
   value: string
   label: string
-  data?: SearchableDropdownItem
+  data?: SmartStreetDropdownItem
 }
 
 // â”€â”€ Address Autocomplete types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -80,9 +80,6 @@ export interface SmartStreetProps {
   addressMapping?: AddressMapping
   onAddressSelected?: (address: AddressResult) => void
 }
-
-// Backward-compatible type alias
-export type SearchableDropdownReactProps = SmartStreetProps
 
 const selectStyles: StylesConfig<OptionType, false> = {
   control: (base, state) => ({
@@ -192,7 +189,7 @@ function SmartStreetInner({
           const opts = results.map((s) => ({
             value: buildSelectedParam(s),
             label: buildAddressDisplayLabel(s),
-            data: s as unknown as SearchableDropdownItem,
+            data: s as unknown as SmartStreetDropdownItem,
           }))
           setOptions(opts)
           if (opts.length > 0) setMenuIsOpen(true)
@@ -228,6 +225,26 @@ function SmartStreetInner({
       doSearch(newInput, null)
     },
     [minSearchLength, doSearch, onAddressSelected],
+  )
+
+  // Handles manual edits to individual address input fields after selection
+  const handleFieldChange = useCallback(
+    (field: keyof AddressResult, fieldValue: string) => {
+      setLastResult((prev) => {
+        const updated: AddressResult = { ...(prev ?? EMPTY_ADDRESS), [field]: fieldValue }
+        const label = [
+          updated.streetLine,
+          updated.secondary,
+          updated.city,
+          `${updated.state} ${updated.zipcode}`.trim(),
+        ]
+          .filter(Boolean)
+          .join(', ')
+        onChange?.({ selectedLabel: label, address: updated })
+        return updated
+      })
+    },
+    [onChange],
   )
 
   const finalizeAddress = useCallback(
@@ -278,7 +295,7 @@ function SmartStreetInner({
           const subOpts = results.map((s) => ({
             value: buildSelectedParam(s),
             label: buildAddressDisplayLabel(s),
-            data: s as unknown as SearchableDropdownItem,
+            data: s as unknown as SmartStreetDropdownItem,
           }))
           setOptions(subOpts)
           setMenuIsOpen(true)
@@ -324,57 +341,60 @@ function SmartStreetInner({
         blurInputOnSelect={false}
       />
 
-      {/* Address result card — populated values */}
-      {lastResult && !menuIsOpen && (
-        <div
-          className="address-result-card"
-          style={{
-            marginTop: 8,
-            padding: '10px 14px',
-            background: '#f8fafb',
-            border: '1px solid #d0dde8',
-            borderRadius: 6,
-            fontSize: '0.875rem',
-            color: '#333',
-            lineHeight: 1.6,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.75rem', color: '#666', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Selected Address
-          </div>
-          <div><strong>{labels.streetLine}:</strong> {lastResult.streetLine}</div>
-          {lastResult.secondary && <div><strong>{labels.secondary}:</strong> {lastResult.secondary}</div>}
-          <div><strong>{labels.city}:</strong> {lastResult.city}</div>
-          <div><strong>{labels.state}:</strong> {lastResult.state}</div>
-          <div><strong>{labels.zipcode}:</strong> {lastResult.zipcode}</div>
+      {/* Editable address input fields — always visible, populated after selection */}
+      <div className="address-editable-fields mt-2">
+        <div className="mb-2">
+          <label className="form-label mb-1">{labels.streetLine}</label>
+          <input
+            type="text"
+            className="form-control"
+            value={lastResult?.streetLine ?? ''}
+            onChange={(e) => handleFieldChange('streetLine', e.target.value)}
+            aria-label={labels.streetLine}
+          />
         </div>
-      )}
-
-      {/* Address fields preview — empty state */}
-      {!lastResult && !menuIsOpen && (
-        <div
-          className="address-fields-preview"
-          style={{
-            marginTop: 8,
-            padding: '10px 14px',
-            background: '#fafafa',
-            border: '1px dashed #ccc',
-            borderRadius: 6,
-            fontSize: '0.875rem',
-            color: '#888',
-            lineHeight: 1.6,
-          }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.75rem', color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Address Fields
-          </div>
-          <div><strong>{labels.streetLine}:</strong> —</div>
-          <div><strong>{labels.secondary}:</strong> —</div>
-          <div><strong>{labels.city}:</strong> —</div>
-          <div><strong>{labels.state}:</strong> —</div>
-          <div><strong>{labels.zipcode}:</strong> —</div>
+        <div className="mb-2">
+          <label className="form-label mb-1">{labels.secondary}</label>
+          <input
+            type="text"
+            className="form-control"
+            value={lastResult?.secondary ?? ''}
+            onChange={(e) => handleFieldChange('secondary', e.target.value)}
+            aria-label={labels.secondary}
+          />
         </div>
-      )}
+          <div className="mb-2">
+          <label className="form-label mb-1">{labels.city}</label>
+          <input
+            type="text"
+            className="form-control"
+            value={lastResult?.city ?? ''}
+            onChange={(e) => handleFieldChange('city', e.target.value)}
+            aria-label={labels.city}
+          />
+        </div>
+         
+          <div className="mb-2">
+            <label className="form-label mb-1">{labels.state}</label>
+            <input
+              type="text"
+              className="form-control"
+              value={lastResult?.state ?? ''}
+              onChange={(e) => handleFieldChange('state', e.target.value)}
+              aria-label={labels.state}
+            />
+          </div>
+          <div className="mb-2">
+            <label className="form-label mb-1">{labels.zipcode}</label>
+            <input
+              type="text"
+              className="form-control"
+              value={lastResult?.zipcode ?? ''}
+              onChange={(e) => handleFieldChange('zipcode', e.target.value)}
+              aria-label={labels.zipcode}
+            />
+          </div>
+      </div>
 
       <input
         type="hidden"
@@ -389,9 +409,6 @@ function SmartStreetInner({
 }
 
 export const SmartStreet = React.memo(SmartStreetInner)
-
-// Backward-compatible export name
-export const SearchableDropdownReact = SmartStreet
 
 export default SmartStreet
 

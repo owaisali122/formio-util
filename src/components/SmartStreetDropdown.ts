@@ -1,12 +1,13 @@
-export interface SearchableDropdownItem {
+export interface SmartStreetDropdownItem {
   id: string
   value: string
   [key: string]: unknown
 }
 
+/** @deprecated Use SmartStreetDropdownItem */
 export const SEARCHABLE_DROPDOWN_TYPE = 'searchableDropdown'
 
-export class SearchableDropdownComponent {
+export class SmartStreetDropdownComponent {
   static schema(overrides?: Record<string, unknown>) {
     return {
       type: SEARCHABLE_DROPDOWN_TYPE,
@@ -41,7 +42,7 @@ export class SearchableDropdownComponent {
       icon: 'map-marker',
       weight: 28,
       documentation: 'Smart Street address autocomplete with field mapping',
-      schema: SearchableDropdownComponent.schema(),
+      schema: SmartStreetDropdownComponent.schema(),
     }
   }
 

@@ -44,7 +44,7 @@ export const GENERIC_POPUP_TYPE = 'genericPopup'
 /**
  * Form.io Designer (builder-side) component definition for Generic Popup.
  *
- * Reference pattern: SearchableDropdownComponent (src/components/SearchableDropdown.ts)
+ * Reference pattern: SmartStreetDropdownComponent (src/components/SmartStreetDropdown.ts)
  */
 export class GenericPopupComponent {
   static schema(overrides?: Partial<GenericPopupSchema>): GenericPopupSchema {

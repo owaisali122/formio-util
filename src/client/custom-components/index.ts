@@ -5,7 +5,7 @@
  * - createSearchableDropdownClass - Smart Street address autocomplete (factory for consumer apps)
  */
 
-export { default as createSearchableDropdownClass, type ApiResponseItem } from './SearchableDropdownFormIO'
+export { default as createSearchableDropdownClass, type ApiResponseItem } from './SmartStreetFormIO'
 export { default as createFileUploaderClass } from './FileUploaderFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
