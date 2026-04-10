@@ -1,4 +1,4 @@
-import { registerAppDetailRef, setupAppDetailRefFormDropdown } from './registries/register-app-detail-ref'
+import { registerReferencedForm, setupReferencedFormDropdown } from './registries/register-referenced-form'
 import { registerSSN } from './registries/register-ssn'
 import { registerSmartStreet } from './registries/register-smart-street'
 import { registerFileUploader } from './registries/register-file-uploader'
@@ -68,7 +68,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
   if (FormioModuleObj?.Components?.setComponent) {
     const Components = FormioModuleObj.Components as FormioComponents
 
-    await registerAppDetailRef(Components)
+    await registerReferencedForm(Components)
     await registerSSN(Components)
     await registerSmartStreet(Components)
     await registerFileUploader(Components)
@@ -79,16 +79,16 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileViewer(Components)
     await registerFileDownload(Components)
 
-    // Register runtime App Detail Ref component for renderer.
+    // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
     // standard value/update lifecycle, while keeping the builder behavior
     // (designer component + preview) unchanged.
     try {
       const FieldComponent = (FormioModuleObj.Components as any)?.components?.field
       if (FieldComponent) {
-        const { createAppDetailRefRuntimeClass } = await import('./components/AppDetailRefRuntime')
-        const AppDetailRefRuntime = createAppDetailRefRuntimeClass(FieldComponent)
-        Components.setComponent('appDetailRefRuntime', AppDetailRefRuntime as never)
+        const { createReferencedFormRuntimeClass } = await import('./components/ReferencedFormRuntime')
+        const ReferencedFormRuntime = createReferencedFormRuntimeClass(FieldComponent)
+        Components.setComponent('appDetailRefRuntime', ReferencedFormRuntime as never)
 
         // For each runtime class, preserve the designer statics (editForm,
         // builderInfo, schema) so the builder keeps showing the clean designer
@@ -265,14 +265,11 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         schema && typeof schema === 'object' ? (schema as Record<string, unknown>) : { display: 'form', components: [] }
       const safeSchema = ensureWizardSchema(schemaObj)
       const formBuilder = new OriginalFormBuilder(container, safeSchema, options) as { ready: Promise<Record<string, unknown>> }
-      const url = getFormsListUrl()
-      if (url?.trim()) {
-        const originalReady = formBuilder.ready
-        formBuilder.ready = originalReady.then((instance) => {
-          setupAppDetailRefFormDropdown(instance)
-          return instance
-        }) as typeof formBuilder.ready
-      }
+      const originalReady = formBuilder.ready
+      formBuilder.ready = originalReady.then((instance) => {
+        setupReferencedFormDropdown(instance)
+        return instance
+      }) as typeof formBuilder.ready
       return formBuilder
     }
     try {
@@ -352,4 +349,4 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
   }
 }
 
-export { setupAppDetailRefFormDropdown }
+export { setupReferencedFormDropdown }

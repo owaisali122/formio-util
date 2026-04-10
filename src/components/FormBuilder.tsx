@@ -5,7 +5,7 @@ import {
   configure,
   getBuilderConfig,
   registerCustomComponents,
-  setupAppDetailRefFormDropdown,
+  setupReferencedFormDropdown,
 } from '../registry'
 import { BootstrapProvider } from './BootstrapProvider'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
@@ -144,7 +144,7 @@ function FormBuilderInner({
       )
       const instance = (await formBuilder.ready) as FormioBuilderInstance
       builderInstanceRef.current = instance
-      setupAppDetailRefFormDropdown(instance as unknown as Record<string, unknown>)
+      setupReferencedFormDropdown(instance as unknown as Record<string, unknown>)
 
       const getSchemaFromInstance = (): FormBuilderSchema | null => {
         try {

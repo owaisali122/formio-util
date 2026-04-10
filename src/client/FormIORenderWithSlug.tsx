@@ -154,7 +154,7 @@ export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
 
 /**
  * Walks the Form.io component tree for the given parent wizard page and returns
- * all AppDetailRefRuntime instances whose embedded form is itself a wizard AND
+ * all ReferencedFormRuntime instances whose embedded form is itself a wizard AND
  * that are currently visible (not hidden / conditionally invisible).
  *
  * Navigation delegation rule (Case 6):

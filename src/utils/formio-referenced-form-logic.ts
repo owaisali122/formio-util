@@ -1,13 +1,13 @@
 /**
- * App Detail Ref – form schema helpers for preview, referencable fields, and
+ * Referenced Form – form schema helpers for preview, referencable fields, and
  * renderer-time schema injection.
  */
 
-import { APP_DETAIL_REF_EXCLUDE_TYPES } from '../components/AppDetailRef'
+import { REFERENCED_FORM_EXCLUDE_TYPES } from '../components/ReferencedForm'
 
 /** Is type excluded from reference field dropdown? */
 function isExcluded(type: string): boolean {
-  return APP_DETAIL_REF_EXCLUDE_TYPES.includes(type)
+  return REFERENCED_FORM_EXCLUDE_TYPES.includes(type)
 }
 
 /** Referencable items (key + label). Recurses components, tabs, columns, rows. */
@@ -90,7 +90,7 @@ export function getFormSchemaForPreview(
 }
 
 /**
- * Deeply walk a schema and rewrite App Detail Ref components from the designer
+ * Deeply walk a schema and rewrite Referenced Form components from the designer
  * type (`appDetailRef`) to the runtime renderer type (`appDetailRefRuntime`).
  * This keeps the builder schema unchanged while allowing the renderer to use
  * a dedicated runtime component implementation.
@@ -196,7 +196,7 @@ function transformComponent(node: unknown): unknown {
   return changed ? clone : node
 }
 
-export async function runAppDetailRefInjection(
+export async function runReferencedFormInjection(
   schema: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
   if (!schema || typeof schema !== 'object') return schema

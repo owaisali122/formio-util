@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react'
 import { registerCustomComponents } from '../registry'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
-import { runAppDetailRefInjection } from '../utils/formio-app-detail-ref-logic'
+import { runReferencedFormInjection } from '../utils/formio-referenced-form-logic'
 import { BootstrapProvider } from './BootstrapProvider'
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
@@ -107,7 +107,7 @@ export function FormRenderer(props: FormRendererProps) {
       .then((F) => {
         if (cancelled || !containerRef.current) return
 
-        return runAppDetailRefInjection(schema)
+        return runReferencedFormInjection(schema)
           .then((effectiveSchema) => {
             if (cancelled || !containerRef.current) return null
             const opts = { readOnly, ...createFormOptionsRef.current }

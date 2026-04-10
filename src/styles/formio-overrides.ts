@@ -131,22 +131,22 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
   list-style: none;
 }
 
-/* App Detail Ref: preview panel in builder edit dialog only */
-.formio-dialog .app-detail-ref-preview-inner {
+/* Referenced Form: preview panel in builder edit dialog only */
+.formio-dialog .referenced-form-preview-inner {
   min-height: 280px;
   padding: 12px;
   background: #f8fafc;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
 }
-.app-detail-ref-preview-inner {
+.referenced-form-preview-inner {
   min-height: 200px;
 }
 
-/* App Detail Ref in renderer: force plain look (no dashed/gray box) */
-.formio-renderer .app-detail-ref-container,
-.formio-renderer .app-detail-ref-placeholder,
-.formio-renderer .app-detail-ref-preview-inner {
+/* Referenced Form in renderer: force plain look (no dashed/gray box) */
+.formio-renderer .referenced-form-container,
+.formio-renderer .referenced-form-placeholder,
+.formio-renderer .referenced-form-preview-inner {
   border: none !important;
   background: transparent !important;
   padding: 0 !important;

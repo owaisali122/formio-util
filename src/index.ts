@@ -5,7 +5,7 @@ export {
   getFormsListUrl,
   ensureWizardSchema,
   createFormBuilder,
-  setupAppDetailRefFormDropdown,
+  setupReferencedFormDropdown,
 } from './registry'
 export type { RegistryConfig } from './registry'
 
@@ -21,22 +21,21 @@ export type {
 } from './components/FormBuilder'
 
 export {
-  AppDetailRefComponent,
-  APP_DETAIL_REF_TYPE,
-  APP_DETAIL_REF_EXCLUDE_TYPES,
-} from './components/AppDetailRef'
+  ReferencedFormComponent,
+  REFERENCED_FORM_TYPE,
+  REFERENCED_FORM_EXCLUDE_TYPES,
+} from './components/ReferencedForm'
 export type {
-  AppDetailRefSchema,
-  AppDetailRefBuilderInfo,
-  AppDetailRefEditFormComponent,
-} from './components/AppDetailRef'
+  ReferencedFormSchema,
+  ReferencedFormBuilderInfo,
+} from './components/ReferencedForm'
 
 export {
   getFormSchemaForPreview,
   getDocComponents,
   getReferencableComponents,
-  runAppDetailRefInjection,
-} from './utils/formio-app-detail-ref-logic'
+  runReferencedFormInjection,
+} from './utils/formio-referenced-form-logic'
 
 export { formBuilderPlugin } from './plugins/formBuilderPlugin'
 

@@ -1,21 +1,19 @@
 /**
- * Runtime App Detail Reference component for Form.io renderer.
- *
- * Based on portal POC implementation:
- * C:\Projects\HI-POC-1\public\medquest_kolea\app\components\formio\custom-components\AppDetailRefFormIO.ts
+ * Runtime Referenced Form component for Form.io renderer.
+ * (Formerly named "App Detail Reference".)
  *
  * This component:
- * - Fetches a target form by ID from `formApiBasePath` (default `/api/forms`).
+ * - Fetches a target form by ID using the endpoint configured in the Data Source tab.
  * - Renders the embedded form inside this component.
  * - Synchronizes embedded submission data with this component's value.
  */
 
-export const APP_DETAIL_REF_RUNTIME_TYPE = 'appDetailRefRuntime' as const
+export const REFERENCED_FORM_RUNTIME_TYPE = 'appDetailRefRuntime' as const
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createAppDetailRefRuntimeClass(FieldComponent: any) {
+export function createReferencedFormRuntimeClass(FieldComponent: any) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return class AppDetailRefRuntime extends FieldComponent {
+  return class ReferencedFormRuntime extends FieldComponent {
     // Keep a reference to the embedded form instance and any pending value
     // that should be applied once the embedded form is ready.
     // NOTE: These are public so that DTS build can emit types for this
@@ -27,13 +25,23 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
     // configuration remains separate.
     static schema(overrides?: any) {
       return FieldComponent.schema({
-        type: APP_DETAIL_REF_RUNTIME_TYPE,
-        label: 'App Detail Reference',
+        type: REFERENCED_FORM_RUNTIME_TYPE,
+        label: 'Referenced Form',
         key: 'appDetailRef',
         input: true,
         hideLabel: true,
         selectedFormId: null,
-        formApiBasePath: '/api/forms',
+        hidden: false,
+        autofocus: false,
+        // data source configuration (from designer)
+        apiType: 'custom',
+        apiEndpoint: '',
+        apiMethod: 'GET',
+        dataPath: 'schema',
+        authType: 'basic',
+        authUsername: '',
+        authPassword: '',
+        partnerId: '',
         ...overrides,
       })
     }
@@ -45,16 +53,16 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
 
     static get builderInfo() {
       return {
-        title: 'App Detail Reference',
+        title: 'Referenced Form',
         group: 'advanced',
         icon: 'list-alt',
         weight: 190,
-        schema: AppDetailRefRuntime.schema(),
+        schema: ReferencedFormRuntime.schema(),
       }
     }
 
     get defaultSchema() {
-      return AppDetailRefRuntime.schema()
+      return ReferencedFormRuntime.schema()
     }
 
     get selectedFormId(): number | null {
@@ -184,8 +192,8 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
 
     render() {
       return super.render(`
-        <div class="app-detail-ref-container" ref="container">
-          <div class="app-detail-ref-placeholder" ref="placeholder">Loading...</div>
+        <div class="referenced-form-container" ref="container">
+          <div class="referenced-form-placeholder" ref="placeholder">Loading...</div>
         </div>
       `)
     }
@@ -215,17 +223,60 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
         return result
       }
 
-      const basePath = this.component?.formApiBasePath || '/api/forms'
+      // Build the API URL from the designer's Data Source tab
+      const apiEndpoint = this.component?.apiEndpoint?.trim()
+      if (!apiEndpoint) {
+        this.showError('No API endpoint configured. Set one in the Data Source tab.')
+        return result
+      }
       const origin = typeof window !== 'undefined' ? window.location?.origin ?? '' : ''
-      const apiUrl = `${origin}${basePath}/${formId}`
+      const apiUrl = `${origin}${apiEndpoint}/${formId}`
+      const httpMethod: string = (this.component?.apiMethod || 'GET').toUpperCase()
 
-      fetch(apiUrl)
+      // Build fetch options from designer data source configuration
+      const fetchOptions: RequestInit = { method: httpMethod }
+      const apiType: string = this.component?.apiType || 'custom'
+
+      if (apiType === 'secure') {
+        const headers: Record<string, string> = {}
+        const authType: string = this.component?.authType || ''
+        if (authType === 'basic') {
+          const username: string = this.component?.authUsername || ''
+          const password: string = this.component?.authPassword || ''
+          if (username) {
+            headers['Authorization'] = `Basic ${btoa(`${username}:${password}`)}`
+          }
+        }
+        const partnerId: string = this.component?.partnerId || ''
+        if (partnerId) {
+          headers['partner-id'] = partnerId
+        }
+        if (Object.keys(headers).length > 0) {
+          fetchOptions.headers = headers
+        }
+      }
+
+      // Resolve the data path for extracting the form schema from the response
+      const dataPath: string = this.component?.dataPath || 'schema'
+
+      fetch(apiUrl, fetchOptions)
         .then((res) => {
           if (!res.ok) throw new Error(`Form ${formId} not found`)
           return res.json()
         })
         .then((formResponse) => {
-          const schema = formResponse?.schema ?? formResponse
+          // Navigate the response using the configured dataPath (dot-notation)
+          let schema = formResponse
+          if (dataPath) {
+            for (const key of dataPath.split('.')) {
+              schema = schema?.[key]
+              if (schema === undefined) break
+            }
+          }
+          // Fallback to the full response if dataPath resolved to nothing
+          if (schema === undefined || schema === null) {
+            schema = formResponse
+          }
           if (!schema || typeof schema !== 'object') {
             this.showError('Invalid form schema.')
             return null
@@ -271,6 +322,14 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
           }
           this._pendingValue = undefined
 
+          // Apply initial focus if configured
+          if (this.component?.autofocus) {
+            requestAnimationFrame(() => {
+              const firstInput = placeholder.querySelector('input, select, textarea') as HTMLElement | null
+              if (firstInput) firstInput.focus()
+            })
+          }
+
           form.on('change', () => {
             const key = this.component?.key
             if (!key || !this.root?.data) return
@@ -291,7 +350,7 @@ export function createAppDetailRefRuntimeClass(FieldComponent: any) {
       const container = this.refs?.container as HTMLElement | undefined
       if (!container) return
       const err = document.createElement('div')
-      err.className = 'alert alert-danger app-detail-ref-error'
+      err.className = 'alert alert-danger referenced-form-error'
       err.textContent = message
       container.innerHTML = ''
       container.appendChild(err)
