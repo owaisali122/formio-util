@@ -81,6 +81,32 @@ export interface SmartStreetProps {
   onAddressSelected?: (address: AddressResult) => void
 }
 
+// ── Option renderer — shows right-side entries badge only in dropdown menu ──
+function formatOptionLabel(opt: OptionType, { context }: { context: 'menu' | 'value' }) {
+  const entries = Number((opt.data as unknown as AddressSuggestion)?.entries ?? 0)
+  if (context === 'value' || entries <= 1) {
+    return <span>{opt.label}</span>
+  }
+  const noun = entries === 1 ? 'address' : 'addresses'
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+      <span>{opt.label}</span>
+      <span
+        style={{
+          flexShrink: 0,
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#007bff',
+          whiteSpace: 'nowrap',
+          marginLeft: '8px',
+        }}
+      >
+        +{entries} {noun}
+      </span>
+    </span>
+  )
+}
+
 const selectStyles: StylesConfig<OptionType, false> = {
   control: (base, state) => ({
     ...base,
@@ -132,6 +158,10 @@ function SmartStreetInner({
   const requestIdRef = useRef(0)
   const finalizedRef = useRef(!!value?.address)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Tracks the last confirmed street_line so the search field can be re-seeded
+  // when the user reopens the dropdown after a selection.
+  const lastStreetLineRef = useRef(value?.address?.streetLine ?? '')
+  const [inputValue, setInputValue] = useState('')
 
   // Resolve display labels from mapping config (fallback to defaults)
   const labels = useMemo(() => ({
@@ -208,14 +238,31 @@ function SmartStreetInner({
 
   const handleInputChange = useCallback(
     (newInput: string, { action }: InputActionMeta) => {
+      if (action === 'input-blur' || action === 'menu-close') {
+        if (action === 'input-blur') {
+          if (debounceRef.current) clearTimeout(debounceRef.current)
+          setOptions([])
+          setMenuIsOpen(false)
+          // If a selection is finalized, clear the input so React Select
+          // displays the selected value label. Otherwise keep the typed text.
+          if (finalizedRef.current) {
+            setInputValue('')
+          } else {
+            setInputValue(inputRef.current)
+          }
+        }
+        return
+      }
       if (action !== 'input-change') return
+      setInputValue(newInput)
       inputRef.current = newInput
 
+      // finalizedRef is already cleared in handleMenuOpen before the user types;
+      // this fallback handles the edge case where input-change fires without a prior menu open.
       if (finalizedRef.current) {
         finalizedRef.current = false
         setSelectedValue(null)
-        setLastResult(null)
-        onAddressSelected?.(EMPTY_ADDRESS)
+        // lastResult is kept intact so address fields stay populated.
       }
 
       if (newInput.length < minSearchLength) {
@@ -224,12 +271,13 @@ function SmartStreetInner({
       }
       doSearch(newInput, null)
     },
-    [minSearchLength, doSearch, onAddressSelected],
+    [minSearchLength, doSearch],
   )
 
   // Handles manual edits to individual address input fields after selection
   const handleFieldChange = useCallback(
     (field: keyof AddressResult, fieldValue: string) => {
+      if (field === 'streetLine') lastStreetLineRef.current = fieldValue
       setLastResult((prev) => {
         const updated: AddressResult = { ...(prev ?? EMPTY_ADDRESS), [field]: fieldValue }
         const label = [
@@ -250,9 +298,6 @@ function SmartStreetInner({
   const finalizeAddress = useCallback(
     (newVal: OptionType, addr: AddressSuggestion, suggestion: AddressSuggestion) => {
       finalizedRef.current = true
-      setSelectedValue(newVal)
-      setOptions([])
-      setMenuIsOpen(false)
       const result: AddressResult = {
         streetLine: addr.street_line || suggestion.street_line || '',
         secondary: addr.secondary ?? suggestion.secondary ?? '',
@@ -260,9 +305,18 @@ function SmartStreetInner({
         state: addr.state || suggestion.state || '',
         zipcode: addr.zipcode || suggestion.zipcode || '',
       }
+      lastStreetLineRef.current = result.streetLine
+      // Fix 2: the React Select control should display only the street_line,
+      // not the full formatted address label.
+      const controlLabel = result.streetLine || newVal.label
+      const displayOption: OptionType = { ...newVal, value: controlLabel, label: controlLabel }
+      setSelectedValue(displayOption)
+      setInputValue('')
+      setOptions([])
+      setMenuIsOpen(false)
       setLastResult(result)
       // Store structured data for persistence
-      const storedValue: SmartStreetValue = { selectedLabel: newVal.label, address: result }
+      const storedValue: SmartStreetValue = { selectedLabel: controlLabel, address: result }
       onChange?.(storedValue)
       onAddressSelected?.(result)
     },
@@ -312,6 +366,24 @@ function SmartStreetInner({
     [fetchSuggestions, finalizeAddress, onChange, onAddressSelected],
   )
 
+  // When user reopens the dropdown after a finalized selection, seed the input
+  // with the current street_line so they can refine from where they left off.
+  const handleMenuOpen = useCallback(() => {
+    setMenuIsOpen(true)
+    if (finalizedRef.current) {
+      finalizedRef.current = false
+      setSelectedValue(null)
+      const street = lastStreetLineRef.current
+      if (street) {
+        setInputValue(street)
+        inputRef.current = street
+        if (street.length >= minSearchLength) {
+          doSearch(street, null)
+        }
+      }
+    }
+  }, [minSearchLength, doSearch])
+
   return (
     <div className="smart-street-wrapper" style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}>
       <Select<OptionType>
@@ -319,10 +391,11 @@ function SmartStreetInner({
         options={options}
         isLoading={isLoading}
         value={selectedValue}
+        inputValue={inputValue}
         onChange={handleChange as any}
         onInputChange={handleInputChange}
         menuIsOpen={menuIsOpen}
-        onMenuOpen={() => setMenuIsOpen(true)}
+        onMenuOpen={handleMenuOpen}
         onMenuClose={() => { if (!isLoading) setMenuIsOpen(false) }}
         closeMenuOnSelect={false}
         filterOption={() => true}
@@ -336,23 +409,14 @@ function SmartStreetInner({
         }
         loadingMessage={() => 'Searching addresses...'}
         styles={selectStyles}
+        formatOptionLabel={formatOptionLabel}
         isClearable
         classNamePrefix="react-select"
         blurInputOnSelect={false}
       />
 
-      {/* Editable address input fields — always visible, populated after selection */}
+      {/* Editable address input fields — search field covers Address; show remaining fields */}
       <div className="address-editable-fields mt-2">
-        <div className="mb-2">
-          <label className="form-label mb-1">{labels.streetLine}</label>
-          <input
-            type="text"
-            className="form-control"
-            value={lastResult?.streetLine ?? ''}
-            onChange={(e) => handleFieldChange('streetLine', e.target.value)}
-            aria-label={labels.streetLine}
-          />
-        </div>
         <div className="mb-2">
           <label className="form-label mb-1">{labels.secondary}</label>
           <input
