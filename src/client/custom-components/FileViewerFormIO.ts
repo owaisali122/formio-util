@@ -58,12 +58,6 @@ function categoryFromContentType(ct: string): FileCategory {
   return 'unknown'
 }
 
-function interpolateUrl(template: string, data: Record<string, unknown>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
-    encodeURIComponent(String(data[key] ?? '')),
-  )
-}
-
 function escAttr(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
@@ -74,6 +68,7 @@ export function createFileViewerClass(FieldComponent: any) {
   return class FileViewerFormIO extends FieldComponent {
     _triggerBtn: HTMLButtonElement | null = null
     _clickBound: (() => void) | null = null
+    _keydownBound: ((e: KeyboardEvent) => void) | null = null
     _onChangeBound: (() => void) | null = null
     _lastRenderedUrl: string = ''
 
@@ -309,9 +304,30 @@ export function createFileViewerClass(FieldComponent: any) {
       `)
     }
 
+    // ── Trigger listener cleanup helper ──
+
+    _cleanupTrigger() {
+      if (this._triggerBtn) {
+        if (this._clickBound) {
+          this._triggerBtn.removeEventListener('click', this._clickBound)
+        }
+        if (this._keydownBound) {
+          this._triggerBtn.removeEventListener('keydown', this._keydownBound)
+        }
+      }
+      this._triggerBtn = null
+      this._clickBound = null
+      this._keydownBound = null
+    }
+
     // ── Attach ──
 
     attach(element: HTMLElement) {
+      // Always clean up previous listeners before re-attaching.
+      // Form.io can call attach() on re-renders without a preceding detach(),
+      // which would stack duplicate listeners on the same trigger element.
+      this._cleanupTrigger()
+
       const result = super.attach(element)
 
       this.loadRefs(element, {
@@ -323,10 +339,11 @@ export function createFileViewerClass(FieldComponent: any) {
       if (btn) {
         this._triggerBtn = btn as HTMLButtonElement
         this._clickBound = () => this._openViewer()
-        btn.addEventListener('click', this._clickBound)
-        btn.addEventListener('keydown', (e: KeyboardEvent) => {
+        this._keydownBound = (e: KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._openViewer() }
-        })
+        }
+        btn.addEventListener('click', this._clickBound)
+        btn.addEventListener('keydown', this._keydownBound)
       }
 
       // For dataKey mode: re-render only when URL actually changes
@@ -349,11 +366,7 @@ export function createFileViewerClass(FieldComponent: any) {
     // ── Detach ──
 
     detach() {
-      if (this._triggerBtn && this._clickBound) {
-        this._triggerBtn.removeEventListener('click', this._clickBound)
-        this._triggerBtn = null
-        this._clickBound = null
-      }
+      this._cleanupTrigger()
       return super.detach()
     }
 

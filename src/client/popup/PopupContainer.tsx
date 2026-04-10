@@ -73,6 +73,12 @@ function Modal({ state }: ModalProps) {
   const closeOnBackdrop = config.closeOnBackdrop === true
   const closeOnEscape = config.closeOnEscape !== false
 
+  // Guard: onMount must fire exactly once per popup open.
+  // An inline `ref` callback is a new function on every render, so React
+  // calls old-ref(null) then new-ref(el) on every re-render, which would
+  // run onMount (and any fetch inside it) multiple times.
+  const onMountFiredRef = useRef(false)
+
   const buttons: PopupButton[] = config.buttons?.length
     ? config.buttons
     : DEFAULT_BUTTONS[variant]
@@ -160,7 +166,12 @@ function Modal({ state }: ModalProps) {
               <div
                 className="modal-body"
                 dangerouslySetInnerHTML={{ __html: config.htmlContent }}
-                ref={(el) => { if (el && config.onMount) config.onMount(el) }}
+                ref={(el) => {
+                  if (el && config.onMount && !onMountFiredRef.current) {
+                    onMountFiredRef.current = true
+                    config.onMount(el)
+                  }
+                }}
               />
             ) : config.message ? (
               <div className="modal-body">
