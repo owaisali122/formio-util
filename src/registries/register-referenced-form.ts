@@ -354,6 +354,22 @@ export async function registerReferencedForm(Components: FormioComponents): Prom
       return ReferencedFormComponent.editForm()
     }
 
+     /**
+     * Block saving the component settings when Property Name (key) is empty.
+     * Form.io calls this method when the user clicks Save in the edit dialog.
+     */
+    saveComponentSettings(component: any) {
+      if (!component?.key?.trim()) {
+        const editForm = (this as any).editForm
+        if (editForm) {
+          // Trigger validation on the editForm so the required error is shown
+          editForm.setPristine(false)
+          editForm.checkValidity(null, true, null, false)
+        }
+        return false
+      }
+      return super.saveComponentSettings(component)
+    }
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
     }

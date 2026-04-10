@@ -13,6 +13,8 @@ export interface SSNSchema {
   maskCharacter: string
   allowToggleMask: boolean
   preventCopy: boolean
+  hidden: boolean
+  autofocus: boolean
   [k: string]: unknown
 }
 
@@ -31,6 +33,8 @@ export class SSNComponent {
       maskCharacter: '*',
       allowToggleMask: true,
       preventCopy: true,
+      hidden: false,
+      autofocus: false,
       ...overrides,
     }
   }
@@ -53,6 +57,7 @@ export class SSNComponent {
           type: 'tabs',
           key: 'tabs',
           components: [
+            // ── Display tab ─────────────────────────────────────────
             {
               label: 'Display',
               key: 'display',
@@ -62,16 +67,12 @@ export class SSNComponent {
                   key: 'label',
                   label: 'Label',
                   input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   defaultValue: 'Social Security Number',
                   weight: 10,
-                },
-                {
-                  type: 'textfield',
-                  key: 'key',
-                  label: 'Property Name',
-                  input: true,
-                  defaultValue: 'ssn',
-                  weight: 20,
                 },
                 {
                   type: 'textfield',
@@ -79,7 +80,7 @@ export class SSNComponent {
                   label: 'Placeholder',
                   input: true,
                   defaultValue: '___-__-____',
-                  weight: 30,
+                  weight: 20,
                 },
                 {
                   type: 'textarea',
@@ -87,7 +88,17 @@ export class SSNComponent {
                   label: 'Description',
                   input: true,
                   defaultValue: 'Enter your 9-digit Social Security Number',
+                  weight: 30,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'autofocus',
+                  label: 'Initial Focus',
+                  input: true,
+                  defaultValue: false,
                   weight: 40,
+                  tooltip:
+                    'When enabled, this field receives focus when the form loads.',
                 },
                 {
                   type: 'checkbox',
@@ -96,6 +107,8 @@ export class SSNComponent {
                   input: true,
                   defaultValue: false,
                   weight: 50,
+                  tooltip:
+                    'When enabled, this component is hidden from the form.',
                 },
                 {
                   type: 'checkbox',
@@ -107,6 +120,7 @@ export class SSNComponent {
                 },
               ],
             },
+            // ── Masking tab ─────────────────────────────────────────
             {
               label: 'Masking',
               key: 'masking',
@@ -125,6 +139,10 @@ export class SSNComponent {
                   key: 'maskedDisplayMode',
                   label: 'Default Display Mode',
                   input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   defaultValue: 'last4',
                   data: {
                     values: [
@@ -165,6 +183,7 @@ export class SSNComponent {
                 },
               ],
             },
+            // ── Validation tab ──────────────────────────────────────
             {
               label: 'Validation',
               key: 'validation',
@@ -185,6 +204,120 @@ export class SSNComponent {
                   placeholder: 'Please enter a valid SSN',
                   description: 'Error message shown when validation fails.',
                   weight: 20,
+                },
+                {
+                  type: 'textarea',
+                  key: 'validate.custom',
+                  label: 'Custom Validation',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript validation. Set "valid" to true or an error message string. Available variables: valid, input, data, row, component, instance.',
+                },
+                {
+                  type: 'textarea',
+                  key: 'customDefaultValue',
+                  label: 'Custom Default Value',
+                  input: true,
+                  rows: 5,
+                  weight: 40,
+                  description:
+                    'Write custom JavaScript for the default value. Set the "value" variable.',
+                },
+              ],
+            },
+            // ── API tab ─────────────────────────────────────────────
+            {
+              label: 'API',
+              key: 'api',
+              components: [
+                {
+                  type: 'textfield',
+                  key: 'key',
+                  label: 'Property Name',
+                  input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
+                  defaultValue: 'ssn',
+                  description:
+                    'Unique key for this component (e.g. ssn).',
+                  weight: 10,
+                },
+              ],
+            },
+            // ── Conditional tab ─────────────────────────────────────
+            {
+              label: 'Conditional',
+              key: 'conditional',
+              components: [
+                {
+                  type: 'panel',
+                  title: 'Simple',
+                  key: 'simpleConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'select',
+                      key: 'conditional.show',
+                      label: 'This component should Display:',
+                      dataSrc: 'values',
+                      data: {
+                        values: [
+                          { label: 'True', value: 'true' },
+                          { label: 'False', value: 'false' },
+                        ],
+                      },
+                      input: true,
+                      weight: 10,
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.when',
+                      label: 'When the form component:',
+                      input: true,
+                      weight: 20,
+                      description:
+                        'Enter the API key of the component to check.',
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.eq',
+                      label: 'Has the value:',
+                      input: true,
+                      weight: 30,
+                    },
+                  ],
+                },
+                {
+                  type: 'panel',
+                  title: 'Advanced Conditions',
+                  key: 'advancedConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'textarea',
+                      key: 'conditional.json',
+                      label: 'JSONLogic',
+                      input: true,
+                      rows: 5,
+                      weight: 10,
+                      description:
+                        'Enter raw JSON Logic to control component visibility. Refer to jsonlogic.com for documentation.',
+                    },
+                  ],
+                },
+                {
+                  type: 'textarea',
+                  key: 'customConditional',
+                  label: 'Custom Conditional (JavaScript)',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
                 },
               ],
             },

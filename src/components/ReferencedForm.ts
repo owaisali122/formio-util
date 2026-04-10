@@ -98,7 +98,10 @@ export class ReferencedFormComponent {
                   key: EDIT_FIELD_KEYS.selectedFormId,
                   label: 'Form',
                   input: true,
-                  required: false,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   data: { values: [] },
                   dataSrc: 'values',
                   valueProperty: 'value',
@@ -149,6 +152,9 @@ export class ReferencedFormComponent {
                   label: 'Property Name',
                   input: true,
                   required: true,
+                  validate: {
+                    required: true,
+                  },
                   description:
                     'Unique key for this component (e.g. appDetailRef).',
                   weight: 10,
@@ -165,6 +171,10 @@ export class ReferencedFormComponent {
                   key: 'apiType',
                   label: 'API Type',
                   input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   defaultValue: 'custom',
                   data: {
                     values: [
@@ -181,6 +191,10 @@ export class ReferencedFormComponent {
                   key: 'apiEndpoint',
                   label: 'API Endpoint',
                   input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   placeholder: '/api/forms',
                   description:
                     'Base URL for fetching the referenced form schema (e.g. /api/forms). The form ID will be appended automatically.',
@@ -192,6 +206,10 @@ export class ReferencedFormComponent {
                   label: 'HTTP Method',
                   input: true,
                   defaultValue: 'GET',
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   data: {
                     values: [
                       { label: 'GET', value: 'GET' },
@@ -220,6 +238,9 @@ export class ReferencedFormComponent {
                   key: 'authUsername',
                   label: 'Basic Auth Username',
                   input: true,
+                  validate: {
+                    required: true,
+                  },
                   placeholder: 'Enter username',
                   description: 'Username for Basic Authentication.',
                   weight: 26,
@@ -237,6 +258,9 @@ export class ReferencedFormComponent {
                   key: 'authPassword',
                   label: 'Basic Auth Password',
                   input: true,
+                  validate: {
+                    required: true,
+                  },
                   placeholder: 'Enter password',
                   description:
                     'Password for Basic Authentication. Value is masked in the UI.',
@@ -255,6 +279,9 @@ export class ReferencedFormComponent {
                   key: 'partnerId',
                   label: 'Partner ID Header',
                   input: true,
+                  validate: {
+                    required: true,
+                  },
                   placeholder: 'Enter partner-id value',
                   description:
                     'Value for the partner-id HTTP header sent with secure API requests.',
@@ -269,6 +296,10 @@ export class ReferencedFormComponent {
                   key: 'dataPath',
                   label: 'Data Path in Response',
                   input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
                   defaultValue: 'schema',
                   description:
                     'Dot-path to the form schema in the API response (e.g. "schema", "data.schema").',

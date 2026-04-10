@@ -159,6 +159,11 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
 
       // Re-apply mask after Form.io's own lifecycle finishes setting the value
       setTimeout(() => this._syncDisplay(), 50)
+
+      // Apply autofocus if configured
+      if (this.component?.autofocus) {
+        input.focus()
+      }
     }
 
     // ── Event handlers ──
