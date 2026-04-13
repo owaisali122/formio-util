@@ -131,6 +131,7 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
       }
 
       // Input events
+      input.addEventListener('keydown', (e) => this._onKeydown(e))
       input.addEventListener('input', () => this._onInput())
       input.addEventListener('focus', () => this._onFocus())
       input.addEventListener('blur', () => this._onBlur())
@@ -168,23 +169,48 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
 
     // ── Event handlers ──
 
+    _onKeydown(e: KeyboardEvent) {
+      // In masked mode, handle digit input and deletion directly so that
+      // _rawValue is never incorrectly derived from the masked display chars.
+      if (this._revealed) return
+      if (/^\d$/.test(e.key)) {
+        e.preventDefault()
+        if (this._rawValue.length < 9) {
+          this._rawValue += e.key
+          this._inputEl!.value = this._masked()
+          this._commit()
+        }
+      } else if (e.key === 'Backspace') {
+        e.preventDefault()
+        this._rawValue = this._rawValue.slice(0, -1)
+        this._inputEl!.value = this._masked()
+        this._commit()
+      } else if (e.key === 'Delete') {
+        e.preventDefault()
+        this._rawValue = this._rawValue.slice(0, -1)
+        this._inputEl!.value = this._masked()
+        this._commit()
+      }
+    }
+
     _onInput() {
       const inp = this._inputEl!
+      if (!this._revealed) {
+        // Masked mode: _onKeydown already updated _rawValue and set inp.value.
+        // Just keep the display in sync for any edge-case browser changes.
+        inp.value = this._masked()
+        return
+      }
       const pos = inp.selectionStart || 0
       this._rawValue = this._digits(inp.value)
-      // Show formatted digits while typing only when revealed; otherwise
-      // keep the masked view — the raw value is still captured above.
-      if (this._revealed) {
-        inp.value = this._format(this._rawValue)
-        // Adjust cursor for inserted dashes
-        let newPos = pos
-        if (this._rawValue.length > 3 && pos > 3) newPos++
-        if (this._rawValue.length > 5 && pos > 6) newPos++
-        const max = inp.value.length
-        inp.setSelectionRange(Math.min(newPos, max), Math.min(newPos, max))
-      } else {
-        inp.value = this._masked()
-      }
+      // Show formatted digits while typing in revealed mode.
+      inp.value = this._format(this._rawValue)
+      // Adjust cursor for inserted dashes
+      let newPos = pos
+      if (this._rawValue.length > 3 && pos > 3) newPos++
+      if (this._rawValue.length > 5 && pos > 6) newPos++
+      const max = inp.value.length
+      inp.setSelectionRange(Math.min(newPos, max), Math.min(newPos, max))
       this._commit()
     }
 
