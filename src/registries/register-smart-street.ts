@@ -18,18 +18,40 @@ async function loadReactComponent(): Promise<ReactComponent | null> {
   return SmartStreetComponent
 }
 
-const ROOT_KEY = '__smartStreetRoot'
+/**
+ * Module-level cache: survives component destroy/recreate cycles in the
+ * designer preview. Keyed by component property name.
+ */
+const _mountCache = new Map<string, { mount: HTMLDivElement; root: Root }>()
+
+function isSmartStreetValueEqual(
+  a: SmartStreetValue | null | undefined,
+  b: SmartStreetValue | null | undefined,
+): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  if (a.selectedLabel !== b.selectedLabel) return false
+  const aa = a.address, ba = b.address
+  if (!aa && !ba) return true
+  if (!aa || !ba) return false
+  return aa.streetLine === ba.streetLine
+    && aa.secondary === ba.secondary
+    && aa.city === ba.city
+    && aa.state === ba.state
+    && aa.zipcode === ba.zipcode
+}
 
 export async function registerSmartStreet(Components: FormioComponents): Promise<void> {
   const FieldComponent = (Components.components as any).field as any
 
   class SmartStreet extends FieldComponent {
     private reactRoot: Root | null = null
-    private reactContainer: HTMLDivElement | null = null
+    private _persistentMount: HTMLDivElement | null = null
     private currentValue: SmartStreetValue | null = null
     private _initialValueTimeout: ReturnType<typeof setTimeout> | null = null
     private _onChangeBound: (v: SmartStreetValue | null) => void
     private _onAddressSelectedBound: (address: AddressResult) => void
+    private _mounted: boolean = false
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -71,7 +93,30 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
       `)
     }
 
+    /**
+     * Override redraw to prevent full DOM replacement when React is already
+     * mounted. Form.io calls redraw() on every property change and tab switch
+     * in the designer, which destroys and recreates the DOM — causing the
+     * React component to unmount/remount (visible as jerking).
+     *
+     * When the React root is live, we skip the DOM rebuild and just
+     * re-render the React tree with the latest props.
+     */
+    redraw() {
+      if (this._mounted && this.reactRoot && this._persistentMount) {
+        if (SmartStreetComponent) {
+          this.renderReactComponent(SmartStreetComponent)
+        }
+        return Promise.resolve()
+      }
+      return super.redraw()
+    }
+
     attach(element: HTMLElement) {
+      if (this._initialValueTimeout) {
+        clearTimeout(this._initialValueTimeout)
+        this._initialValueTimeout = null
+      }
       const result = super.attach(element)
       this.loadRefs(element, { smartStreetContainer: 'single' })
       const container = (this.refs as any)?.smartStreetContainer
@@ -103,45 +148,39 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
     async mountReactComponent(container: HTMLElement) {
       try {
         if (!container) return
-
-        if (this.reactRoot && this.reactContainer && !document.contains(this.reactContainer)) {
-          try { this.reactRoot.unmount() } catch { /* already unmounted */ }
-          this.reactRoot = null
-          this.reactContainer = null
-          delete (container as any)[ROOT_KEY]
-        }
-
-        if (this.reactRoot && this.reactContainer && document.contains(this.reactContainer)) {
-          const Component = await loadReactComponent()
-          if (Component) this.renderReactComponent(Component)
-          return
-        }
-
-        const existingRoot = (container as any)[ROOT_KEY] as Root | undefined
-        if (existingRoot) {
-          this.reactRoot = existingRoot
-          this.reactContainer = container as unknown as HTMLDivElement
-          const Component = await loadReactComponent()
-          if (Component) this.renderReactComponent(Component)
-          return
-        }
-
-        container.innerHTML = ''
-        this.reactContainer = document.createElement('div')
-        this.reactContainer.className = 'searchable-dropdown-react-mount'
-        container.appendChild(this.reactContainer)
         const Component = await loadReactComponent()
         if (!Component) return
-        this.tryLoadInitialValue()
-        if (!this.reactContainer) return
 
-        const existingOnNode = (this.reactContainer as any)[ROOT_KEY] as Root | undefined
-        if (existingOnNode) {
-          this.reactRoot = existingOnNode
-        } else {
-          this.reactRoot = createRoot(this.reactContainer)
-          ;(this.reactContainer as any)[ROOT_KEY] = this.reactRoot
+        const cacheKey = this.component?.key || ''
+
+        // Check module-level cache for a root from a previous instance
+        if (!this._persistentMount && cacheKey) {
+          const cached = _mountCache.get(cacheKey)
+          if (cached) {
+            this._persistentMount = cached.mount
+            this.reactRoot = cached.root
+            _mountCache.delete(cacheKey)
+          }
         }
+
+        // Lazy-create on first ever mount
+        if (!this._persistentMount) {
+          this._persistentMount = document.createElement('div')
+          this._persistentMount.className = 'searchable-dropdown-react-mount'
+        }
+
+        // Move (or append) the persistent div into the new container.
+        // appendChild on an already-in-DOM node just moves it — React
+        // tree stays intact, no unmount/remount, no state reset.
+        container.innerHTML = ''
+        container.appendChild(this._persistentMount)
+
+        if (!this.reactRoot) {
+          this.reactRoot = createRoot(this._persistentMount)
+        }
+
+        this._mounted = true
+        this.tryLoadInitialValue()
         this.renderReactComponent(Component)
       } catch {
         container.innerHTML = '<div style="color:red;">Error loading dropdown</div>'
@@ -161,6 +200,7 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
           addressApiConfig: this.component.addressApi || undefined,
           addressMapping: this.component.addressMapping || undefined,
           onAddressSelected: this._onAddressSelectedBound,
+          disabled: this.component.disabled || this.options?.readOnly || false,
         }),
       )
     }
@@ -198,6 +238,7 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
     }
 
     handleReactChange(newValue: SmartStreetValue | null) {
+      if (isSmartStreetValueEqual(newValue, this.currentValue)) return
       this.currentValue = newValue
       const key = this.component.key
       if (this.data && key) this.data[key] = newValue
@@ -213,7 +254,7 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
       if (value === undefined) return
       const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
-      if (value === this.currentValue) return super.setValue(value, flags)
+      if (isSmartStreetValueEqual(value, this.currentValue)) return super.setValue(value, flags)
       this.currentValue = value
       if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
       return super.setValue(value, flags)
@@ -227,22 +268,43 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
       if (value === undefined) return
       const isEmpty = value === null || value === ''
       if (isEmpty && this.currentValue) return
-      if (value === this.currentValue) return
+      if (isSmartStreetValueEqual(value, this.currentValue)) return
       this.currentValue = value
       if (this.reactRoot && SmartStreetComponent) this.renderReactComponent(SmartStreetComponent)
     }
 
     checkValidity(data: any, dirty: boolean, rowData: any) {
-      const valid = super.checkValidity(data, dirty, rowData)
-      if (!valid) return false
+      const baseValid = super.checkValidity(data, dirty, rowData)
+      if (!baseValid) return false
 
       const value = this.currentValue
-      const isEmpty = value === null || value === undefined || value === ''
+      const isEmpty = value === null || value === undefined
 
       if (isEmpty && this.component.validate?.required) {
         const msg = this.component.validate.customMessage || 'This field is required'
         this.setCustomValidity(msg, dirty)
         return false
+      }
+
+      // Run custom JavaScript validation if configured
+      const customValidation = this.component.validate?.custom
+      if (customValidation && !isEmpty) {
+        try {
+          const input = value
+          const { data: formData, row } = this
+          const component = this.component
+          const instance = this
+          let valid: boolean | string = true
+          // eslint-disable-next-line no-eval
+          eval(customValidation)
+          if (valid !== true) {
+            const msg = typeof valid === 'string' ? valid : (this.component.validate.customMessage || 'Custom validation failed')
+            this.setCustomValidity(msg, dirty)
+            return false
+          }
+        } catch (err) {
+          console.error('SmartStreet: custom validation error', err)
+        }
       }
 
       return true
@@ -253,11 +315,23 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
         clearTimeout(this._initialValueTimeout)
         this._initialValueTimeout = null
       }
-      const root = this.reactRoot
-      this.reactRoot = null
-      this.reactContainer = null
-      if (root) {
-        queueMicrotask(() => { try { root.unmount() } catch { /* already unmounted */ } })
+      this._mounted = false
+
+      const cacheKey = this.component?.key || ''
+
+      // Cache the React root + mount div so the next preview instance
+      // can reuse them instead of rebuilding from scratch.
+      if (cacheKey && this._persistentMount && this.reactRoot) {
+        _mountCache.set(cacheKey, { mount: this._persistentMount, root: this.reactRoot })
+        this.reactRoot = null
+        this._persistentMount = null
+      } else {
+        const root = this.reactRoot
+        this.reactRoot = null
+        this._persistentMount = null
+        if (root) {
+          queueMicrotask(() => { try { root.unmount() } catch { /* already unmounted */ } })
+        }
       }
       super.destroy()
     }

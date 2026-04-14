@@ -79,6 +79,7 @@ export interface SmartStreetProps {
   addressApiConfig?: AddressApiConfig
   addressMapping?: AddressMapping
   onAddressSelected?: (address: AddressResult) => void
+  disabled?: boolean
 }
 
 // ── Option renderer — shows right-side entries badge only in dropdown menu ──
@@ -138,6 +139,7 @@ function SmartStreetInner({
   addressApiConfig,
   addressMapping,
   onAddressSelected,
+  disabled = false,
 }: SmartStreetProps) {
   const [options, setOptions] = useState<OptionType[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -411,6 +413,7 @@ function SmartStreetInner({
         styles={selectStyles}
         formatOptionLabel={formatOptionLabel}
         isClearable
+        isDisabled={disabled}
         classNamePrefix="react-select"
         blurInputOnSelect={false}
       />
@@ -425,6 +428,7 @@ function SmartStreetInner({
             value={lastResult?.secondary ?? ''}
             onChange={(e) => handleFieldChange('secondary', e.target.value)}
             aria-label={labels.secondary}
+            disabled={disabled}
           />
         </div>
           <div className="mb-2">
@@ -435,6 +439,7 @@ function SmartStreetInner({
             value={lastResult?.city ?? ''}
             onChange={(e) => handleFieldChange('city', e.target.value)}
             aria-label={labels.city}
+            disabled={disabled}
           />
         </div>
          
@@ -446,6 +451,7 @@ function SmartStreetInner({
               value={lastResult?.state ?? ''}
               onChange={(e) => handleFieldChange('state', e.target.value)}
               aria-label={labels.state}
+              disabled={disabled}
             />
           </div>
           <div className="mb-2">
@@ -456,6 +462,7 @@ function SmartStreetInner({
               value={lastResult?.zipcode ?? ''}
               onChange={(e) => handleFieldChange('zipcode', e.target.value)}
               aria-label={labels.zipcode}
+              disabled={disabled}
             />
           </div>
       </div>

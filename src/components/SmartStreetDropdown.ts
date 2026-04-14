@@ -18,6 +18,11 @@ export class SmartStreetDropdownComponent {
       description: 'Smart Street address autocomplete',
       minSearchLength: 2,
       debounceDelay: 300,
+      hidden: false,
+      autofocus: false,
+      disabled: false,
+      // data source defaults
+      apiType: 'custom' as 'custom' | 'secure',
       addressApi: {
         url: 'https://gtw-oci.statehub.hawaii.gov/oci-psd91/API/address/autocomplete',
         partnerId: '',
@@ -63,16 +68,10 @@ export class SmartStreetDropdownComponent {
                   key: 'label',
                   label: 'Label',
                   input: true,
+                  required: true,
+                  validate: { required: true },
                   defaultValue: 'Smart Street',
                   weight: 10,
-                },
-                {
-                  type: 'textfield',
-                  key: 'key',
-                  label: 'Property Name',
-                  input: true,
-                  defaultValue: 'smartStreet',
-                  weight: 20,
                 },
                 {
                   type: 'textfield',
@@ -80,7 +79,7 @@ export class SmartStreetDropdownComponent {
                   label: 'Placeholder',
                   input: true,
                   defaultValue: 'Type to search address...',
-                  weight: 30,
+                  weight: 20,
                 },
                 {
                   type: 'number',
@@ -89,7 +88,7 @@ export class SmartStreetDropdownComponent {
                   input: true,
                   defaultValue: 2,
                   description: 'Minimum characters before searching',
-                  weight: 40,
+                  weight: 30,
                 },
                 {
                   type: 'number',
@@ -98,15 +97,76 @@ export class SmartStreetDropdownComponent {
                   input: true,
                   defaultValue: 300,
                   description: 'Delay in ms before sending search request',
+                  weight: 40,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'autofocus',
+                  label: 'Initial Focus',
+                  input: true,
+                  defaultValue: false,
                   weight: 50,
+                  tooltip: 'When enabled, focuses the component when the page loads.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'hidden',
+                  label: 'Hidden',
+                  input: true,
+                  defaultValue: false,
+                  weight: 60,
+                  tooltip: 'When enabled, this component is hidden from the form.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'disabled',
+                  label: 'Disabled',
+                  input: true,
+                  defaultValue: false,
+                  weight: 70,
+                  tooltip: 'When enabled, this component is disabled and the user cannot interact with it.',
                 },
               ],
             },
-            // ── Configuration tab ─────────────────────────────────────────────
+            // ── API tab ──────────────────────────────────────────────────────
             {
-              label: 'Configuration',
-              key: 'configuration',
+              label: 'API',
+              key: 'api',
               components: [
+                {
+                  type: 'textfield',
+                  key: 'key',
+                  label: 'Property Name',
+                  input: true,
+                  required: true,
+                  validate: { required: true },
+                  defaultValue: 'smartStreet',
+                  description: 'Unique key for this component.',
+                  weight: 10,
+                },
+              ],
+            },
+            // ── Data Source tab (formerly Configuration) ──────────────────────
+            {
+              label: 'Data Source',
+              key: 'dataSourceTab',
+              components: [
+                // API type dropdown — controls which fields are visible below
+                {
+                  type: 'select',
+                  key: 'apiType',
+                  label: 'API Type',
+                  input: true,
+                  defaultValue: 'custom',
+                  data: {
+                    values: [
+                      { label: 'Custom API', value: 'custom' },
+                      { label: 'Secure API', value: 'secure' },
+                    ],
+                  },
+                  description: 'Select Custom API for standard endpoints, or Secure API for endpoints requiring authentication and headers.',
+                  weight: 5,
+                },
                 {
                   type: 'panel',
                   title: 'API Settings',
@@ -128,6 +188,7 @@ export class SmartStreetDropdownComponent {
                       input: true,
                       placeholder: 'kolea',
                       weight: 20,
+                      conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
                     },
                     {
                       type: 'textfield',
@@ -135,6 +196,7 @@ export class SmartStreetDropdownComponent {
                       label: 'API Username (Basic Auth)',
                       input: true,
                       weight: 30,
+                      conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
                     },
                     {
                       type: 'password',
@@ -142,6 +204,7 @@ export class SmartStreetDropdownComponent {
                       label: 'API Password (Basic Auth)',
                       input: true,
                       weight: 40,
+                      conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
                     },
                   ],
                 },
@@ -159,14 +222,6 @@ export class SmartStreetDropdownComponent {
                         'Provide a <strong>display label</strong> for each address field shown in the UI after selection.',
                       className: 'text-muted small mb-2',
                       weight: 5,
-                    },
-                    {
-                      type: 'textfield',
-                      key: 'addressMapping.streetLine',
-                      label: 'Street Address label',
-                      input: true,
-                      defaultValue: 'Street Address',
-                      weight: 10,
                     },
                     {
                       type: 'textfield',
@@ -217,6 +272,25 @@ export class SmartStreetDropdownComponent {
                   defaultValue: false,
                   weight: 10,
                 },
+                {
+                  type: 'textfield',
+                  key: 'validate.customMessage',
+                  label: 'Custom Error Message',
+                  input: true,
+                  placeholder: 'Enter custom validation error message',
+                  description: 'Error message shown when validation fails.',
+                  weight: 20,
+                },
+                {
+                  type: 'textarea',
+                  key: 'validate.custom',
+                  label: 'Custom JavaScript Validation',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript validation. Set "valid" to true, false, or an error message string. Available variables: valid, input, data, row, component, instance.',
+                },
               ],
             },
             // ── Conditional tab ───────────────────────────────────────────────
@@ -260,6 +334,33 @@ export class SmartStreetDropdownComponent {
                       input: true,
                     },
                   ],
+                },
+              ],
+            },
+            // ── Logic tab ─────────────────────────────────────────────────────
+            {
+              label: 'Logic',
+              key: 'logic',
+              components: [
+                {
+                  type: 'textarea',
+                  key: 'customConditional',
+                  label: 'Custom Conditional',
+                  input: true,
+                  rows: 5,
+                  weight: 10,
+                  description:
+                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                },
+                {
+                  type: 'textarea',
+                  key: 'customDefaultValue',
+                  label: 'Custom Default Value',
+                  input: true,
+                  rows: 5,
+                  weight: 20,
+                  description:
+                    'Write custom JavaScript for the default value. Set the "value" variable.',
                 },
               ],
             },
