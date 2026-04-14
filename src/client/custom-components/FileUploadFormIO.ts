@@ -10,7 +10,7 @@
  *   deferredUpload, allowRemove, showFileList, showFileSize, scanEnabled
  */
 
-import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../../components/FileUploader'
+import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../../components/FileUpload'
 
 interface SelectedFile {
   name: string

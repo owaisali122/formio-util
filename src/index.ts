@@ -58,8 +58,8 @@ export type { SmartStreetProps, SmartStreetValue, AddressApiConfig, AddressResul
 export {
   FileUploaderComponent,
   FILE_UPLOADER_TYPE,
-} from './components/FileUploader'
-export type { FileUploaderSchema } from './components/FileUploader'
+} from './components/FileUpload'
+export type { FileUploaderSchema } from './components/FileUpload'
 
 export {
   ProfileFieldSectionComponent,

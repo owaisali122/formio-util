@@ -1,7 +1,7 @@
 import { registerReferencedForm, setupReferencedFormDropdown } from './registries/register-referenced-form'
 import { registerSSN } from './registries/register-ssn'
 import { registerSmartStreet } from './registries/register-smart-street'
-import { registerFileUploader } from './registries/register-file-uploader'
+import { registerFileUploader } from './registries/register-file-upload'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
 import { registerGenericPopup } from './registries/register-generic-popup'
@@ -94,7 +94,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
 
-        const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploaderFormIO')
+        const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploadFormIO')
         const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
         const ExistingFileUploader = (Components as any).components?.fileUploader
         if (ExistingFileUploader) {

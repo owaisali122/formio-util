@@ -27,7 +27,7 @@ export class FileUploaderComponent {
   static schema(overrides?: Record<string, unknown>): FileUploaderSchema {
     return {
       type: FILE_UPLOADER_TYPE,
-      label: 'File Uploader',
+      label: 'File Upload',
       key: 'fileUploader',
       input: true,
       tableView: false,
@@ -51,7 +51,7 @@ export class FileUploaderComponent {
 
   static get builderInfo() {
     return {
-      title: 'File Uploader',
+      title: 'File Upload',
       group: 'basic',
       icon: 'upload',
       weight: 31,
@@ -77,7 +77,7 @@ export class FileUploaderComponent {
                   key: 'label',
                   label: 'Label',
                   input: true,
-                  defaultValue: 'File Uploader',
+                  defaultValue: 'File Upload',
                   weight: 10,
                 },
                 {

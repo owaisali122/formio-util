@@ -1,4 +1,4 @@
-import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../components/FileUploader'
+import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../components/FileUpload'
 import type { FormioComponents } from './types'
 
 export async function registerFileUploader(Components: FormioComponents): Promise<void> {

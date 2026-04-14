@@ -6,7 +6,7 @@
  */
 
 export { default as createSearchableDropdownClass, type ApiResponseItem } from './SmartStreetFormIO'
-export { default as createFileUploaderClass } from './FileUploaderFormIO'
+export { default as createFileUploaderClass } from './FileUploadFormIO'
 export { default as createSSNMaskingClass } from './SSNMaskingFormIO'
 export { default as createProfileFieldSectionClass } from './ProfileFieldSectionFormIO'
 export { default as createProgressBarClass } from './ProgressBarFormIO'

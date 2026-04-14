@@ -294,9 +294,10 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
           const { data: formData, row } = this
           const component = this.component
           const instance = this
-          let valid: boolean | string = true
-          // eslint-disable-next-line no-eval
-          eval(customValidation)
+          // Use new Function instead of eval to avoid bundler warnings.
+          // Exposes the same local variables the script expects.
+          const fn = new Function('input', 'formData', 'row', 'component', 'instance', `let valid = true;\n${customValidation}\nreturn valid;`)
+          const valid: boolean | string = fn(input, formData, row, component, instance)
           if (valid !== true) {
             const msg = typeof valid === 'string' ? valid : (this.component.validate.customMessage || 'Custom validation failed')
             this.setCustomValidity(msg, dirty)
