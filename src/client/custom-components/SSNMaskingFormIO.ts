@@ -1,11 +1,13 @@
 /**
- * SSN Masking FormIO Component (Renderer)
+ * Tax ID Masking FormIO Component (Renderer)
  *
- * Runtime renderer for the SSN component. Extends TextFieldComponent to
- * provide custom masking display with reveal/hide toggle.
+ * Runtime renderer for the Tax ID (SSN / ITIN) component. Extends
+ * TextFieldComponent to provide custom masking display with reveal/hide
+ * toggle and configurable SSN / ITIN validation.
  *
  * Designer properties read from this.component:
- *   masked, allowToggleMask, maskedDisplayMode, maskCharacter, preventCopy
+ *   masked, allowToggleMask, maskedDisplayMode, maskCharacter, preventCopy,
+ *   validationMode ('any' | 'ssn' | 'itin')
  */
 
 export function createSSNMaskingClass(TextFieldComponent: any) {
@@ -88,6 +90,72 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
         return this._format(raw)
       }
       return raw
+    }
+
+    // ── SSN / ITIN validation ──
+
+    checkValidity(data: any, dirty: boolean, row: any) {
+      // Clear any previous custom validity from this component before re-checking
+      this.setCustomValidity('', dirty)
+      const baseResult = super.checkValidity(data, dirty, row)
+      if (!baseResult) return baseResult
+
+      const raw = this._rawValue
+      // Empty field is handled by the required validator above; skip here
+      if (!raw || raw.length === 0) return baseResult
+
+      if (raw.length !== 9) {
+        const msg = this.component?.validate?.customMessage ||
+          'Tax ID must be exactly 9 digits (NNN-NN-NNNN).'
+        this.setCustomValidity(msg, dirty)
+        return false
+      }
+
+      const mode: string = this.component?.validationMode || 'any'
+      const validSSN = this._isValidSSN(raw)
+      const validITIN = this._isValidITIN(raw)
+      let isValid: boolean
+      if (mode === 'ssn') isValid = validSSN
+      else if (mode === 'itin') isValid = validITIN
+      else isValid = validSSN || validITIN
+
+      if (!isValid) {
+        const msg = this.component?.validate?.customMessage || this._taxIdValidationMessage(mode)
+        this.setCustomValidity(msg, dirty)
+        return false
+      }
+
+      return baseResult
+    }
+
+    _isValidSSN(digits: string): boolean {
+      if (digits.length !== 9) return false
+      // ITINs start with 9 — reject here for SSN-only check
+      if (digits[0] === '9') return false
+      const area = digits.substring(0, 3)
+      const group = digits.substring(3, 5)
+      const serial = digits.substring(5)
+      // SSA never issues 000 area, 00 group, or 0000 serial
+      if (area === '000' || group === '00' || serial === '0000') return false
+      return true
+    }
+
+    _isValidITIN(digits: string): boolean {
+      if (digits.length !== 9) return false
+      // ITINs must begin with 9
+      if (digits[0] !== '9') return false
+      const group = parseInt(digits.substring(3, 5), 10)
+      // IRS valid ITIN group ranges
+      const validRanges: [number, number][] = [
+        [50, 65], [70, 88], [90, 92], [94, 99],
+      ]
+      return validRanges.some(([lo, hi]) => group >= lo && group <= hi)
+    }
+
+    _taxIdValidationMessage(mode: string): string {
+      if (mode === 'ssn') return 'Please enter a valid Social Security Number (NNN-NN-NNNN).'
+      if (mode === 'itin') return 'Please enter a valid ITIN (NNN-NN-NNNN). First digit must be 9 with valid group digits.'
+      return 'Please enter a valid SSN or ITIN (NNN-NN-NNNN).'
     }
 
     // ── Setup (runs once after attach) ──

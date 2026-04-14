@@ -1,6 +1,9 @@
+// Backward-compatible alias — existing forms store type: 'ssn' in their JSON schema
 export const SSN_TYPE = 'ssn'
+// New primary type constant for forms created going forward
+export const TAX_ID_TYPE = 'taxId'
 
-export interface SSNSchema {
+export interface TaxIdSchema {
   type: string
   label: string
   key: string
@@ -15,15 +18,17 @@ export interface SSNSchema {
   preventCopy: boolean
   hidden: boolean
   autofocus: boolean
+  /** Controls which tax ID formats are accepted: 'any' (SSN or ITIN), 'ssn', or 'itin' */
+  validationMode: 'any' | 'ssn' | 'itin'
   [k: string]: unknown
 }
 
-export class SSNComponent {
-  static schema(overrides?: Record<string, unknown>): SSNSchema {
+export class TaxIdComponent {
+  static schema(overrides?: Record<string, unknown>): TaxIdSchema {
     return {
       type: SSN_TYPE,
-      label: 'Social Security Number',
-      key: 'ssn',
+      label: 'SSN / ITIN',
+      key: 'taxId',
       input: true,
       tableView: false,
       inputMask: '999-99-9999',
@@ -35,18 +40,19 @@ export class SSNComponent {
       preventCopy: true,
       hidden: false,
       autofocus: false,
+      validationMode: 'any',
       ...overrides,
     }
   }
 
   static get builderInfo() {
     return {
-      title: 'SSN',
+      title: 'SSN / ITIN',
       group: 'basic',
       icon: 'id-card',
       weight: 26,
-      documentation: 'Social Security Number input with masking, reveal toggle, and validation.',
-      schema: SSNComponent.schema(),
+      documentation: 'SSN or ITIN input with NNN-NN-NNNN masking, reveal toggle, and configurable validation.',
+      schema: TaxIdComponent.schema(),
     }
   }
 
@@ -71,7 +77,7 @@ export class SSNComponent {
                   validate: {
                     required: true,
                   },
-                  defaultValue: 'Social Security Number',
+                  defaultValue: 'SSN / ITIN',
                   weight: 10,
                 },
                 {
@@ -87,7 +93,7 @@ export class SSNComponent {
                   key: 'description',
                   label: 'Description',
                   input: true,
-                  defaultValue: 'Enter your 9-digit Social Security Number',
+                  defaultValue: 'Enter your 9-digit SSN or ITIN (NNN-NN-NNNN)',
                   weight: 30,
                 },
                 {
@@ -131,7 +137,7 @@ export class SSNComponent {
                   label: 'Enable Masked Display',
                   input: true,
                   defaultValue: true,
-                  description: 'When enabled, the SSN is masked when not being edited.',
+                  description: 'When enabled, the SSN / ITIN is masked when not being edited.',
                   weight: 10,
                 },
                 {
@@ -150,7 +156,7 @@ export class SSNComponent {
                       { label: 'Fully Masked (***-**-****)', value: 'fullMask' },
                     ],
                   },
-                  description: 'How the SSN appears when masked.',
+                  description: 'How the SSN / ITIN appears when masked.',
                   weight: 20,
                 },
                 {
@@ -169,7 +175,7 @@ export class SSNComponent {
                   label: 'Enable Eye Icon Toggle',
                   input: true,
                   defaultValue: true,
-                  description: 'Show an eye icon that lets the user reveal or hide the full SSN.',
+                  description: 'Show an eye icon that lets the user reveal or hide the full SSN / ITIN.',
                   weight: 40,
                 },
                 {
@@ -197,18 +203,37 @@ export class SSNComponent {
                   weight: 10,
                 },
                 {
+                  type: 'select',
+                  key: 'validationMode',
+                  label: 'Validation Mode',
+                  input: true,
+                  required: true,
+                  validate: { required: true },
+                  defaultValue: 'any',
+                  dataSrc: 'values',
+                  data: {
+                    values: [
+                      { label: 'SSN or ITIN', value: 'any' },
+                      { label: 'SSN Only', value: 'ssn' },
+                      { label: 'ITIN Only', value: 'itin' },
+                    ],
+                  },
+                  description: 'Controls which tax ID formats are accepted during validation.',
+                  weight: 15,
+                },
+                {
                   type: 'textfield',
                   key: 'validate.customMessage',
                   label: 'Custom Error Message',
                   input: true,
-                  placeholder: 'Please enter a valid SSN',
+                  placeholder: 'Please enter a valid SSN / ITIN',
                   description: 'Error message shown when validation fails.',
                   weight: 20,
                 },
                 {
                   type: 'textarea',
                   key: 'validate.custom',
-                  label: 'Custom Validation',
+                  label: 'Custom Validation (JavaScript)',
                   input: true,
                   rows: 5,
                   weight: 30,
@@ -241,9 +266,9 @@ export class SSNComponent {
                   validate: {
                     required: true,
                   },
-                  defaultValue: 'ssn',
+                  defaultValue: 'taxId',
                   description:
-                    'Unique key for this component (e.g. ssn).',
+                    'Unique key for this component (e.g. taxId).',
                   weight: 10,
                 },
               ],
@@ -318,6 +343,190 @@ export class SSNComponent {
                   weight: 30,
                   description:
                     'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                },
+              ],
+            },
+            // ── Logic tab ───────────────────────────────────────────
+            {
+              label: 'Logic',
+              key: 'logic',
+              components: [
+                {
+                  weight: 0,
+                  type: 'datagrid',
+                  input: true,
+                  key: 'logic',
+                  label: 'Logic',
+                  reorder: true,
+                  addAnother: 'Add Logic',
+                  components: [
+                    {
+                      type: 'textfield',
+                      key: 'name',
+                      label: 'Name',
+                      input: true,
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Trigger',
+                      key: 'logicTrigger',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'select',
+                          key: 'trigger.type',
+                          label: 'Type',
+                          dataSrc: 'values',
+                          data: {
+                            values: [
+                              { label: 'Simple', value: 'simple' },
+                              { label: 'JavaScript', value: 'javascript' },
+                              { label: 'JSON Logic', value: 'json' },
+                              { label: 'Event', value: 'event' },
+                            ],
+                          },
+                          input: true,
+                          weight: 10,
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.javascript',
+                          label: 'JavaScript',
+                          input: true,
+                          rows: 5,
+                          weight: 20,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'javascript'] } },
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.json',
+                          label: 'JSON Logic',
+                          input: true,
+                          rows: 5,
+                          weight: 30,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'json'] } },
+                        },
+                        {
+                          type: 'textfield',
+                          key: 'trigger.event',
+                          label: 'Event Name',
+                          input: true,
+                          weight: 40,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'event'] } },
+                        },
+                      ],
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Actions',
+                      key: 'logicActions',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'datagrid',
+                          key: 'actions',
+                          label: 'Actions',
+                          addAnother: 'Add Action',
+                          components: [
+                            {
+                              type: 'textfield',
+                              key: 'name',
+                              label: 'Action Name',
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'type',
+                              label: 'Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Property', value: 'property' },
+                                  { label: 'Value', value: 'value' },
+                                  { label: 'Merge Component Schema', value: 'mergeComponentSchema' },
+                                  { label: 'Custom Action (JavaScript)', value: 'customAction' },
+                                ],
+                              },
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.label',
+                              label: 'Component Property',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Hidden', value: 'hidden' },
+                                  { label: 'Required', value: 'validate.required' },
+                                  { label: 'Disabled', value: 'disabled' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.type',
+                              label: 'Property Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Boolean', value: 'boolean' },
+                                  { label: 'String', value: 'string' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'checkbox',
+                              key: 'state',
+                              label: 'Toggle Component Visibility',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'boolean'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textfield',
+                              key: 'text',
+                              label: 'Value (String)',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'string'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'customAction',
+                              label: 'Custom Action (JavaScript)',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'customAction'] } },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'schemaDefinition',
+                              label: 'Schema Definition',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'mergeComponentSchema'] } },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
                 },
               ],
             },

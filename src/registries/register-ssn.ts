@@ -1,24 +1,37 @@
-import { SSNComponent, SSN_TYPE } from '../components/SSN'
+import { TaxIdComponent, SSN_TYPE, TAX_ID_TYPE } from '../components/SSN'
 import type { FormioComponents } from './types'
 
+function injectBuilderTabStyles() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('taxid-builder-tab-css')) return
+  const s = document.createElement('style')
+  s.id = 'taxid-builder-tab-css'
+  // Form.io appends its native "Preview" tab as a bare <a> after our last tab,
+  // causing "LogicPreview" to run together. Ensure nav-links have padding so
+  // adjacent tab anchors are visually separated.
+  s.textContent = `.formio-component-tabs .nav.nav-tabs .nav-link{padding:.375rem .75rem;white-space:nowrap}`
+  document.head.appendChild(s)
+}
+
 export async function registerSSN(Components: FormioComponents): Promise<void> {
+  injectBuilderTabStyles()
   const TextFieldComponent = (Components.components as any).textfield as any
 
-  class SSNField extends TextFieldComponent {
+  class TaxIdField extends TextFieldComponent {
     static schema(...extend: any[]) {
-      return TextFieldComponent.schema(SSNComponent.schema(), ...extend)
+      return TextFieldComponent.schema(TaxIdComponent.schema(), ...extend)
     }
 
     static get builderInfo() {
-      return SSNComponent.builderInfo
+      return TaxIdComponent.builderInfo
     }
 
     static editForm() {
-      return SSNComponent.editForm()
+      return TaxIdComponent.editForm()
     }
 
     get defaultSchema() {
-      return SSNField.schema()
+      return TaxIdField.schema()
     }
 
     /**
@@ -43,5 +56,8 @@ export async function registerSSN(Components: FormioComponents): Promise<void> {
     }
   }
 
-  Components.setComponent(SSN_TYPE, SSNField as never)
+  // Single registration under 'ssn' — one palette entry, backward-compatible
+  // with all existing saved forms. TAX_ID_TYPE is available as a constant
+  // but does not get its own builder registration to avoid duplicates.
+  Components.setComponent(SSN_TYPE, TaxIdField as never)
 }

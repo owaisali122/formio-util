@@ -39,8 +39,12 @@ export {
 
 export { formBuilderPlugin } from './plugins/formBuilderPlugin'
 
-export { SSNComponent, SSN_TYPE } from './components/SSN'
-export type { SSNSchema } from './components/SSN'
+export {
+  TaxIdComponent,
+  TAX_ID_TYPE,
+  SSN_TYPE,
+} from './components/SSN'
+export type { TaxIdSchema } from './components/SSN'
 
 export {
   SmartStreetDropdownComponent,
