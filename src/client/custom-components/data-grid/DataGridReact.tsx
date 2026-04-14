@@ -289,7 +289,9 @@ export function DataGridReact(props: DataGridReactProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(searchValue)
-      setPagination((p) => ({ ...p, pageIndex: 0 }))
+      // Return the same reference when already at page 0 so buildParams identity
+      // is stable and the fetch effect does not fire a second time on mount.
+      setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }))
     }, searchDebounce)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchValue, searchDebounce])
@@ -316,18 +318,24 @@ export function DataGridReact(props: DataGridReactProps) {
   // ── Data fetching ──
   // Server mode: re-fetch whenever params change (pagination, sorting, search).
   // Client mode: fetch once, TanStack handles the rest locally.
-  const fetchVersion = useRef(0)
+  //
+  // fetchData is stored in a ref so that a new function reference from the
+  // parent (e.g. from FormIO re-rendering props) does NOT trigger a
+  // duplicate API call.  Only genuine state changes (pagination, sorting,
+  // search) should cause a re-fetch.
+  const fetchDataRef = useRef(fetchData)
+  fetchDataRef.current = fetchData
+
   useEffect(() => {
     if (dataMode === 'client' && clientDataLoaded) return
 
-    const version = ++fetchVersion.current
     let cancelled = false
     setLoading(true)
     setError(null)
 
-    fetchData(buildParams())
+    fetchDataRef.current(buildParams())
       .then((result) => {
-        if (cancelled || !mountedRef.current || version !== fetchVersion.current) return
+        if (cancelled || !mountedRef.current) return
         const hasGroups = result.rows.length > 0 && (result.rows[0] as DataGridGroupRow)?._isGroup
         if (hasGroups) {
           setGroupedData(result.rows as DataGridGroupRow[])
@@ -340,16 +348,16 @@ export function DataGridReact(props: DataGridReactProps) {
         if (dataMode === 'client') setClientDataLoaded(true)
       })
       .catch((err) => {
-        if (cancelled || !mountedRef.current || version !== fetchVersion.current) return
+        if (cancelled || !mountedRef.current) return
         setError(err?.message || errorText)
       })
       .finally(() => {
-        if (!cancelled && mountedRef.current && version === fetchVersion.current) setLoading(false)
+        if (!cancelled && mountedRef.current) setLoading(false)
       })
 
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataMode, fetchData, dataMode === 'server' ? buildParams : null])
+  }, [dataMode, clientDataLoaded, dataMode === 'server' ? buildParams : null])
 
   // ── Column definitions for TanStack ──
   const tanCols = useMemo<ColumnDef<DataGridRow>[]>(() => {

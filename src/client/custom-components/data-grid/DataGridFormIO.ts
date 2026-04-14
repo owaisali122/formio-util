@@ -19,8 +19,6 @@ async function loadReactComponent(): Promise<ReactComponent | null> {
   return DataGridReactCmp
 }
 
-const ROOT_KEY = '__tanstackTableRoot'
-
 /**
  * Factory — called from registry.ts with the base FieldComponent class.
  */
@@ -29,6 +27,8 @@ export default function createTanStackTableClass(FieldComponent: any) {
     reactRoot: Root | null = null
     reactContainer: HTMLDivElement | null = null
     _mountedVersion: number = 0
+    /** Stable fetcher reference — created once, never changes identity */
+    _stableFetcher: ((params: DataGridFetchParams) => Promise<DataGridFetchResult>) | null = null
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -97,7 +97,6 @@ export default function createTanStackTableClass(FieldComponent: any) {
           try { this.reactRoot.unmount() } catch { /* already gone */ }
           this.reactRoot = null
           this.reactContainer = null
-          delete (container as any)[ROOT_KEY]
         }
 
         // Bail if a newer mount was requested while we were working
@@ -105,16 +104,6 @@ export default function createTanStackTableClass(FieldComponent: any) {
 
         // Reuse existing root if still mounted — just re-render with latest props
         if (this.reactRoot && this.reactContainer && document.contains(this.reactContainer)) {
-          const Cmp = await loadReactComponent()
-          if (Cmp && mountVersion === this._mountedVersion) this.renderReactComponent(Cmp)
-          return
-        }
-
-        // Check for root cached on DOM node
-        const existingRoot = (container as any)[ROOT_KEY] as Root | undefined
-        if (existingRoot) {
-          this.reactRoot = existingRoot
-          this.reactContainer = container as unknown as HTMLDivElement
           const Cmp = await loadReactComponent()
           if (Cmp && mountVersion === this._mountedVersion) this.renderReactComponent(Cmp)
           return
@@ -129,14 +118,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
         const Cmp = await loadReactComponent()
         if (!Cmp || !this.reactContainer || mountVersion !== this._mountedVersion) return
 
-        const existingOnNode = (this.reactContainer as any)[ROOT_KEY] as Root | undefined
-        if (existingOnNode) {
-          this.reactRoot = existingOnNode
-        } else {
-          this.reactRoot = createRoot(this.reactContainer)
-          ;(this.reactContainer as any)[ROOT_KEY] = this.reactRoot
-        }
-
+        this.reactRoot = createRoot(this.reactContainer)
         this.renderReactComponent(Cmp)
       } catch {
         container.innerHTML = '<div style="color:red;padding:10px;">Error loading TanStack Table</div>'
@@ -155,6 +137,11 @@ export default function createTanStackTableClass(FieldComponent: any) {
         .map((s: string) => s.trim())
         .filter(Boolean)
       const handlers = getTanStackTableHandlers()
+
+      // Use stable fetcher reference to avoid re-triggering useEffect in React
+      if (!this._stableFetcher) {
+        this._stableFetcher = this.buildFetcher()
+      }
 
       this.reactRoot.render(
         React.createElement(Cmp, {
@@ -187,7 +174,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
           emptyStateText: c.emptyStateText || 'No data available',
           loadingText: c.loadingText || 'Loading…',
           errorText: c.errorText || 'Failed to load data',
-          fetchData: this.buildFetcher(),
+          fetchData: this._stableFetcher,
         } as DataGridReactProps),
       )
     }
