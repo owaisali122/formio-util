@@ -7,20 +7,20 @@
  * Schema properties (from designer):
  *   type: 'fileUploader', uploadButtonLabel, uploadIcon, multiple,
  *   allowedFileTypes, acceptedExtensions, maxFileSize, maxFiles,
- *   deferredUpload, allowRemove, showFileList, showFileSize,
- *   scanEnabled, scanApiUrl, uploadApiUrl, autofocus
+ *   allowRemove, showFileList, showFileSize, autofocus,
+ *   apiType, scanEnabled, scanApiUrl, uploadApiUrl,
+ *   authType, authUsername, authPassword, partnerId
  *
- * Submit-time flow (when uploadApiUrl is configured):
- *   1. On file pick: if scanEnabled+scanApiUrl → POST to scan API immediately
- *      - scan passes (status:'clean') → file status set to 'scanned'
- *      - scan fails (status:'infected' / non-2xx) → file status set to 'error', blocked
- *   2. On beforeSubmit: block if any file is still 'scanning'
- *   3. POST to uploadApiUrl for each 'scanned' (scanEnabled) or 'pending' (!scanEnabled) file
- *   4. Bind returned server URL into submission data (status → 'success')
- *   5. On form reload: file displayed as clickable link using stored server URL
+ * File lifecycle:
+ *   1. On file pick: status → 'pending'. If scanEnabled + scanApiUrl → immediate POST to
+ *      scan API; status → 'scanned' (pass) or 'error' (fail/infected).
+ *   2. beforeSubmit: blocks if any file is still 'scanning'.
+ *   3. POST to uploadApiUrl for each 'scanned' (scan on) or 'pending' (scan off) file.
+ *   4. Full server response bound into submission data (status → 'success').
+ *   5. On form reload: file shown as clickable link using the stored server URL.
  */
 
-import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../../components/FileUpload'
+import { FileUploaderComponent } from '../../components/FileUpload'
 
 interface SelectedFile {
   name: string
@@ -34,14 +34,18 @@ interface SelectedFile {
   error?: string
 }
 
+/**
+ * Module-level cache: preserves selectedFiles across Form.io destroy/recreate cycles
+ * in the builder preview. Keyed by component key.
+ */
+const _fileCache = new Map<string, SelectedFile[]>()
+
 export default function createFileUploaderClass(FieldComponent: any) {
   return class FileUploaderFormIO extends FieldComponent {
-    fileInput: HTMLInputElement | null = null
     selectedFiles: SelectedFile[] = []
     _syncing: boolean = false
     _lastValueJSON: string = ''
     _submitInProgress: boolean = false
-    _scanningCount: number = 0
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(FileUploaderComponent.schema(), ...extend)
@@ -101,6 +105,10 @@ export default function createFileUploaderClass(FieldComponent: any) {
             serverResponse: v,
             status: 'success' as const,
           }))
+      } else if (key) {
+        // Restore from preview cache when Form.io recreates the component in the builder
+        const cached = _fileCache.get(key)
+        if (cached) this.selectedFiles = [...cached]
       }
     }
 
@@ -153,11 +161,19 @@ export default function createFileUploaderClass(FieldComponent: any) {
     }
 
     checkComponentValidity(data?: any, dirty?: boolean, rowData?: any, options?: any) {
-      // Block if any file is still being scanned
+      // Always block while a scan is in progress — regardless of dirty state
       if (this.selectedFiles.some((f) => f.status === 'scanning')) {
         const msg = 'File scan is in progress. Please wait.'
         this.setCustomValidity(msg)
         return false
+      }
+
+      // Required + custom JS validation only fires when the field has been
+      // touched or the form is submitted (dirty=true). This prevents the
+      // error from appearing permanently on initial render.
+      if (!dirty) {
+        this.setCustomValidity('')
+        return true
       }
 
       if (this.component?.validate?.required) {
@@ -217,8 +233,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
         const scanEnabled = this.component?.scanEnabled ?? false
 
         // Block submit if any file is still being scanned (triggered at pick time)
-        const scanningFiles = this.selectedFiles.filter((f) => f.status === 'scanning')
-        if (scanningFiles.length > 0) {
+        if (this.selectedFiles.some((f) => f.status === 'scanning')) {
           const msg = 'File scan is in progress. Please wait before submitting.'
           this.setCustomValidity(msg)
           this._submitInProgress = false
@@ -240,7 +255,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
           uploadForm.append('file', file)
           let uploadResponse: Response
           try {
-            uploadResponse = await fetch(uploadApiUrl, { method: 'POST', body: uploadForm })
+            uploadResponse = await fetch(uploadApiUrl, { method: 'POST', body: uploadForm, headers: this.buildApiHeaders() })
           } catch {
             const msg = 'File upload failed: service unavailable.'
             fileEntry.status = 'error'
@@ -270,9 +285,8 @@ export default function createFileUploaderClass(FieldComponent: any) {
             return Promise.reject(new Error(msg))
           }
 
-          // Step 3: Bind full server response into the file entry.
-          // The entire response object (status, url, path, name, size, type) becomes
-          // the persisted value so the DB receives exactly what the upload API returned.
+          // Bind full server response into the file entry so the DB receives
+          // exactly what the upload API returned.
           try {
             const body = JSON.parse(await uploadResponse.text())
             if (body && typeof body === 'object') {
@@ -308,7 +322,6 @@ export default function createFileUploaderClass(FieldComponent: any) {
       const key = this.component?.key
       const val = this.getValue()
       if (key && this.data) this.data[key] = val
-      if (key && this.root?.data && this.data === this.root.data) this.root.data[key] = val
       this._syncing = true
       super.dataValue = val
       this.triggerChange()
@@ -319,15 +332,20 @@ export default function createFileUploaderClass(FieldComponent: any) {
       const iconClass = this.component.uploadIcon || 'fa fa-upload'
       const label = this.component.uploadButtonLabel || ''
       const accept = this.acceptedExtensions || this.allowedFileTypes || ''
+      const isDisabled = this.disabled
 
       return super.render(`
-        <div ref="fileUploaderContainer" class="formio-file-uploader" style="display:inline-block;">
-          <button type="button" ref="uploadBtn" class="btn btn-outline-secondary btn-sm" title="${label || 'Upload file'}">
+        <div ref="fileUploaderContainer" class="formio-file-uploader">
+          <button type="button" ref="uploadBtn"
+                  class="btn btn-outline-secondary btn-sm${isDisabled ? ' disabled' : ''}"
+                  title="${label || 'Upload file'}"
+                  ${isDisabled ? 'disabled' : ''}>
             <i class="${iconClass}"></i>${label ? ' ' + this.t(label) : ''}
           </button>
           <input ref="fileInput" type="file"
                  ${this.isMultiple ? 'multiple' : ''}
                  ${accept ? 'accept="' + accept + '"' : ''}
+                 ${isDisabled ? 'disabled' : ''}
                  style="display:none;" />
           <div ref="fileList" class="formio-file-uploader-list"></div>
         </div>
@@ -347,20 +365,20 @@ export default function createFileUploaderClass(FieldComponent: any) {
       const fileInput = (this.refs as any)?.fileInput as HTMLInputElement | undefined
 
       if (btn && fileInput) {
-        this.fileInput = fileInput
+        if (!this.disabled) {
+          this.addEventListener(btn, 'click', (e: Event) => {
+            e.preventDefault()
+            fileInput.click()
+          })
 
-        this.addEventListener(btn, 'click', (e: Event) => {
-          e.preventDefault()
-          fileInput.click()
-        })
-
-        this.addEventListener(fileInput, 'change', () => {
-          const files = fileInput.files
-          if (files && files.length > 0) {
-            this.handleFiles(files)
-            fileInput.value = ''
-          }
-        })
+          this.addEventListener(fileInput, 'change', () => {
+            const files = fileInput.files
+            if (files && files.length > 0) {
+              this.handleFiles(files)
+              fileInput.value = ''
+            }
+          })
+        }
       }
 
       if (this.selectedFiles.length > 0) {
@@ -384,6 +402,10 @@ export default function createFileUploaderClass(FieldComponent: any) {
       }
 
       const maxFiles = this.maxFiles
+      // Read once — these don't change between files
+      const scanEnabled = this.component?.scanEnabled ?? false
+      const scanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
+
       for (const file of files) {
         if (maxFiles > 0 && this.selectedFiles.length >= maxFiles) break
 
@@ -409,16 +431,35 @@ export default function createFileUploaderClass(FieldComponent: any) {
         }
         this.selectedFiles.push(fileEntry)
 
-        // Trigger immediate scan on pick when scan is enabled
-        const fileScanEnabled = this.component?.scanEnabled ?? false
-        const fileScanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
-        if (fileScanEnabled && fileScanApiUrl) {
+        if (scanEnabled && scanApiUrl) {
           this.runScanNow(fileEntry)
         }
       }
 
       this.updateFileListUI()
       this.syncFormValue()
+      const cKey = this.component?.key
+      if (cKey) _fileCache.set(cKey, [...this.selectedFiles])
+    }
+
+    // Builds authorization headers for scan/upload API calls.
+    // Returns an empty object for 'custom' apiType; adds Authorization + partner-id for 'secure'.
+    buildApiHeaders(): Record<string, string> {
+      const apiType = (this.component?.apiType as string | undefined) ?? 'custom'
+      if (apiType !== 'secure') return {}
+
+      const headers: Record<string, string> = {}
+      const authType = (this.component?.authType as string | undefined) ?? 'basic'
+      if (authType === 'basic') {
+        const username = (this.component?.authUsername as string | undefined) ?? ''
+        const password = (this.component?.authPassword as string | undefined) ?? ''
+        if (username || password) {
+          headers['Authorization'] = `Basic ${btoa(`${username}:${password}`)}`
+        }
+      }
+      const partnerId = (this.component?.partnerId as string | undefined)?.trim()
+      if (partnerId) headers['partner-id'] = partnerId
+      return headers
     }
 
     // Called immediately when a file is picked and scanEnabled is true.
@@ -428,7 +469,6 @@ export default function createFileUploaderClass(FieldComponent: any) {
       if (!scanApiUrl || !fileEntry.file) return
 
       fileEntry.status = 'scanning'
-      this._scanningCount++
       this.updateFileListUI()
 
       try {
@@ -436,7 +476,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
         scanForm.append('file', fileEntry.file)
         let response: Response
         try {
-          response = await fetch(scanApiUrl, { method: 'POST', body: scanForm })
+          response = await fetch(scanApiUrl, { method: 'POST', body: scanForm, headers: this.buildApiHeaders() })
         } catch {
           fileEntry.status = 'error'
           fileEntry.error = 'File scan failed: service unavailable.'
@@ -473,7 +513,6 @@ export default function createFileUploaderClass(FieldComponent: any) {
           fileEntry.error = undefined
         }
       } finally {
-        this._scanningCount = Math.max(0, this._scanningCount - 1)
         this.updateFileListUI()
         this.syncFormValue()
       }
@@ -527,22 +566,24 @@ export default function createFileUploaderClass(FieldComponent: any) {
         const row = document.createElement('div')
         row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;'
 
-        // Status icon
-        const iconSpan = document.createElement('span')
-        if (f.status === 'scanning') {
-          iconSpan.innerHTML = '<i class="fa fa-spinner fa-spin text-primary"></i>'
-          iconSpan.title = 'Scanning…'
-        } else if (f.status === 'scanned') {
-          iconSpan.innerHTML = '<i class="fa fa-shield text-success"></i>'
-          iconSpan.title = 'Scan passed'
-        } else if (f.status === 'success') {
-          iconSpan.innerHTML = '<i class="fa fa-check-circle text-success"></i>'
-          iconSpan.title = 'Uploaded'
-        } else if (f.status === 'error') {
-          iconSpan.innerHTML = '<i class="fa fa-exclamation-circle text-danger"></i>'
-          iconSpan.title = 'Error'
+        // Status icon — only rendered for statuses that have a visual indicator
+        if (f.status !== 'pending') {
+          const iconSpan = document.createElement('span')
+          if (f.status === 'scanning') {
+            iconSpan.innerHTML = '<i class="fa fa-spinner fa-spin text-primary"></i>'
+            iconSpan.title = 'Scanning…'
+          } else if (f.status === 'scanned') {
+            iconSpan.innerHTML = '<i class="fa fa-shield text-success"></i>'
+            iconSpan.title = 'Scan passed'
+          } else if (f.status === 'success') {
+            iconSpan.innerHTML = '<i class="fa fa-check-circle text-success"></i>'
+            iconSpan.title = 'Uploaded'
+          } else if (f.status === 'error') {
+            iconSpan.innerHTML = '<i class="fa fa-exclamation-circle text-danger"></i>'
+            iconSpan.title = 'Error'
+          }
+          row.appendChild(iconSpan)
         }
-        row.appendChild(iconSpan)
 
         // File name: clickable link for server-uploaded files, plain text otherwise
         const isServerUrl = !!f.url && !f.url.startsWith('blob:')
@@ -614,10 +655,14 @@ export default function createFileUploaderClass(FieldComponent: any) {
       this.selectedFiles.splice(index, 1)
       this.updateFileListUI()
       this.syncFormValue()
+      const cKey = this.component?.key
+      if (cKey) _fileCache.set(cKey, [...this.selectedFiles])
     }
 
     destroy() {
-      this.fileInput = null
+      // Preserve files in cache so the builder preview can restore them on recreate
+      const key = this.component?.key
+      if (key && this.selectedFiles.length > 0) _fileCache.set(key, [...this.selectedFiles])
       this.selectedFiles = []
       super.destroy()
     }

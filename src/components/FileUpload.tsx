@@ -14,14 +14,19 @@ export interface FileUploaderSchema {
   acceptedExtensions: string
   maxFileSize: string
   maxFiles: number
-  deferredUpload: boolean
   allowRemove: boolean
-  allowReplace: boolean
   showFileList: boolean
   showFileSize: boolean
+  // data source
+  apiType: 'custom' | 'secure'
   scanEnabled: boolean
   scanApiUrl: string
   uploadApiUrl: string
+  // secure API auth
+  authType?: 'basic'
+  authUsername?: string
+  authPassword?: string
+  partnerId?: string
   autofocus: boolean
   [k: string]: unknown
 }
@@ -42,14 +47,19 @@ export class FileUploaderComponent {
       acceptedExtensions: '.pdf,.jpg,.jpeg,.png,.doc,.docx',
       maxFileSize: '10MB',
       maxFiles: 1,
-      deferredUpload: true,
       allowRemove: true,
-      allowReplace: false,
       showFileList: true,
       showFileSize: true,
+      // data source
+      apiType: 'custom' as 'custom' | 'secure',
       scanEnabled: false,
       scanApiUrl: '',
       uploadApiUrl: '',
+      // secure API auth
+      authType: 'basic' as 'basic',
+      authUsername: '',
+      authPassword: '',
+      partnerId: '',
       autofocus: false,
       ...overrides,
     }
@@ -141,9 +151,9 @@ export class FileUploaderComponent {
                 },
               ],
             },
-            // ── File Settings tab ────────────────────────────────────
+            // ── Files tab (File Settings + Behavior) ─────────────────
             {
-              label: 'File Settings',
+              label: 'Files',
               key: 'fileSettings',
               components: [
                 {
@@ -195,37 +205,12 @@ export class FileUploaderComponent {
                 },
                 {
                   type: 'checkbox',
-                  key: 'deferredUpload',
-                  label: 'Deferred Upload',
-                  input: true,
-                  defaultValue: true,
-                  description: 'When enabled, selected files are held locally and not uploaded immediately.',
-                  weight: 60,
-                },
-              ],
-            },
-            // ── Behavior tab ─────────────────────────────────────────
-            {
-              label: 'Behavior',
-              key: 'behavior',
-              components: [
-                {
-                  type: 'checkbox',
                   key: 'allowRemove',
                   label: 'Allow Remove',
                   input: true,
                   defaultValue: true,
                   description: 'Allow the user to remove a selected file.',
-                  weight: 10,
-                },
-                {
-                  type: 'checkbox',
-                  key: 'allowReplace',
-                  label: 'Allow Replace',
-                  input: true,
-                  defaultValue: false,
-                  description: 'Allow the user to replace a selected file.',
-                  weight: 20,
+                  weight: 60,
                 },
                 {
                   type: 'checkbox',
@@ -234,7 +219,7 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: true,
                   description: 'Display a list of selected files below the upload area.',
-                  weight: 30,
+                  weight: 80,
                 },
                 {
                   type: 'checkbox',
@@ -243,15 +228,25 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: true,
                   description: 'Display the file size next to each selected file.',
-                  weight: 40,
+                  weight: 90,
                 },
               ],
             },
-            // ── Scan tab ─────────────────────────────────────────────
+            // ── Data Source tab ──────────────────────────────────────
             {
-              label: 'Scan',
-              key: 'scan',
+              label: 'Source',
+              key: 'dataSource',
               components: [
+                {
+                  type: 'select',
+                  key: 'apiType',
+                  label: 'API Type',
+                  input: true,
+                  defaultValue: 'custom',
+                  data: { values: [{ label: 'Custom API', value: 'custom' }, { label: 'Secure API', value: 'secure' }] },
+                  description: 'Select Custom API for standard endpoints, or Secure API for endpoints requiring authentication and headers.',
+                  weight: 5,
+                },
                 {
                   type: 'textfield',
                   key: 'uploadApiUrl',
@@ -259,8 +254,8 @@ export class FileUploaderComponent {
                   input: true,
                   placeholder: 'https://example.com/api/upload',
                   description:
-                    'Endpoint called on form submit to upload the file. The response must return the server file path/URL. Leave empty to keep files deferred (no server upload).',
-                  weight: 5,
+                    'Endpoint called on form submit to upload the file. The response must return the server file path/URL. Leave empty to skip server upload.',
+                  weight: 10,
                 },
                 {
                   type: 'checkbox',
@@ -269,7 +264,7 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: false,
                   description: 'Enable virus/malware scanning before upload. Requires Scan API URL.',
-                  weight: 10,
+                  weight: 20,
                 },
                 {
                   type: 'textfield',
@@ -279,8 +274,50 @@ export class FileUploaderComponent {
                   placeholder: 'https://example.com/api/scan',
                   description:
                     'Endpoint called before upload to scan the file. Upload is blocked if scan fails.',
-                  weight: 20,
+                  weight: 30,
                   conditional: { show: true, when: 'scanEnabled', eq: 'true' },
+                },
+                // ── Secure API fields — shown only when apiType = 'secure' ──
+                {
+                  type: 'select',
+                  key: 'authType',
+                  label: 'Authentication Type',
+                  input: true,
+                  defaultValue: 'basic',
+                  data: { values: [{ label: 'Basic Auth', value: 'basic' }] },
+                  description: 'Authentication method for the secure API endpoint.',
+                  weight: 40,
+                  conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
+                },
+                {
+                  type: 'textfield',
+                  key: 'authUsername',
+                  label: 'Basic Auth Username',
+                  input: true,
+                  placeholder: 'Enter username',
+                  description: 'Username for Basic Authentication.',
+                  weight: 50,
+                  conditional: { json: { and: [{ '===': [{ var: 'data.apiType' }, 'secure'] }, { '===': [{ var: 'data.authType' }, 'basic'] }] } },
+                },
+                {
+                  type: 'password',
+                  key: 'authPassword',
+                  label: 'Basic Auth Password',
+                  input: true,
+                  placeholder: 'Enter password',
+                  description: 'Password for Basic Authentication. Value is masked in the UI.',
+                  weight: 60,
+                  conditional: { json: { and: [{ '===': [{ var: 'data.apiType' }, 'secure'] }, { '===': [{ var: 'data.authType' }, 'basic'] }] } },
+                },
+                {
+                  type: 'textfield',
+                  key: 'partnerId',
+                  label: 'Partner ID Header',
+                  input: true,
+                  placeholder: 'Enter partner-id value',
+                  description: 'Value for the partner-id HTTP header sent with secure API requests.',
+                  weight: 70,
+                  conditional: { json: { '===': [{ var: 'data.apiType' }, 'secure'] } },
                 },
               ],
             },
@@ -329,9 +366,7 @@ export class FileUploaderComponent {
                   label: 'Property Name',
                   input: true,
                   required: true,
-                  validate: {
-                    required: true,
-                  },
+                  validate: { required: true },
                   defaultValue: 'fileUploader',
                   description: 'Unique key for this component used in submission data (e.g. fileUploader).',
                   weight: 10,
