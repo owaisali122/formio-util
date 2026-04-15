@@ -117,17 +117,7 @@ function interpolateUrl(template: string, row: DataGridRow): string {
   )
 }
 
-// ─── File viewer helpers (used by 'fileViewer' action type) ──────────
-
-/** Detect content category from Content-Type header */
-function _categoryFromContentType(ct: string): 'image' | 'pdf' | 'video' | 'audio' | 'unknown' {
-  const t = ct.toLowerCase()
-  if (t.includes('pdf')) return 'pdf'
-  if (t.startsWith('image/')) return 'image'
-  if (t.startsWith('video/')) return 'video'
-  if (t.startsWith('audio/')) return 'audio'
-  return 'unknown'
-}
+// ─── File viewer helpers (used by 'fileViewer' action type) ─────
 
 const _FILE_EXT_MAP: Record<string, 'image' | 'pdf' | 'video' | 'audio'> = {
   jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
@@ -149,28 +139,6 @@ function _getFileExt(url: string): string {
 
 function _escAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-function _buildFileViewerHtml(url: string, pdfViewerMode?: string, fileType?: string): string {
-  const ext = _getFileExt(url)
-  const cat = (fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) ?? _FILE_EXT_MAP[ext] ?? 'unknown'
-  const safe = _escAttr(url)
-  switch (cat) {
-    case 'image':
-      return `<div style="text-align:center;"><img src="${safe}" alt="Preview" style="max-width:100%;height:auto;display:block;margin:0 auto;" /></div>`
-    case 'pdf': {
-      const src = pdfViewerMode === 'google'
-        ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
-        : url
-      return `<iframe src="${_escAttr(src)}" style="width:100%;height:70vh;border:none;" title="PDF Document" allow="fullscreen"></iframe>`
-    }
-    case 'video':
-      return `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;" preload="metadata"><source src="${safe}" />Your browser does not support video playback.</video>`
-    case 'audio':
-      return `<div style="padding:20px;"><audio controls style="width:100%;" preload="metadata"><source src="${safe}" />Your browser does not support audio playback.</audio></div>`
-    default:
-      return `<div style="padding:30px;text-align:center;color:#888;font-size:14px;"><i class="fa fa-file-o" style="font-size:36px;margin-bottom:12px;display:block;"></i>Preview not available for this file type.</div>`
-  }
 }
 
 /** Parsed icon rule: value pattern → icon class + optional text */
@@ -481,8 +449,6 @@ export function DataGridReact(props: DataGridReactProps) {
            * e.g. `"{{formName}}"`
            */
           title?: string
-          /** PDF viewer mode. If omitted, the component auto-detects and fetches. */
-          pdfViewerMode?: 'direct' | 'google' | 'fetch'
           /** Force file type. If omitted, auto-detected from Content-Type header. */
           fileType?: 'pdf' | 'image' | 'video' | 'audio'
         }
@@ -543,82 +509,35 @@ export function DataGridReact(props: DataGridReactProps) {
                     // Interpolate title without URL encoding
                     const resolvedTitle = fv.title
                       ? fv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
-                      : (action.text || 'File Preview')
+                      : (action.text || 'Document Preview')
 
-                    const fetchUrl = resolvedUrl
-
-                    // Determine approach from extension (quick check for known direct-embeddable types)
                     const extCat = _FILE_EXT_MAP[_getFileExt(resolvedUrl)]
-                    const mode = fv.pdfViewerMode || (extCat === 'image' ? 'direct' : 'fetch')
+                    const detectedCat = (fv.fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) || extCat || 'unknown'
 
-                    if (mode === 'direct' && extCat) {
-                      // Known extension, direct embed (images, known static PDFs, etc.)
-                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'direct', fv.fileType || extCat)
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: viewerHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                      }, { ...row.original })
-                    } else if (mode === 'google') {
-                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'google', fv.fileType || 'pdf')
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: viewerHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                      }, { ...row.original })
+                    let bodyHtml: string
+                    if (detectedCat === 'pdf') {
+                      bodyHtml = `<iframe src="${_escAttr(resolvedUrl)}" style="width:100%;height:70vh;border:none;" title="PDF Preview"></iframe>`
+                    } else if (detectedCat === 'image') {
+                      bodyHtml = `<div class="text-center"><img src="${_escAttr(resolvedUrl)}" alt="Preview" class="d-block mx-auto" style="max-width:100%;height:auto;" /></div>`
+                    } else if (detectedCat === 'video') {
+                      bodyHtml = `<video controls class="d-block mx-auto" style="max-width:100%;height:auto;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" />Your browser does not support video playback.</video>`
+                    } else if (detectedCat === 'audio') {
+                      bodyHtml = `<div class="p-3"><audio controls style="width:100%;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" /></audio></div>`
                     } else {
-                      // Fetch mode (default): download file first, auto-detect type, embed blob
-                      const loadingHtml = '<div style="text-align:center;padding:40px;"><i class="fa fa-spinner fa-spin" style="font-size:28px;color:#337ab7;"></i><p style="margin-top:12px;color:#666;font-size:14px;">Loading preview...</p></div>'
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: loadingHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                        onMount: (bodyEl: HTMLElement) => {
-                          fetch(fetchUrl, { credentials: 'include' })
-                            .then(r => {
-                              if (!r.ok) throw new Error(`HTTP ${r.status}`)
-                              const ct = r.headers.get('content-type') || ''
-                              return r.blob().then(blob => ({ blob, ct }))
-                            })
-                            .then(({ blob, ct }) => {
-                              const detectedCat = fv.fileType || _categoryFromContentType(ct) || extCat || 'unknown'
-                              const blobUrl = URL.createObjectURL(blob)
-                              if (detectedCat === 'pdf' || detectedCat === 'unknown') {
-                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
-                              } else if (detectedCat === 'image') {
-                                bodyEl.innerHTML = `<div style="text-align:center;"><img src="${_escAttr(blobUrl)}" alt="Preview" style="max-width:100%;height:auto;" /></div>`
-                              } else if (detectedCat === 'video') {
-                                bodyEl.innerHTML = `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></video>`
-                              } else if (detectedCat === 'audio') {
-                                bodyEl.innerHTML = `<div style="padding:20px;"><audio controls style="width:100%;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></audio></div>`
-                              } else {
-                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
-                              }
-                            })
-                            .catch(() => {
-                              bodyEl.innerHTML = `<div style="padding:30px;text-align:center;color:#c00;font-size:14px;"><i class="fa fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;"></i>Failed to load file preview.<br/><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#337ab7;text-decoration:underline;margin-top:8px;display:inline-block;"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
-                            })
-                        },
-                      }, { ...row.original })
+                      bodyHtml = `<div class="p-4 text-center text-muted"><i class="fa fa-file-o" style="font-size:36px;"></i><p class="mt-2">Preview not available for this file type.</p><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="small"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
                     }
+
+                    openPopup({
+                      title: resolvedTitle,
+                      icon: action.icon || 'fa fa-file-text-o',
+                      variant: 'custom',
+                      size: 'lg',
+                      htmlContent: bodyHtml,
+                      buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
+                      showCloseIcon: true,
+                      closeOnBackdrop: true,
+                      closeOnEscape: true,
+                    } as PopupConfig, { ...row.original })
                   } else if (action.type === 'fileDownload' && action.fileDownload) {
                     const fd = action.fileDownload
                     let dlUrl = ''

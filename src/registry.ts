@@ -6,7 +6,6 @@ import { registerProfileFieldSection } from './registries/register-profile-field
 import { registerTanStackTable } from './registries/register-data-grid'
 import { registerGenericPopup } from './registries/register-generic-popup'
 import { registerProgressBar } from './registries/register-progress-bar'
-import { registerFileViewer } from './registries/register-file-viewer'
 import { registerFileDownload } from './registries/register-file-download'
 import type { FormioComponents } from './registries/types'
 
@@ -76,7 +75,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerTanStackTable(Components)
     await registerGenericPopup(Components)
     await registerProgressBar(Components)
-    await registerFileViewer(Components)
     await registerFileDownload(Components)
 
     // Register runtime Referenced Form component for renderer.
@@ -213,25 +211,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
         Components.setComponent('progressBar', ProgressBarRuntime as never)
 
-        // File Viewer runtime
-        const { default: createFileViewerClass } = await import('./client/custom-components/FileViewerFormIO')
-        const FileViewerRuntime = createFileViewerClass(FieldComponent)
-        const ExistingFileViewer = (Components as any).components?.fileViewer
-        if (ExistingFileViewer) {
-          if (ExistingFileViewer.editForm) FileViewerRuntime.editForm = ExistingFileViewer.editForm
-          if (ExistingFileViewer.builderInfo) {
-            Object.defineProperty(FileViewerRuntime, 'builderInfo', {
-              get: () => ExistingFileViewer.builderInfo,
-              configurable: true,
-            })
-          }
-          const origFileViewerSchema = ExistingFileViewer.schema
-          if (typeof origFileViewerSchema === 'function') {
-            FileViewerRuntime.schema = origFileViewerSchema.bind(ExistingFileViewer)
-          }
-        }
-        Components.setComponent('fileViewer', FileViewerRuntime as never)
-
         // File Download runtime
         const { default: createFileDownloadClass } = await import('./client/custom-components/FileDownloadFormIO')
         const FileDownloadRuntime = createFileDownloadClass(FieldComponent)
@@ -325,7 +304,6 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           ssn: true,
           searchableDropdown: true,
           fileUploader: true,
-          fileViewer: true,
           fileDownload: true,
         },
       },
