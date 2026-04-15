@@ -20,6 +20,9 @@ export interface FileUploaderSchema {
   showFileList: boolean
   showFileSize: boolean
   scanEnabled: boolean
+  scanApiUrl: string
+  uploadApiUrl: string
+  autofocus: boolean
   [k: string]: unknown
 }
 
@@ -45,6 +48,9 @@ export class FileUploaderComponent {
       showFileList: true,
       showFileSize: true,
       scanEnabled: false,
+      scanApiUrl: '',
+      uploadApiUrl: '',
+      autofocus: false,
       ...overrides,
     }
   }
@@ -68,6 +74,7 @@ export class FileUploaderComponent {
           type: 'tabs',
           key: 'tabs',
           components: [
+            // ── Display tab ──────────────────────────────────────────
             {
               label: 'Display',
               key: 'display',
@@ -81,21 +88,13 @@ export class FileUploaderComponent {
                   weight: 10,
                 },
                 {
-                  type: 'textfield',
-                  key: 'key',
-                  label: 'Property Name',
-                  input: true,
-                  defaultValue: 'fileUploader',
-                  weight: 20,
-                },
-                {
                   type: 'textarea',
                   key: 'description',
                   label: 'Description / Help Text',
                   input: true,
                   placeholder: 'e.g., Upload a scanned copy of your document',
                   description: 'Guidance text shown below the upload area.',
-                  weight: 30,
+                  weight: 20,
                 },
                 {
                   type: 'textfield',
@@ -104,7 +103,7 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: 'Upload',
                   description: 'Label displayed on the upload trigger button.',
-                  weight: 40,
+                  weight: 30,
                 },
                 {
                   type: 'textfield',
@@ -113,6 +112,15 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: 'fa fa-upload',
                   description: 'Font Awesome icon class for the upload trigger (e.g., fa fa-upload).',
+                  weight: 40,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'autofocus',
+                  label: 'Initial Focus',
+                  input: true,
+                  defaultValue: false,
+                  tooltip: 'When enabled, this field receives focus when the form loads.',
                   weight: 50,
                 },
                 {
@@ -133,6 +141,7 @@ export class FileUploaderComponent {
                 },
               ],
             },
+            // ── File Settings tab ────────────────────────────────────
             {
               label: 'File Settings',
               key: 'fileSettings',
@@ -195,6 +204,7 @@ export class FileUploaderComponent {
                 },
               ],
             },
+            // ── Behavior tab ─────────────────────────────────────────
             {
               label: 'Behavior',
               key: 'behavior',
@@ -237,21 +247,44 @@ export class FileUploaderComponent {
                 },
               ],
             },
+            // ── Scan tab ─────────────────────────────────────────────
             {
               label: 'Scan',
               key: 'scan',
               components: [
+                {
+                  type: 'textfield',
+                  key: 'uploadApiUrl',
+                  label: 'Upload API URL',
+                  input: true,
+                  placeholder: 'https://example.com/api/upload',
+                  description:
+                    'Endpoint called on form submit to upload the file. The response must return the server file path/URL. Leave empty to keep files deferred (no server upload).',
+                  weight: 5,
+                },
                 {
                   type: 'checkbox',
                   key: 'scanEnabled',
                   label: 'Enable File Scanning',
                   input: true,
                   defaultValue: false,
-                  description: 'Enable virus/malware scanning on uploaded files.',
+                  description: 'Enable virus/malware scanning before upload. Requires Scan API URL.',
                   weight: 10,
+                },
+                {
+                  type: 'textfield',
+                  key: 'scanApiUrl',
+                  label: 'Scan API URL',
+                  input: true,
+                  placeholder: 'https://example.com/api/scan',
+                  description:
+                    'Endpoint called before upload to scan the file. Upload is blocked if scan fails.',
+                  weight: 20,
+                  conditional: { show: true, when: 'scanEnabled', eq: 'true' },
                 },
               ],
             },
+            // ── Validation tab ───────────────────────────────────────
             {
               label: 'Validation',
               key: 'validation',
@@ -272,6 +305,292 @@ export class FileUploaderComponent {
                   placeholder: 'Please upload the required file',
                   description: 'Error message shown when validation fails.',
                   weight: 20,
+                },
+                {
+                  type: 'textarea',
+                  key: 'validate.custom',
+                  label: 'Custom Validation (JavaScript)',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript validation. Set "valid" to true or an error message string. Available variables: valid, input, data, row, component, instance.',
+                },
+              ],
+            },
+            // ── API tab ──────────────────────────────────────────────
+            {
+              label: 'API',
+              key: 'api',
+              components: [
+                {
+                  type: 'textfield',
+                  key: 'key',
+                  label: 'Property Name',
+                  input: true,
+                  required: true,
+                  validate: {
+                    required: true,
+                  },
+                  defaultValue: 'fileUploader',
+                  description: 'Unique key for this component used in submission data (e.g. fileUploader).',
+                  weight: 10,
+                },
+              ],
+            },
+            // ── Conditional tab ──────────────────────────────────────
+            {
+              label: 'Conditional',
+              key: 'conditional',
+              components: [
+                {
+                  type: 'panel',
+                  title: 'Simple',
+                  key: 'simpleConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'select',
+                      key: 'conditional.show',
+                      label: 'This component should Display:',
+                      dataSrc: 'values',
+                      data: {
+                        values: [
+                          { label: 'True', value: 'true' },
+                          { label: 'False', value: 'false' },
+                        ],
+                      },
+                      input: true,
+                      weight: 10,
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.when',
+                      label: 'When the form component:',
+                      input: true,
+                      weight: 20,
+                      description: 'Enter the API key of the component to check.',
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.eq',
+                      label: 'Has the value:',
+                      input: true,
+                      weight: 30,
+                    },
+                  ],
+                },
+                {
+                  type: 'panel',
+                  title: 'Advanced Conditions',
+                  key: 'advancedConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'textarea',
+                      key: 'conditional.json',
+                      label: 'JSONLogic',
+                      input: true,
+                      rows: 5,
+                      weight: 10,
+                      description:
+                        'Enter raw JSON Logic to control component visibility. Refer to jsonlogic.com for documentation.',
+                    },
+                  ],
+                },
+                {
+                  type: 'textarea',
+                  key: 'customConditional',
+                  label: 'Custom Conditional (JavaScript)',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                },
+              ],
+            },
+            // ── Logic tab ────────────────────────────────────────────
+            {
+              label: 'Logic',
+              key: 'logic',
+              components: [
+                {
+                  weight: 0,
+                  type: 'datagrid',
+                  input: true,
+                  key: 'logic',
+                  label: 'Logic',
+                  reorder: true,
+                  addAnother: 'Add Logic',
+                  components: [
+                    {
+                      type: 'textfield',
+                      key: 'name',
+                      label: 'Name',
+                      input: true,
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Trigger',
+                      key: 'logicTrigger',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'select',
+                          key: 'trigger.type',
+                          label: 'Type',
+                          dataSrc: 'values',
+                          data: {
+                            values: [
+                              { label: 'Simple', value: 'simple' },
+                              { label: 'JavaScript', value: 'javascript' },
+                              { label: 'JSON Logic', value: 'json' },
+                              { label: 'Event', value: 'event' },
+                            ],
+                          },
+                          input: true,
+                          weight: 10,
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.javascript',
+                          label: 'JavaScript',
+                          input: true,
+                          rows: 5,
+                          weight: 20,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'javascript'] } },
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.json',
+                          label: 'JSON Logic',
+                          input: true,
+                          rows: 5,
+                          weight: 30,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'json'] } },
+                        },
+                        {
+                          type: 'textfield',
+                          key: 'trigger.event',
+                          label: 'Event Name',
+                          input: true,
+                          weight: 40,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'event'] } },
+                        },
+                      ],
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Actions',
+                      key: 'logicActions',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'datagrid',
+                          key: 'actions',
+                          label: 'Actions',
+                          addAnother: 'Add Action',
+                          components: [
+                            {
+                              type: 'textfield',
+                              key: 'name',
+                              label: 'Action Name',
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'type',
+                              label: 'Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Property', value: 'property' },
+                                  { label: 'Value', value: 'value' },
+                                  { label: 'Merge Component Schema', value: 'mergeComponentSchema' },
+                                  { label: 'Custom Action (JavaScript)', value: 'customAction' },
+                                ],
+                              },
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.label',
+                              label: 'Component Property',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Hidden', value: 'hidden' },
+                                  { label: 'Required', value: 'validate.required' },
+                                  { label: 'Disabled', value: 'disabled' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.type',
+                              label: 'Property Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Boolean', value: 'boolean' },
+                                  { label: 'String', value: 'string' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'checkbox',
+                              key: 'state',
+                              label: 'Toggle Component Visibility',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'boolean'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textfield',
+                              key: 'text',
+                              label: 'Value (String)',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'string'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'customAction',
+                              label: 'Custom Action (JavaScript)',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'customAction'] } },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'schemaDefinition',
+                              label: 'Schema Definition',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'mergeComponentSchema'] } },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
                 },
               ],
             },

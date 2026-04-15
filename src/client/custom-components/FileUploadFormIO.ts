@@ -7,7 +7,17 @@
  * Schema properties (from designer):
  *   type: 'fileUploader', uploadButtonLabel, uploadIcon, multiple,
  *   allowedFileTypes, acceptedExtensions, maxFileSize, maxFiles,
- *   deferredUpload, allowRemove, showFileList, showFileSize, scanEnabled
+ *   deferredUpload, allowRemove, showFileList, showFileSize,
+ *   scanEnabled, scanApiUrl, uploadApiUrl, autofocus
+ *
+ * Submit-time flow (when uploadApiUrl is configured):
+ *   1. On file pick: if scanEnabled+scanApiUrl → POST to scan API immediately
+ *      - scan passes (status:'clean') → file status set to 'scanned'
+ *      - scan fails (status:'infected' / non-2xx) → file status set to 'error', blocked
+ *   2. On beforeSubmit: block if any file is still 'scanning'
+ *   3. POST to uploadApiUrl for each 'scanned' (scanEnabled) or 'pending' (!scanEnabled) file
+ *   4. Bind returned server URL into submission data (status → 'success')
+ *   5. On form reload: file displayed as clickable link using stored server URL
  */
 
 import { FileUploaderComponent, FILE_UPLOADER_TYPE } from '../../components/FileUpload'
@@ -18,7 +28,9 @@ interface SelectedFile {
   type: string
   file?: File
   url?: string
-  status: 'pending' | 'success' | 'error'
+  path?: string
+  serverResponse?: Record<string, any>
+  status: 'pending' | 'scanning' | 'scanned' | 'success' | 'error'
   error?: string
 }
 
@@ -28,6 +40,8 @@ export default function createFileUploaderClass(FieldComponent: any) {
     selectedFiles: SelectedFile[] = []
     _syncing: boolean = false
     _lastValueJSON: string = ''
+    _submitInProgress: boolean = false
+    _scanningCount: number = 0
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(FileUploaderComponent.schema(), ...extend)
@@ -83,6 +97,8 @@ export default function createFileUploaderClass(FieldComponent: any) {
             size: v.size || 0,
             type: v.type || '',
             url: v.url,
+            path: v.path,
+            serverResponse: v,
             status: 'success' as const,
           }))
       }
@@ -91,12 +107,19 @@ export default function createFileUploaderClass(FieldComponent: any) {
     getValue() {
       return this.selectedFiles
         .filter((f) => f.status !== 'error')
-        .map((f) => ({
-          name: f.name,
-          size: f.size,
-          type: f.type,
-          ...(f.url ? { url: f.url } : {}),
-        }))
+        .map((f) => {
+          // Return the full server response object when available so the
+          // exact payload the upload API returned is what gets persisted to DB.
+          if (f.serverResponse) return { ...f.serverResponse }
+          // Pending / scanned files not yet uploaded: return local metadata.
+          return {
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            ...(f.url && !f.url.startsWith('blob:') ? { url: f.url } : {}),
+            ...(f.path ? { path: f.path } : {}),
+          }
+        })
     }
 
     setValue(value: any, flags?: any) {
@@ -114,6 +137,8 @@ export default function createFileUploaderClass(FieldComponent: any) {
             size: v.size || 0,
             type: v.type || '',
             url: v.url,
+            path: v.path,
+            serverResponse: v,
             status: 'success' as const,
           }))
         this.updateFileListUI()
@@ -128,6 +153,13 @@ export default function createFileUploaderClass(FieldComponent: any) {
     }
 
     checkComponentValidity(data?: any, dirty?: boolean, rowData?: any, options?: any) {
+      // Block if any file is still being scanned
+      if (this.selectedFiles.some((f) => f.status === 'scanning')) {
+        const msg = 'File scan is in progress. Please wait.'
+        this.setCustomValidity(msg)
+        return false
+      }
+
       if (this.component?.validate?.required) {
         if (this.selectedFiles.length === 0 || !this.selectedFiles.some((f) => f.status !== 'error')) {
           const msg = this.component.validate.customMessage || 'File is required'
@@ -135,8 +167,141 @@ export default function createFileUploaderClass(FieldComponent: any) {
           return false
         }
       }
+
+      // Custom JavaScript validation
+      const customValidation = this.component?.validate?.custom
+      if (customValidation && this.selectedFiles.length > 0) {
+        try {
+          const input = this.getValue()
+          const formData = this.data
+          const row = rowData || this.data
+          const component = this.component
+          const instance = this
+          const fn = new Function('input', 'formData', 'row', 'component', 'instance',
+            `let valid = true;\n${customValidation}\nreturn valid;`)
+          const valid: boolean | string = fn(input, formData, row, component, instance)
+          if (valid !== true) {
+            const msg = typeof valid === 'string' ? valid : (this.component.validate?.customMessage || 'Custom validation failed')
+            this.setCustomValidity(msg)
+            return false
+          }
+        } catch (err) {
+          console.error('FileUpload: custom validation error', err)
+        }
+      }
+
       this.setCustomValidity('')
       return true
+    }
+
+    async beforeSubmit(): Promise<any> {
+      const uploadApiUrl = (this.component?.uploadApiUrl as string | undefined)?.trim()
+
+      // Backward compat: no upload API configured → deferred mode, skip API calls
+      if (!uploadApiUrl) {
+        return typeof FieldComponent.prototype.beforeSubmit === 'function'
+          ? FieldComponent.prototype.beforeSubmit.call(this)
+          : Promise.resolve()
+      }
+
+      // Guard against duplicate calls during a single submit
+      if (this._submitInProgress) {
+        return typeof FieldComponent.prototype.beforeSubmit === 'function'
+          ? FieldComponent.prototype.beforeSubmit.call(this)
+          : Promise.resolve()
+      }
+
+      this._submitInProgress = true
+
+      try {
+        const scanEnabled = this.component?.scanEnabled ?? false
+
+        // Block submit if any file is still being scanned (triggered at pick time)
+        const scanningFiles = this.selectedFiles.filter((f) => f.status === 'scanning')
+        if (scanningFiles.length > 0) {
+          const msg = 'File scan is in progress. Please wait before submitting.'
+          this.setCustomValidity(msg)
+          this._submitInProgress = false
+          return Promise.reject(new Error(msg))
+        }
+
+        // Upload scanned files (scan enabled) or pending files (scan disabled)
+        const pendingFiles = this.selectedFiles.filter((f) => {
+          if (f.status === 'error' || f.status === 'success') return false
+          if (scanEnabled) return f.status === 'scanned' && !!f.file
+          return f.status === 'pending' && !!f.file
+        })
+
+        for (const fileEntry of pendingFiles) {
+          const file = fileEntry.file!
+
+          // Upload
+          const uploadForm = new FormData()
+          uploadForm.append('file', file)
+          let uploadResponse: Response
+          try {
+            uploadResponse = await fetch(uploadApiUrl, { method: 'POST', body: uploadForm })
+          } catch {
+            const msg = 'File upload failed: service unavailable.'
+            fileEntry.status = 'error'
+            fileEntry.error = msg
+            this.updateFileListUI()
+            this.setCustomValidity(msg)
+            this._submitInProgress = false
+            return Promise.reject(new Error(msg))
+          }
+
+          if (!uploadResponse.ok) {
+            let msg = 'File upload failed.'
+            try {
+              const text = await uploadResponse.text()
+              try {
+                const body = JSON.parse(text)
+                if (typeof body === 'string') msg = body
+                else if (body?.message) msg = body.message
+                else if (body?.error) msg = body.error
+              } catch { msg = text.trim() || msg }
+            } catch { /* ignore */ }
+            fileEntry.status = 'error'
+            fileEntry.error = msg
+            this.updateFileListUI()
+            this.setCustomValidity(msg)
+            this._submitInProgress = false
+            return Promise.reject(new Error(msg))
+          }
+
+          // Step 3: Bind full server response into the file entry.
+          // The entire response object (status, url, path, name, size, type) becomes
+          // the persisted value so the DB receives exactly what the upload API returned.
+          try {
+            const body = JSON.parse(await uploadResponse.text())
+            if (body && typeof body === 'object') {
+              fileEntry.serverResponse = body
+              fileEntry.url = body.url || body.path || body.location || body.fileUrl || body.filePath || fileEntry.url
+              fileEntry.path = body.path
+              fileEntry.name = body.name || fileEntry.name
+              fileEntry.size = body.size || fileEntry.size
+              fileEntry.type = body.type || fileEntry.type
+            } else if (typeof body === 'string') {
+              fileEntry.url = body
+            }
+          } catch { /* ignore — url already set from headers if needed */ }
+
+          fileEntry.status = 'success'
+          fileEntry.file = undefined
+        }
+
+        // Flush the resolved server URLs into submission data
+        this.syncFormValue()
+        this.setCustomValidity('')
+        this._submitInProgress = false
+        return typeof FieldComponent.prototype.beforeSubmit === 'function'
+          ? FieldComponent.prototype.beforeSubmit.call(this)
+          : Promise.resolve()
+      } catch (err) {
+        this._submitInProgress = false
+        return Promise.reject(err)
+      }
     }
 
     syncFormValue() {
@@ -202,6 +367,12 @@ export default function createFileUploaderClass(FieldComponent: any) {
         this.updateFileListUI()
       }
 
+      // Initial focus
+      if (this.component?.autofocus) {
+        const focusBtn = (this.refs as any)?.uploadBtn as HTMLElement | undefined
+        if (focusBtn) setTimeout(() => focusBtn.focus(), 50)
+      }
+
       return result
     }
 
@@ -228,18 +399,84 @@ export default function createFileUploaderClass(FieldComponent: any) {
           continue
         }
 
-        this.selectedFiles.push({
+        const fileEntry: SelectedFile = {
           name: file.name,
           size: file.size,
           type: file.type,
           file,
           url: URL.createObjectURL(file),
           status: 'pending',
-        })
+        }
+        this.selectedFiles.push(fileEntry)
+
+        // Trigger immediate scan on pick when scan is enabled
+        const fileScanEnabled = this.component?.scanEnabled ?? false
+        const fileScanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
+        if (fileScanEnabled && fileScanApiUrl) {
+          this.runScanNow(fileEntry)
+        }
       }
 
       this.updateFileListUI()
       this.syncFormValue()
+    }
+
+    // Called immediately when a file is picked and scanEnabled is true.
+    // Updates the file entry status as the scan progresses and re-renders the list.
+    async runScanNow(fileEntry: SelectedFile): Promise<void> {
+      const scanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
+      if (!scanApiUrl || !fileEntry.file) return
+
+      fileEntry.status = 'scanning'
+      this._scanningCount++
+      this.updateFileListUI()
+
+      try {
+        const scanForm = new FormData()
+        scanForm.append('file', fileEntry.file)
+        let response: Response
+        try {
+          response = await fetch(scanApiUrl, { method: 'POST', body: scanForm })
+        } catch {
+          fileEntry.status = 'error'
+          fileEntry.error = 'File scan failed: service unavailable.'
+          return
+        }
+
+        if (!response.ok) {
+          // Non-2xx → scan rejected (e.g. 422 for infected)
+          let msg = 'File did not pass security scan.'
+          try {
+            const body = JSON.parse(await response.text())
+            if (body?.message) msg = body.message
+            else if (body?.error) msg = body.error
+          } catch { /* ignore */ }
+          fileEntry.status = 'error'
+          fileEntry.error = msg
+          return
+        }
+
+        // 2xx response — check `status` field in body (some APIs return 200 with 'infected')
+        try {
+          const body = JSON.parse(await response.text())
+          if (body?.status === 'infected') {
+            fileEntry.status = 'error'
+            fileEntry.error = body.message || 'File did not pass security scan.'
+          } else {
+            // status: 'clean' or any successful response
+            fileEntry.status = 'scanned'
+            fileEntry.error = undefined
+          }
+        } catch {
+          // Unparseable body but response was OK → treat as passed
+          fileEntry.status = 'scanned'
+          fileEntry.error = undefined
+        }
+      } finally {
+        this._scanningCount = Math.max(0, this._scanningCount - 1)
+        this.updateFileListUI()
+        this.syncFormValue()
+      }
     }
 
     validateFile(file: File): string | null {
@@ -290,17 +527,54 @@ export default function createFileUploaderClass(FieldComponent: any) {
         const row = document.createElement('div')
         row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;'
 
-        const nameSpan = document.createElement('span')
-        nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;'
-        nameSpan.title = f.name
-        nameSpan.textContent = f.name
-        row.appendChild(nameSpan)
+        // Status icon
+        const iconSpan = document.createElement('span')
+        if (f.status === 'scanning') {
+          iconSpan.innerHTML = '<i class="fa fa-spinner fa-spin text-primary"></i>'
+          iconSpan.title = 'Scanning…'
+        } else if (f.status === 'scanned') {
+          iconSpan.innerHTML = '<i class="fa fa-shield text-success"></i>'
+          iconSpan.title = 'Scan passed'
+        } else if (f.status === 'success') {
+          iconSpan.innerHTML = '<i class="fa fa-check-circle text-success"></i>'
+          iconSpan.title = 'Uploaded'
+        } else if (f.status === 'error') {
+          iconSpan.innerHTML = '<i class="fa fa-exclamation-circle text-danger"></i>'
+          iconSpan.title = 'Error'
+        }
+        row.appendChild(iconSpan)
+
+        // File name: clickable link for server-uploaded files, plain text otherwise
+        const isServerUrl = !!f.url && !f.url.startsWith('blob:')
+        if (f.status === 'success' && isServerUrl) {
+          const link = document.createElement('a')
+          link.href = f.url!
+          link.target = '_blank'
+          link.rel = 'noopener noreferrer'
+          link.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;'
+          link.title = f.name
+          link.textContent = f.name
+          row.appendChild(link)
+        } else {
+          const nameSpan = document.createElement('span')
+          nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;'
+          nameSpan.title = f.name
+          nameSpan.textContent = f.name
+          row.appendChild(nameSpan)
+        }
 
         if (showSize && f.size > 0) {
           const sizeSpan = document.createElement('span')
           sizeSpan.style.color = '#aaa'
           sizeSpan.textContent = '(' + this.formatFileSize(f.size) + ')'
           row.appendChild(sizeSpan)
+        }
+
+        if (f.status === 'scanning') {
+          const scanMsg = document.createElement('span')
+          scanMsg.style.color = '#0d6efd'
+          scanMsg.textContent = 'Scanning…'
+          row.appendChild(scanMsg)
         }
 
         if (f.error) {
@@ -310,7 +584,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
           row.appendChild(errSpan)
         }
 
-        if (allowRemove) {
+        if (allowRemove && f.status !== 'scanning') {
           const removeBtn = document.createElement('button')
           removeBtn.type = 'button'
           removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;cursor:pointer;font-size:12px;padding:0 2px;'

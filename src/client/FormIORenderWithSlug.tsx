@@ -70,6 +70,13 @@ function cleanFormData(raw: Record<string, any>): Record<string, any> {
 export interface FormIORenderWithSlugProps {
   slug: string
 
+  /**
+   * Base URL of the form-schema API endpoint.
+   * The slug is always appended as a query param: ?slug=<slug>
+   * Example: "/api/my-forms" → fetches "/api/my-forms?slug=my-form-slug"
+   */
+  formSchemaApiUrl?: string
+
   // --- Common ---
   initialData?: Record<string, any>
   onError?: (error: string) => void
@@ -108,7 +115,8 @@ export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
     const load = async () => {
       try {
         setLoadError(null)
-        const res = await fetch(`/api/forms/get-by-slug?slug=${encodeURIComponent(slug)}`)
+        const baseUrl = props.formSchemaApiUrl 
+        const res = await fetch(`${baseUrl}?slug=${encodeURIComponent(slug)}`)
         if (!res.ok) {
           let err: { error?: string } = {}
           try {
@@ -127,7 +135,7 @@ export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
       }
     }
     load()
-  }, [slug])
+  }, [slug, props.formSchemaApiUrl])
 
   if (loadError) return <FormErrorComponent message={loadError} />
   if (!formMeta) return <FormLoading />
@@ -192,8 +200,39 @@ function findActiveReferencedWizardsOnPage(wizard: any, pageIndex: number): any[
 }
 
 // ---------------------------------------------------------------------------
-// Internal wizard renderer (not exported)
+// File upload flush — called before final submit to resolve all server URLs
 // ---------------------------------------------------------------------------
+
+/**
+ * Walks every component instance in the wizard/form and calls beforeSubmit()
+ * on each fileUploader component that has an uploadApiUrl configured.
+ *
+ * The fileUploader's beforeSubmit() will:
+ *   1. Skip if no pending files
+ *   2. POST each pending/scanned file to uploadApiUrl
+ *   3. Replace the local blob URL with the server-returned URL in form data
+ *
+ * After this resolves, form.submission.data contains the final server URLs
+ * ready to be sent to saveRecord / createRecord.
+ */
+async function flushPendingFileUploads(form: any): Promise<void> {
+  if (!form) return
+  const uploaders: any[] = []
+  if (typeof form.everyComponent === 'function') {
+    form.everyComponent((comp: any) => {
+      if (
+        comp?.component?.type === 'fileUploader' &&
+        typeof comp.beforeSubmit === 'function' &&
+        (comp.component?.uploadApiUrl as string | undefined)?.trim()
+      ) {
+        uploaders.push(comp)
+      }
+    })
+  }
+  for (const uploader of uploaders) {
+    await uploader.beforeSubmit()
+  }
+}
 
 function WizardRenderer({
   formMeta,
@@ -383,13 +422,31 @@ function WizardRenderer({
     if (wizard && typeof (wizard as any).nextPage === 'function') {
       (wizard as any).nextPage()
     }
-    const stateWithTarget = { ...getState(), currentPage: targetPage, data: dataToSave }
+
+    // Before saving on any step, flush file upload components that have pending files.
+    // Each fileUploader with uploadApiUrl POSTs its file, receives the server URL,
+    // and updates form.submission.data in place. If no pending files exist the call
+    // is a no-op. This ensures the payload always contains server URLs, not blob URLs.
+    setIsSaving(true)
+    try {
+      await flushPendingFileUploads(wizard || form)
+    } catch (uploadErr: any) {
+      onError?.(uploadErr?.message || 'File upload failed.')
+      setIsSaving(false)
+      return
+    }
+
+    // Re-read data after upload flush — server URLs are now in form data
+    const finalData = { ...(form.submission?.data ?? dataToSave) }
+
+    const isSubmitting = targetPage >= total - 1
+    const stateWithTarget = { ...getState(), currentPage: targetPage, data: finalData }
 
     // Managed new: first Next creates record then app navigates to edit
     if (createRecord && (recordId == null || recordId === undefined)) {
       setIsSaving(true)
       try {
-        const payload = { ...cleanFormData(dataToSave), _wizardStep: targetPage }
+        const payload = { ...cleanFormData(finalData), _wizardStep: targetPage }
         const result = await createRecord(payload)
         if (result?.id != null) {
           onRecordCreated?.(result.id, payload, targetPage)
@@ -408,7 +465,7 @@ function WizardRenderer({
     if (saveRecord && recordId != null) {
       setIsSaving(true)
       try {
-        const payload = { ...cleanFormData(dataToSave), _wizardStep: targetPage }
+        const payload = { ...cleanFormData(finalData), _wizardStep: targetPage }
         const ok = await saveRecord(recordId, payload, targetPage)
         if (!ok) {
           setIsSaving(false)
