@@ -85,12 +85,13 @@ export class FileDownloadComponent {
                   weight: 10,
                 },
                 {
-                  type: 'textfield',
-                  key: 'key',
-                  label: 'Property Name',
+                  type: 'checkbox',
+                  key: 'autofocus',
+                  label: 'Initial Focus',
                   input: true,
-                  defaultValue: 'fileDownload',
-                  weight: 20,
+                  defaultValue: false,
+                  tooltip: 'When enabled, focuses the component when the page loads.',
+                  weight: 15,
                 },
                 {
                   type: 'textarea',
@@ -116,6 +117,7 @@ export class FileDownloadComponent {
                   label: 'Hidden',
                   input: true,
                   defaultValue: false,
+                  tooltip: 'When enabled, this component is hidden from the form.',
                   weight: 50,
                 },
                 {
@@ -124,6 +126,7 @@ export class FileDownloadComponent {
                   label: 'Disabled',
                   input: true,
                   defaultValue: false,
+                  tooltip: 'When enabled, this component cannot be interacted with.',
                   weight: 60,
                 },
               ],
@@ -185,6 +188,125 @@ export class FileDownloadComponent {
                   defaultValue: 'No file available',
                   description: 'Text shown when no file URL is available.',
                   weight: 40,
+                },
+              ],
+            },
+            // ── API Tab ──
+            {
+              label: 'API',
+              key: 'api',
+              components: [
+                {
+                  type: 'textfield',
+                  key: 'key',
+                  label: 'Property Name',
+                  input: true,
+                  required: true,
+                  description: 'Unique key for this component. Used to identify it in submission data and form logic.',
+                  weight: 10,
+                },
+              ],
+            },
+            // ── Conditional Tab ──
+            {
+              label: 'Conditional',
+              key: 'conditional',
+              components: [
+                {
+                  type: 'panel',
+                  title: 'Simple',
+                  key: 'simpleConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'select',
+                      key: 'conditional.show',
+                      label: 'This component should Display:',
+                      dataSrc: 'values',
+                      data: {
+                        values: [
+                          { label: 'True', value: 'true' },
+                          { label: 'False', value: 'false' },
+                        ],
+                      },
+                      input: true,
+                      weight: 10,
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.when',
+                      label: 'When the form component:',
+                      input: true,
+                      weight: 20,
+                      description: 'Enter the API key of the component to check.',
+                    },
+                    {
+                      type: 'textfield',
+                      key: 'conditional.eq',
+                      label: 'Has the value:',
+                      input: true,
+                      weight: 30,
+                    },
+                  ],
+                },
+                {
+                  type: 'panel',
+                  title: 'Advanced Conditions',
+                  key: 'advancedConditional',
+                  theme: 'default',
+                  components: [
+                    {
+                      type: 'textarea',
+                      key: 'conditional.json',
+                      label: 'JSONLogic',
+                      input: true,
+                      rows: 5,
+                      weight: 10,
+                      description: 'Enter raw JSON Logic to control component visibility. Refer to jsonlogic.com for documentation.',
+                    },
+                  ],
+                },
+              ],
+            },
+            // ── Validation Tab ──
+            {
+              label: 'Validation',
+              key: 'validation',
+              components: [
+                {
+                  type: 'textarea',
+                  key: 'validate.custom',
+                  label: 'Custom Validation',
+                  input: true,
+                  rows: 5,
+                  weight: 10,
+                  placeholder: 'valid = (data.someField !== "") ? true : "Error message";',
+                  description: 'Write custom JavaScript validation. Set "valid" to true or an error message string. Available variables: input, data, row, component, instance.',
+                },
+              ],
+            },
+            // ── Logic Tab ──
+            {
+              label: 'Logic',
+              key: 'logic',
+              components: [
+                {
+                  type: 'textarea',
+                  key: 'customConditional',
+                  label: 'Custom Conditional',
+                  input: true,
+                  rows: 5,
+                  weight: 10,
+                  description: 'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                },
+                {
+                  type: 'textarea',
+                  key: 'customDefaultValue',
+                  label: 'Custom Default Value',
+                  input: true,
+                  rows: 5,
+                  weight: 20,
+                  description: 'Write custom JavaScript for the default value. Set the "value" variable.',
                 },
               ],
             },

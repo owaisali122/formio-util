@@ -22,6 +22,7 @@ import { openPopup } from '../../popup/popupStore'
 import type { PopupButton, PopupConfig } from '../../popup/PopupTypes'
 import { createRoot } from 'react-dom/client'
 import { DocumentViewerContent, resolveFileType } from '../DocumentViewerContent'
+import { triggerFileDownload } from '../fileDownloadUtils'
 
 // ─── Props ───────────────────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ export function DataGridReact(props: DataGridReactProps) {
   // Column reorder state — drag-and-drop reordering is UI-only, not persisted
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const dragColumnRef = useRef<string | null>(null)
+  const downloadingButtonsRef = useRef<Set<HTMLElement>>(new Set())
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
   // Column resize state — session-only, not persisted
@@ -610,24 +612,21 @@ export function DataGridReact(props: DataGridReactProps) {
                       try { const p = new URL(dlUrl, window.location.origin).pathname.split('/'); return p[p.length - 1] || 'download' } catch { return 'download' }
                     })()
 
-                    // Visual feedback on the button
                     const btnEl = e.currentTarget as HTMLElement
-                    btnEl.style.opacity = '0.4'
+                    if (downloadingButtonsRef.current.has(btnEl)) return
 
-                    fetch(dlUrl, { credentials: 'include' })
-                      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob() })
-                      .then(blob => {
-                        const blobUrl = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = blobUrl
-                        a.download = dlFileName || fallbackName
-                        a.style.display = 'none'
-                        document.body.appendChild(a)
-                        a.click()
-                        setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 200)
-                      })
-                      .catch(() => { window.open(dlUrl, '_blank', 'noopener,noreferrer') })
-                      .finally(() => { btnEl.style.opacity = '1' })
+                    const iconEl = btnEl.querySelector('i') as HTMLElement | null
+                    const originalIconClass = iconEl ? iconEl.className : ''
+
+                    downloadingButtonsRef.current.add(btnEl)
+                    btnEl.style.pointerEvents = 'none'
+                    if (iconEl) iconEl.className = 'fa fa-spinner fa-spin'
+
+                    triggerFileDownload(dlUrl, dlFileName || fallbackName).finally(() => {
+                      downloadingButtonsRef.current.delete(btnEl)
+                      btnEl.style.pointerEvents = ''
+                      if (iconEl && originalIconClass) iconEl.className = originalIconClass
+                    })
                   } else if (action.type === 'documentView' && action.documentView) {
                     const dv = action.documentView
                     // Resolve file URL — no encoding: link field is often a full path like

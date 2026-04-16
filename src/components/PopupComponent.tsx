@@ -224,6 +224,24 @@ export class PopupComponent {
                 },
               ],
             },
+            // ── API tab ──────────────────────────────────────────────────────
+            {
+              label: 'API',
+              key: 'api',
+              components: [
+                {
+                  type: 'textfield',
+                  key: 'key',
+                  label: 'Property Name',
+                  input: true,
+                  required: true,
+                  validate: { required: true },
+                  defaultValue: 'popupComponent',
+                  description: 'Unique key for this component used in form submission data and event handling (e.g. popupComponent).',
+                  weight: 10,
+                },
+              ],
+            },
             // ── Buttons tab ─────────────────────────────────────────────────
             {
               label: 'Buttons',
@@ -296,24 +314,6 @@ export class PopupComponent {
                   weight: 20,
                   description:
                     'Write custom JavaScript validation. Set "valid" to true to pass, or set it to an error message string to fail. Available variables: valid, input, data, row, component, instance.',
-                },
-              ],
-            },
-            // ── API tab ──────────────────────────────────────────────────────
-            {
-              label: 'API',
-              key: 'api',
-              components: [
-                {
-                  type: 'textfield',
-                  key: 'key',
-                  label: 'Property Name',
-                  input: true,
-                  required: true,
-                  validate: { required: true },
-                  defaultValue: 'popupComponent',
-                  description: 'Unique key for this component used in form submission data and event handling (e.g. popupComponent).',
-                  weight: 10,
                 },
               ],
             },
