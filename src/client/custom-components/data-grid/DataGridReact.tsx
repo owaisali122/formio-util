@@ -20,6 +20,8 @@ import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGr
 import type { DataGridColumn } from '../../../components/DataGrid'
 import { openPopup } from '../../popup/popupStore'
 import type { PopupButton, PopupConfig } from '../../popup/PopupTypes'
+import { createRoot } from 'react-dom/client'
+import { DocumentViewerContent, resolveFileType } from '../DocumentViewerContent'
 
 // ─── Props ───────────────────────────────────────────────────────────
 
@@ -396,7 +398,7 @@ export function DataGridReact(props: DataGridReactProps) {
          * - 'url'   : navigate to action.url (existing behaviour)
          * - 'popup' : open the generic popup with action.popup config and row data as payload
          */
-        type?: 'url' | 'popup' | 'edit' | 'delete' | 'fileViewer' | 'fileDownload'
+        type?: 'url' | 'popup' | 'edit' | 'delete' | 'fileViewer' | 'fileDownload' | 'documentView'
         /** Popup configuration for type='popup' actions */
         popup?: {
           title?: string
@@ -470,6 +472,55 @@ export function DataGridReact(props: DataGridReactProps) {
            * - Raw field name: `"formName"` → reads `row["formName"]` directly
            */
           fileNameField?: string
+        }
+        /**
+         * Document viewer configuration for type='documentView' actions.
+         * Opens the full DocumentViewerContent React component inside the popup modal.
+         * Supports PDF (with toolbar, find, zoom, rotate, scroll/page mode) and images.
+         * The {{fieldKey}} tokens in fileUrlField, title, and fileNameField are replaced
+         * with the corresponding value from the row data.
+         */
+        documentView?: {
+          /**
+           * File URL. Template (`{{fieldKey}}`) → interpolated from row data (URL-encoded);
+           * plain field name → reads `row[fieldKey]` directly.
+           */
+          fileUrlField?: string
+          /** Modal title. Supports {{fieldKey}} interpolation (not URL-encoded). */
+          title?: string
+          /** File name used by the viewer's download button. Supports {{fieldKey}} interpolation. */
+          fileNameField?: string
+          /**
+           * Force file type. When omitted, auto-detected from URL extension.
+           * If the extension is unrecognised, defaults to 'pdf' (the primary use case).
+           * Set explicitly to 'image' or 'other' if needed.
+           */
+          fileType?: 'pdf' | 'image' | 'other'
+          /** Render mode: 'page' (default, one page at a time) or 'scroll' (all pages stacked). */
+          viewMode?: 'page' | 'scroll'
+          /** Viewer height CSS value. Defaults to '70vh'. */
+          viewerHeight?: string
+          /**
+           * Toolbar configuration. Each key defaults to true — omit the key to keep
+           * the button visible, or set it to false to hide it.
+           * Omitting toolbar entirely shows all buttons.
+           */
+          toolbar?: {
+            /** Toggle page thumbnails sidebar. Default: true */
+            thumbnail?: boolean
+            /** Find/search bar toggle button. Default: true */
+            search?: boolean
+            /** Page navigation (prev/next/page input). Default: true */
+            navigation?: boolean
+            /** Zoom controls (in/out/select). Default: true */
+            zoomControls?: boolean
+            /** Rotate CW/CCW buttons. Default: true */
+            rotateButtons?: boolean
+            /** Print button. Default: true */
+            printButton?: boolean
+            /** Download button. Default: true */
+            download?: boolean
+          }
         }
       }[] = []
       try { actions = JSON.parse(actionColumnActions || '[]') } catch { /* invalid JSON */ }
@@ -577,6 +628,84 @@ export function DataGridReact(props: DataGridReactProps) {
                       })
                       .catch(() => { window.open(dlUrl, '_blank', 'noopener,noreferrer') })
                       .finally(() => { btnEl.style.opacity = '1' })
+                  } else if (action.type === 'documentView' && action.documentView) {
+                    const dv = action.documentView
+                    // Resolve file URL — no encoding: link field is often a full path like
+                    // "/api/download/abc123" where encodeURIComponent would break the slashes.
+                    let dvUrl = ''
+                    if (dv.fileUrlField) {
+                      dvUrl = dv.fileUrlField.includes('{{')
+                        ? dv.fileUrlField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[dv.fileUrlField] ?? '')
+                    }
+                    if (!dvUrl) return
+
+                    // Resolve title and fileName (no encoding)
+                    const dvTitle = dv.title
+                      ? dv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                      : (action.text || 'Document Preview')
+                    const dvFileName = dv.fileNameField
+                      ? dv.fileNameField.includes('{{')
+                        ? dv.fileNameField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[dv.fileNameField] ?? '')
+                      : undefined
+
+                    const dvHeight = dv.viewerHeight || '70vh'
+
+                    // Resolve toolbar visibility — each key defaults to true when omitted.
+                    const tb = dv.toolbar ?? {}
+                    const tbSidebar  = tb.thumbnail !== false
+                    const tbFind     = tb.search !== false
+                    const tbNav      = tb.navigation !== false
+                    const tbZoom     = tb.zoomControls !== false
+                    const tbRotate   = tb.rotateButtons !== false
+                    const tbPrint    = tb.printButton !== false
+                    const tbDownload = tb.download !== false
+
+                    let dvRoot: ReturnType<typeof createRoot> | null = null
+
+                    // Open popup IMMEDIATELY — no HEAD request; avoids double network fetch.
+                    // File type: explicit config > URL extension > default 'pdf' (primary use case).
+                    const dvFileType: 'pdf' | 'image' | 'text' | 'other' = dv.fileType
+                      ?? (() => { const t = resolveFileType('auto', dvFileName, dvUrl); return t === 'other' ? 'pdf' : t })()
+
+                    openPopup({
+                      title: dvTitle,
+                      icon: action.icon || 'fa fa-file-text-o',
+                      variant: 'custom',
+                      size: 'lg',
+                      htmlContent: '<div></div>',
+                      buttons: [],
+                      showCloseIcon: true,
+                      closeOnBackdrop: false,
+                      closeOnEscape: true,
+                      onMount: (bodyEl: HTMLElement) => {
+                        const container = document.createElement('div')
+                        bodyEl.appendChild(container)
+                        dvRoot = createRoot(container)
+                        dvRoot.render(
+                          React.createElement(DocumentViewerContent, {
+                            url: dvUrl,
+                            fileType: dvFileType,
+                            fileName: dvFileName,
+                            viewerHeight: dvHeight,
+                            maxWidth: '100%',
+                            fallbackText: 'Preview not available for this file type.',
+                            viewMode: dv.viewMode ?? 'page',
+                            showToolbarSidebar: tbSidebar,
+                            showToolbarFind: tbFind,
+                            showToolbarNavigation: tbNav,
+                            showToolbarZoom: tbZoom,
+                            showToolbarRotate: tbRotate,
+                            showToolbarPrint: tbPrint,
+                            showToolbarDownload: tbDownload,
+                          })
+                        )
+                      },
+                      onClose: () => {
+                        setTimeout(() => { try { dvRoot?.unmount() } catch (_) {} }, 0)
+                      },
+                    } as PopupConfig, { ...row.original })
                   } else if (action.type === 'popup' && action.popup) {
                     // Build popup config from action definition
                     let buttons: PopupButton[] | undefined

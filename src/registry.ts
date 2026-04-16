@@ -7,6 +7,7 @@ import { registerTanStackTable } from './registries/register-data-grid'
 import { registerGenericPopup } from './registries/register-generic-popup'
 import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
+import { registerDocumentViewer } from './registries/register-document-viewer'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -76,6 +77,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerGenericPopup(Components)
     await registerProgressBar(Components)
     await registerFileDownload(Components)
+    await registerDocumentViewer(Components)
 
     // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -229,6 +231,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileDownload', FileDownloadRuntime as never)
+
+        // Document Viewer runtime
+        const { default: createDocumentViewerClass } = await import('./client/custom-components/DocumentViewerFormIO')
+        const DocumentViewerRuntime = createDocumentViewerClass(FieldComponent)
+        const ExistingDocumentViewer = (Components as any).components?.documentViewer
+        if (ExistingDocumentViewer) {
+          if (ExistingDocumentViewer.editForm) DocumentViewerRuntime.editForm = ExistingDocumentViewer.editForm
+          if (ExistingDocumentViewer.builderInfo) {
+            Object.defineProperty(DocumentViewerRuntime, 'builderInfo', {
+              get: () => ExistingDocumentViewer.builderInfo,
+              configurable: true,
+            })
+          }
+          const origDocumentViewerSchema = ExistingDocumentViewer.schema
+          if (typeof origDocumentViewerSchema === 'function') {
+            DocumentViewerRuntime.schema = origDocumentViewerSchema.bind(ExistingDocumentViewer)
+          }
+        }
+        Components.setComponent('documentViewer', DocumentViewerRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
