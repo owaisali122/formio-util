@@ -1,7 +1,7 @@
 /**
  * FormIO: Document Viewer Runtime Component
  *
- * Reference pattern: GenericPopupFormIO.ts + FileDownloadFormIO.ts
+ * Reference pattern: PopupComponentFormIO.ts + FileDownloadFormIO.ts
  *
  * Renders a trigger button inside the form. When clicked it:
  *   1. Resolves the file URL (from static config or submission data)

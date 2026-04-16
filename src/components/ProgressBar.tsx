@@ -1,7 +1,7 @@
 /**
  * Form.io Progress Bar — Designer (builder-side) component definition.
  *
- * Reference pattern: GenericPopupComponent (src/components/GenericPopup.ts)
+ * Reference pattern: PopupComponent (src/components/PopupComponent.tsx)
  *
  * Three modes:
  *  - manual : a fixed percentage set directly in the Configure tab

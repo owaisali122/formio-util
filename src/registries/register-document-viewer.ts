@@ -4,7 +4,7 @@ import type { FormioComponents } from './types'
 /**
  * Register the Document Viewer designer (builder-side) component.
  *
- * Reference pattern: registerGenericPopup (register-generic-popup.ts)
+ * Reference pattern: registerPopupComponent (register-popup-component.ts)
  *
  * Provides a lightweight builder preview that does not run PDF rendering
  * or open the popup — keeping the designer stable regardless of URL validity.

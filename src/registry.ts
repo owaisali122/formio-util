@@ -4,7 +4,7 @@ import { registerSmartStreet } from './registries/register-smart-street'
 import { registerFileUploader } from './registries/register-file-upload'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
 import { registerTanStackTable } from './registries/register-data-grid'
-import { registerGenericPopup } from './registries/register-generic-popup'
+import { registerPopupComponent } from './registries/register-popup-component'
 import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
 import { registerDocumentViewer } from './registries/register-document-viewer'
@@ -74,7 +74,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileUploader(Components)
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)
-    await registerGenericPopup(Components)
+    await registerPopupComponent(Components)
     await registerProgressBar(Components)
     await registerFileDownload(Components)
     await registerDocumentViewer(Components)
@@ -175,24 +175,24 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
         Components.setComponent('tanstackTable', TanStackTableRuntime as never)
 
-        // Generic Popup runtime
-        const { createGenericPopupClass } = await import('./client/custom-components/GenericPopupFormIO')
-        const GenericPopupRuntime = createGenericPopupClass(FieldComponent)
-        const ExistingGenericPopup = (Components as any).components?.genericPopup
-        if (ExistingGenericPopup) {
-          if (ExistingGenericPopup.editForm) GenericPopupRuntime.editForm = ExistingGenericPopup.editForm
-          if (ExistingGenericPopup.builderInfo) {
-            Object.defineProperty(GenericPopupRuntime, 'builderInfo', {
-              get: () => ExistingGenericPopup.builderInfo,
+        // Popup Component runtime
+        const { createPopupComponentClass } = await import('./client/custom-components/PopupComponentFormIO')
+        const PopupComponentRuntime = createPopupComponentClass(FieldComponent)
+        const ExistingPopupComponent = (Components as any).components?.popupComponent
+        if (ExistingPopupComponent) {
+          if (ExistingPopupComponent.editForm) PopupComponentRuntime.editForm = ExistingPopupComponent.editForm
+          if (ExistingPopupComponent.builderInfo) {
+            Object.defineProperty(PopupComponentRuntime, 'builderInfo', {
+              get: () => ExistingPopupComponent.builderInfo,
               configurable: true,
             })
           }
-          const origGenericPopupSchema = ExistingGenericPopup.schema
-          if (typeof origGenericPopupSchema === 'function') {
-            GenericPopupRuntime.schema = origGenericPopupSchema.bind(ExistingGenericPopup)
+          const origPopupComponentSchema = ExistingPopupComponent.schema
+          if (typeof origPopupComponentSchema === 'function') {
+            PopupComponentRuntime.schema = origPopupComponentSchema.bind(ExistingPopupComponent)
           }
         }
-        Components.setComponent('genericPopup', GenericPopupRuntime as never)
+        Components.setComponent('popupComponent', PopupComponentRuntime as never)
 
         // Progress Bar runtime
         const { createProgressBarClass } = await import('./client/custom-components/ProgressBarFormIO')
@@ -337,7 +337,6 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           columns: true,
           panel: true,
           well: true,
-          tanstackTable: true,
           profileFieldSection: true,
         },
       },

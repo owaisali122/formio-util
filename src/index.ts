@@ -74,10 +74,10 @@ export {
 export type { DataGridSchema, DataGridColumn } from './components/DataGrid'
 
 export {
-  GenericPopupComponent,
-  GENERIC_POPUP_TYPE,
-} from './components/GenericPopup'
-export type { GenericPopupSchema, GenericPopupButtonSchema } from './components/GenericPopup'
+  PopupComponent,
+  POPUP_COMPONENT_TYPE,
+} from './components/PopupComponent'
+export type { PopupComponentSchema, PopupComponentButtonSchema } from './components/PopupComponent'
 
 export {
   ProgressBarComponent,

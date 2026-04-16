@@ -1,7 +1,7 @@
 /**
  * Register the Progress Bar designer (builder-side) component.
  *
- * Reference pattern: registerGenericPopup (register-generic-popup.ts)
+ * Reference pattern: registerPopupComponent (register-popup-component.ts)
  */
 
 import { ProgressBarComponent, PROGRESS_BAR_TYPE } from '../components/ProgressBar'

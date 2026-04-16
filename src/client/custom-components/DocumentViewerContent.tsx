@@ -1,7 +1,7 @@
 ﻿/**
  * DocumentViewerContent — React component rendered inside the existing popup body.
  *
- * Reference pattern: GenericPopupFormIO — uses openPopup with onMount to inject
+ * Reference pattern: PopupComponentFormIO — uses openPopup with onMount to inject
  * custom React content into the popup body via createRoot.
  *
  * Handles:
