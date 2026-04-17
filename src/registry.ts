@@ -362,7 +362,6 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           radio: true,
           button: true,
           currency: true,
-          datetime: true,
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
