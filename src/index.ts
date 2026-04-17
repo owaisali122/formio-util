@@ -102,6 +102,15 @@ export type {
 } from './components/FormReview'
 
 export {
+  DatePickerComponent,
+  DATE_PICKER_TYPE,
+} from './components/DatePicker'
+export type { DatePickerSchema } from './components/DatePicker'
+
+export { DatePickerInput, parseDateString, formatDateString } from './components/DatePickerInput'
+export type { DatePickerInputProps } from './components/DatePickerInput'
+
+export {
   buildComponentMap,
   resolveLabel,
   getSubmissionValue,

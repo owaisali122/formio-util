@@ -9,6 +9,7 @@ import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
 import { registerDocumentViewer } from './registries/register-document-viewer'
 import { registerFormReview } from './registries/register-form-review'
+import { registerDatePicker } from './registries/register-date-picker'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -80,6 +81,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileDownload(Components)
     await registerDocumentViewer(Components)
     await registerFormReview(Components)
+    await registerDatePicker(Components)
 
     // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -271,6 +273,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('formReview', FormReviewRuntime as never)
+
+        // Date Picker runtime
+        const { default: createDatePickerClass } = await import('./client/custom-components/DatePickerFormIO')
+        const DatePickerRuntime = createDatePickerClass(FieldComponent)
+        const ExistingDatePicker = (Components as any).components?.datePicker
+        if (ExistingDatePicker) {
+          if (ExistingDatePicker.editForm) DatePickerRuntime.editForm = ExistingDatePicker.editForm
+          if (ExistingDatePicker.builderInfo) {
+            Object.defineProperty(DatePickerRuntime, 'builderInfo', {
+              get: () => ExistingDatePicker.builderInfo,
+              configurable: true,
+            })
+          }
+          const origDatePickerSchema = ExistingDatePicker.schema
+          if (typeof origDatePickerSchema === 'function') {
+            DatePickerRuntime.schema = origDatePickerSchema.bind(ExistingDatePicker)
+          }
+        }
+        Components.setComponent('datePicker', DatePickerRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
