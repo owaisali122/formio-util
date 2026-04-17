@@ -90,3 +90,28 @@ export {
   FILE_DOWNLOAD_TYPE,
 } from './components/FileDownload'
 export type { FileDownloadSchema } from './components/FileDownload'
+
+export {
+  FormReviewComponent,
+  FORM_REVIEW_TYPE,
+} from './components/FormReview'
+export type {
+  FormReviewSchema,
+  FormReviewSectionSchema,
+  FormReviewItemSchema,
+} from './components/FormReview'
+
+export {
+  buildComponentMap,
+  resolveLabel,
+  getSubmissionValue,
+  formatValue,
+  resolveSections,
+} from './utils/form-review-helpers'
+export type {
+  ReviewItemConfig,
+  ReviewSectionConfig,
+  FormReviewSettings,
+  ResolvedReviewItem,
+  ResolvedReviewSection,
+} from './utils/form-review-helpers'

@@ -12,6 +12,7 @@ export { default as createProfileFieldSectionClass } from './ProfileFieldSection
 export { default as createProgressBarClass } from './ProgressBarFormIO'
 export { default as createFileDownloadClass } from './FileDownloadFormIO'
 export { default as createDocumentViewerClass, setupDocumentViewerWorker } from './DocumentViewerFormIO'
+export { default as createFormReviewClass } from './FormReviewFormIO'
 export {
   createTanStackTableClass,
   DataGridReact,

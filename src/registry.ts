@@ -8,6 +8,7 @@ import { registerPopupComponent } from './registries/register-popup-component'
 import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
 import { registerDocumentViewer } from './registries/register-document-viewer'
+import { registerFormReview } from './registries/register-form-review'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -78,6 +79,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerProgressBar(Components)
     await registerFileDownload(Components)
     await registerDocumentViewer(Components)
+    await registerFormReview(Components)
 
     // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -250,6 +252,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('documentViewer', DocumentViewerRuntime as never)
+
+        // Form Review runtime
+        const { default: createFormReviewClass } = await import('./client/custom-components/FormReviewFormIO')
+        const FormReviewRuntime = createFormReviewClass(FieldComponent)
+        const ExistingFormReview = (Components as any).components?.formReview
+        if (ExistingFormReview) {
+          if (ExistingFormReview.editForm) FormReviewRuntime.editForm = ExistingFormReview.editForm
+          if (ExistingFormReview.builderInfo) {
+            Object.defineProperty(FormReviewRuntime, 'builderInfo', {
+              get: () => ExistingFormReview.builderInfo,
+              configurable: true,
+            })
+          }
+          const origFormReviewSchema = ExistingFormReview.schema
+          if (typeof origFormReviewSchema === 'function') {
+            FormReviewRuntime.schema = origFormReviewSchema.bind(ExistingFormReview)
+          }
+        }
+        Components.setComponent('formReview', FormReviewRuntime as never)
       }
     } catch {
       // If registration fails, designer behavior remains intact; renderer
@@ -338,6 +359,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           panel: true,
           well: true,
           profileFieldSection: true,
+          formReview: true,
         },
       },
       data: { default: false },

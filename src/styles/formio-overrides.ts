@@ -180,4 +180,129 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* ========== Form Review — Renderer ========== */
+
+.form-review-description {
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.form-review-toolbar {
+  text-align: right;
+  margin-bottom: 0.5rem;
+}
+
+.form-review-section {
+  margin-bottom: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.form-review-section-header {
+  padding: 0.625rem 1rem;
+  cursor: pointer;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid transparent;
+  transition: background-color 0.15s ease;
+}
+
+.form-review-section-header[aria-expanded="true"] {
+  background-color: #e8f0fe;
+  border-bottom-color: #dee2e6;
+}
+
+.form-review-section-header[aria-expanded="false"] {
+  background-color: #f8f9fa;
+  border-bottom-color: transparent;
+}
+
+.form-review-section-header--static {
+  padding: 0.625rem 1rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.form-review-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-review-section-body {
+  padding: 1rem;
+}
+
+.form-review-section-body--hidden {
+  display: none;
+}
+
+.form-review-item-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.form-review-item-value {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.form-review-item-value--empty {
+  color: #6c757d;
+}
+
+.form-review-bool-icon--checked {
+  color: #28a745;
+  margin-right: 4px;
+}
+
+.form-review-bool-icon--unchecked {
+  color: #6c757d;
+  margin-right: 4px;
+}
+
+.form-review-empty-text {
+  color: #6c757d;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ========== Form Review — Designer Configuration Tab ========== */
+
+.formio-dialog .formio-component-sections {
+  overflow-x: auto;
+}
+
+.formio-dialog .formio-component-sections .datagrid-table {
+  min-width: 860px;
+  table-layout: auto;
+}
+
+.formio-dialog .formio-component-sections .datagrid-table th {
+  white-space: nowrap;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+}
+
+.formio-dialog .formio-component-sections .datagrid-table td {
+  padding: 0.5rem;
+  vertical-align: top;
+}
+
+.formio-dialog .formio-component-sections .datagrid-table td .form-control {
+  min-width: 120px;
+}
+
+.formio-dialog .formio-component-sections .datagrid-table td textarea.form-control {
+  min-width: 200px;
+}
 `
