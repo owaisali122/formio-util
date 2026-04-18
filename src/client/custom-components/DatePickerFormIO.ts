@@ -4,14 +4,15 @@
  * Wraps a React-based date picker (react-datepicker) inside a FormIO
  * field. The React component is lazily loaded on first mount.
  *
- * Stored value format: yyyy-MM-dd (e.g. "2025-06-15")
+ * Single mode stored value: yyyy-MM-dd (e.g. "2025-06-15")
+ * Range mode stored value: JSON {"startDate":"yyyy-MM-dd","endDate":"yyyy-MM-dd"}
  * Display format: configurable via schema (default MM/dd/yyyy)
  */
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
-import type { DatePickerInputProps } from '../../components/DatePickerInput'
-import { parseDateString } from '../../components/DatePickerInput'
+import type { DatePickerInputProps, DateRangeValue } from '../../components/DatePickerInput'
+import { parseDateString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
 import datepickerCSS from 'react-datepicker/dist/react-datepicker.css'
 
 let DatePickerInputComponent: React.ComponentType<DatePickerInputProps> | null = null
@@ -75,6 +76,7 @@ export function createDatePickerClass(FieldComponent: any) {
     currentValue: string = ''
     _initialValueTimeout: ReturnType<typeof setTimeout> | null = null
     _onChangeBound: (v: string) => void
+    _onRangeChangeBound: (v: string) => void
     _mounted: boolean = false
 
     static schema(...extend: any[]) {
@@ -100,14 +102,24 @@ export function createDatePickerClass(FieldComponent: any) {
       return DatePickerFormIO.schema()
     }
 
+    get isRangeMode() {
+      return this.component?.pickerMode === 'range'
+    }
+
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
       this.currentValue = ''
       const key = component?.key
       if (data && key && data[key]) {
-        this.currentValue = typeof data[key] === 'string' ? data[key] : ''
+        const raw = data[key]
+        if (typeof raw === 'string') {
+          this.currentValue = raw
+        } else if (typeof raw === 'object' && raw !== null) {
+          this.currentValue = JSON.stringify(raw)
+        }
       }
       this._onChangeBound = (v: string) => this.handleReactChange(v)
+      this._onRangeChangeBound = (v: string) => this.handleReactChange(v)
     }
 
     render() {
@@ -160,9 +172,13 @@ export function createDatePickerClass(FieldComponent: any) {
       if (this.currentValue) return
 
       const raw = this.data?.[key]
-      if (raw && typeof raw === 'string') {
-        this.currentValue = raw
-        if (this.reactRoot && DatePickerInputComponent) {
+      if (raw) {
+        if (typeof raw === 'string') {
+          this.currentValue = raw
+        } else if (typeof raw === 'object' && raw !== null) {
+          this.currentValue = JSON.stringify(raw)
+        }
+        if (this.currentValue && this.reactRoot && DatePickerInputComponent) {
           this.renderReactComponent(DatePickerInputComponent)
         }
       }
@@ -209,36 +225,57 @@ export function createDatePickerClass(FieldComponent: any) {
     renderReactComponent(Component: React.ComponentType<DatePickerInputProps>) {
       if (!this.reactRoot) return
       const comp = this.component || {}
+      const isRange = this.isRangeMode
 
-      this.reactRoot.render(
-        React.createElement(Component, {
-          value: this.currentValue || null,
-          onChange: this._onChangeBound,
-          displayFormat: comp.displayFormat || 'MM/dd/yyyy',
-          placeholder: comp.placeholder || 'MM/DD/YYYY',
-          disabled: comp.disabled || false,
-          readOnly: this.options?.readOnly || false,
-          allowManualInput: comp.allowManualInput || false,
-          openOnInputClick: comp.openOnInputClick !== false,
-          showCalendarIcon: comp.showCalendarIcon !== false,
-          clearable: comp.clearable !== false,
-          autoFocus: comp.autofocus || false,
-          minDate: comp.minDate || '',
-          maxDate: comp.maxDate || '',
-          disablePastDates: comp.disablePastDates || false,
-          disableFutureDates: comp.disableFutureDates || false,
-          disableWeekends: comp.disableWeekends || false,
-        }),
-      )
+      const props: DatePickerInputProps = {
+        value: isRange ? null : (this.currentValue || null),
+        onChange: this._onChangeBound,
+        displayFormat: comp.displayFormat || 'MM/dd/yyyy',
+        placeholder: comp.placeholder || (isRange ? 'MM/DD/YYYY \u2013 MM/DD/YYYY' : 'MM/DD/YYYY'),
+        disabled: comp.disabled || false,
+        readOnly: this.options?.readOnly || false,
+        allowManualInput: comp.allowManualInput || false,
+        openOnInputClick: comp.openOnInputClick !== false,
+        showCalendarIcon: comp.showCalendarIcon !== false,
+        clearable: comp.clearable !== false,
+        autoFocus: comp.autofocus || false,
+        minDate: comp.minDate || '',
+        maxDate: comp.maxDate || '',
+        disablePastDates: comp.disablePastDates || false,
+        disableFutureDates: comp.disableFutureDates || false,
+        disableWeekends: comp.disableWeekends || false,
+        pickerMode: isRange ? 'range' : 'single',
+        disabledDates: comp.disabledDates || '',
+        disabledDateRanges: comp.disabledDateRanges || '',
+      }
+
+      if (isRange) {
+        props.rangeValue = this.currentValue || null
+        props.onRangeChange = this._onRangeChangeBound
+      }
+
+      this.reactRoot.render(React.createElement(Component, props))
     }
 
     handleReactChange(newValue: string) {
       if (newValue === this.currentValue) return
       this.currentValue = newValue
       const key = this.component?.key
-      if (this.data && key) this.data[key] = newValue
+
+      // For range mode, store the parsed object in Form.io data;
+      // for single mode, store the plain string.
+      let dataValue: any = newValue
+      if (this.isRangeMode && newValue) {
+        try {
+          dataValue = JSON.parse(newValue)
+        } catch {
+          dataValue = newValue
+        }
+      }
+
+      if (this.data && key) this.data[key] = dataValue
       if (this.root?.data && key && this.data === this.root.data) {
-        this.root.data[key] = newValue
+        this.root.data[key] = dataValue
       }
       // Re-render React so the controlled DatePicker receives the updated
       // `selected` prop. Without this the input reverts to the old value
@@ -251,28 +288,49 @@ export function createDatePickerClass(FieldComponent: any) {
 
     // ── Value lifecycle ──
 
+    /** Normalize any value (string, object, null) into the internal string representation. */
+    _normalizeValue(value: any): string {
+      if (value === undefined || value === null || value === '') return ''
+      if (typeof value === 'string') return value
+      if (typeof value === 'object') {
+        try { return JSON.stringify(value) } catch { return '' }
+      }
+      return String(value)
+    }
+
     getValue() {
+      if (!this.currentValue) return this.currentValue
+      // Return parsed object for range mode, plain string for single
+      if (this.isRangeMode) {
+        try { return JSON.parse(this.currentValue) } catch { return this.currentValue }
+      }
       return this.currentValue
     }
 
     setValue(value: any, flags?: any) {
       if (value === undefined) return
-      const strValue = (value === null || value === '') ? '' : String(value)
-      if (strValue === this.currentValue) return super.setValue(strValue, flags)
+      const strValue = this._normalizeValue(value)
+      if (strValue === this.currentValue) return super.setValue(value, flags)
       this.currentValue = strValue
       if (this.reactRoot && DatePickerInputComponent) {
         this.renderReactComponent(DatePickerInputComponent)
       }
-      return super.setValue(strValue, flags)
+      return super.setValue(value, flags)
     }
 
     get dataValue() {
-      return this.currentValue || super.dataValue || ''
+      if (this.currentValue) {
+        if (this.isRangeMode) {
+          try { return JSON.parse(this.currentValue) } catch { /* fall through */ }
+        }
+        return this.currentValue
+      }
+      return super.dataValue || ''
     }
 
     set dataValue(value: any) {
       if (value === undefined) return
-      const strValue = (value === null || value === '') ? '' : String(value)
+      const strValue = this._normalizeValue(value)
       if (strValue === this.currentValue) return
       this.currentValue = strValue
       if (this.reactRoot && DatePickerInputComponent) {
@@ -282,15 +340,137 @@ export function createDatePickerClass(FieldComponent: any) {
 
     // ── Validation ──
 
+    /** Validate a single parsed date against all date-level constraints. */
+    _validateSingleDate(parsed: Date, dirty: boolean): boolean {
+      const comp = this.component
+
+      // Min date
+      const minStr = comp?.minDate
+      if (minStr) {
+        const minD = parseDateString(minStr)
+        if (minD && parsed < minD) {
+          this.setCustomValidity(
+            comp.validate?.customMessage || `Date must be on or after ${minStr}.`, dirty)
+          return false
+        }
+      }
+
+      // Max date
+      const maxStr = comp?.maxDate
+      if (maxStr) {
+        const maxD = parseDateString(maxStr)
+        if (maxD && parsed > maxD) {
+          this.setCustomValidity(
+            comp.validate?.customMessage || `Date must be on or before ${maxStr}.`, dirty)
+          return false
+        }
+      }
+
+      // Past dates
+      if (comp?.disablePastDates) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        if (parsed < today) {
+          this.setCustomValidity(
+            comp.validate?.customMessage || 'Past dates are not allowed.', dirty)
+          return false
+        }
+      }
+
+      // Future dates
+      if (comp?.disableFutureDates) {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        if (parsed > today) {
+          this.setCustomValidity(
+            comp.validate?.customMessage || 'Future dates are not allowed.', dirty)
+          return false
+        }
+      }
+
+      // Weekends
+      if (comp?.disableWeekends) {
+        const day = parsed.getDay()
+        if (day === 0 || day === 6) {
+          this.setCustomValidity(
+            comp.validate?.customMessage || 'Weekends are not allowed.', dirty)
+          return false
+        }
+      }
+
+      // Disabled single dates
+      if (comp?.disabledDates) {
+        const disabledList = parseDisabledDates(comp.disabledDates)
+        const time = parsed.getTime()
+        for (const d of disabledList) {
+          if (d.getTime() === time) {
+            this.setCustomValidity(
+              comp.validate?.customMessage || 'This date is not available.', dirty)
+            return false
+          }
+        }
+      }
+
+      // Disabled date ranges
+      if (comp?.disabledDateRanges) {
+        const disabledRanges = parseDisabledRanges(comp.disabledDateRanges)
+        const time = parsed.getTime()
+        for (const r of disabledRanges) {
+          if (time >= r.start.getTime() && time <= r.end.getTime()) {
+            this.setCustomValidity(
+              comp.validate?.customMessage || 'This date falls within a disabled range.', dirty)
+            return false
+          }
+        }
+      }
+
+      return true
+    }
+
     checkValidity(data: any, dirty: boolean, rowData: any) {
       this.setCustomValidity('', dirty)
       const baseValid = super.checkValidity(data, dirty, rowData)
       if (!baseValid) return false
 
-      const value = this.currentValue
-      const isEmpty = !value
+      const rawValue = this.currentValue
 
-      // Required validation
+      // ── Range mode validation ──
+      if (this.isRangeMode) {
+        const isEmpty = !rawValue
+        if (isEmpty && this.component?.validate?.required) {
+          this.setCustomValidity(
+            this.component.validate.customMessage || 'This field is required.', dirty)
+          return false
+        }
+        if (!isEmpty) {
+          let rangeObj: DateRangeValue
+          try { rangeObj = JSON.parse(rawValue) } catch {
+            this.setCustomValidity('Invalid date range value.', dirty)
+            return false
+          }
+          const startParsed = parseDateString(rangeObj.startDate)
+          const endParsed = parseDateString(rangeObj.endDate)
+          if (!startParsed) {
+            this.setCustomValidity('Please select a valid start date.', dirty)
+            return false
+          }
+          // End date may be empty while user is still selecting
+          if (rangeObj.endDate && !endParsed) {
+            this.setCustomValidity('Please select a valid end date.', dirty)
+            return false
+          }
+          if (!this._validateSingleDate(startParsed, dirty)) return false
+          if (endParsed) {
+            if (!this._validateSingleDate(endParsed, dirty)) return false
+            if (endParsed < startParsed) {
+              this.setCustomValidity('End date must be on or after start date.', dirty)
+              return false
+            }
+          }
+        }
+        return true
+      }
+
+      // ── Single mode validation ──
+      const isEmpty = !rawValue
       if (isEmpty && this.component?.validate?.required) {
         const msg = this.component.validate.customMessage || 'This field is required.'
         this.setCustomValidity(msg, dirty)
@@ -298,77 +478,18 @@ export function createDatePickerClass(FieldComponent: any) {
       }
 
       if (!isEmpty) {
-        // Validate the stored date is parseable
-        const parsed = parseDateString(value)
+        const parsed = parseDateString(rawValue)
         if (!parsed) {
           this.setCustomValidity('Please enter a valid date.', dirty)
           return false
         }
-
-        // Min date validation
-        const minStr = this.component?.minDate
-        if (minStr) {
-          const minD = parseDateString(minStr)
-          if (minD && parsed < minD) {
-            const msg = this.component.validate?.customMessage ||
-              `Date must be on or after ${minStr}.`
-            this.setCustomValidity(msg, dirty)
-            return false
-          }
-        }
-
-        // Max date validation
-        const maxStr = this.component?.maxDate
-        if (maxStr) {
-          const maxD = parseDateString(maxStr)
-          if (maxD && parsed > maxD) {
-            const msg = this.component.validate?.customMessage ||
-              `Date must be on or before ${maxStr}.`
-            this.setCustomValidity(msg, dirty)
-            return false
-          }
-        }
-
-        // Disable past dates validation
-        if (this.component?.disablePastDates) {
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          if (parsed < today) {
-            const msg = this.component.validate?.customMessage ||
-              'Past dates are not allowed.'
-            this.setCustomValidity(msg, dirty)
-            return false
-          }
-        }
-
-        // Disable future dates validation
-        if (this.component?.disableFutureDates) {
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          if (parsed > today) {
-            const msg = this.component.validate?.customMessage ||
-              'Future dates are not allowed.'
-            this.setCustomValidity(msg, dirty)
-            return false
-          }
-        }
-
-        // Disable weekends validation
-        if (this.component?.disableWeekends) {
-          const day = parsed.getDay()
-          if (day === 0 || day === 6) {
-            const msg = this.component.validate?.customMessage ||
-              'Weekends are not allowed.'
-            this.setCustomValidity(msg, dirty)
-            return false
-          }
-        }
+        if (!this._validateSingleDate(parsed, dirty)) return false
 
         // Custom JavaScript validation
         const customValidation = this.component?.validate?.custom
         if (customValidation) {
           try {
-            const input = value
+            const input = rawValue
             const { data: formData, row } = this
             const component = this.component
             const instance = this
@@ -385,7 +506,7 @@ export function createDatePickerClass(FieldComponent: any) {
               return false
             }
           } catch (err) {
-            console.error('CustomDatePicker: custom validation error', err)
+            console.error('DatePicker: custom validation error', err)
           }
         }
       }

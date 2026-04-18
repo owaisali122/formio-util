@@ -22,6 +22,9 @@ export interface DatePickerSchema {
   disablePastDates: boolean
   disableFutureDates: boolean
   disableWeekends: boolean
+  pickerMode: 'single' | 'range'
+  disabledDates: string
+  disabledDateRanges: string
   [k: string]: unknown
 }
 
@@ -49,6 +52,9 @@ export class DatePickerComponent {
       disablePastDates: false,
       disableFutureDates: false,
       disableWeekends: false,
+      pickerMode: 'single',
+      disabledDates: '',
+      disabledDateRanges: '',
       ...overrides,
     }
   }
@@ -87,12 +93,42 @@ export class DatePickerComponent {
                   weight: 10,
                 },
                 {
+                  type: 'select',
+                  key: 'pickerMode',
+                  label: 'Picker Mode',
+                  input: true,
+                  defaultValue: 'single',
+                  dataSrc: 'values',
+                  data: {
+                    values: [
+                      { label: 'Single Date', value: 'single' },
+                      { label: 'Date Range', value: 'range' },
+                    ],
+                  },
+                  tooltip: 'Choose whether the user selects a single date or a date range (start + end).',
+                  weight: 15,
+                },
+                {
                   type: 'textfield',
                   key: 'placeholder',
                   label: 'Placeholder',
                   input: true,
                   defaultValue: 'MM/DD/YYYY',
                   weight: 20,
+                  conditional: {
+                    json: { '===': [{ var: 'data.pickerMode' }, 'single'] },
+                  },
+                },
+                {
+                  type: 'textfield',
+                  key: 'placeholder',
+                  label: 'Placeholder',
+                  input: true,
+                  defaultValue: 'MM/DD/YYYY – MM/DD/YYYY',
+                  weight: 20,
+                  conditional: {
+                    json: { '===': [{ var: 'data.pickerMode' }, 'range'] },
+                  },
                 },
                 {
                   type: 'textarea',
@@ -285,6 +321,28 @@ export class DatePickerComponent {
                   defaultValue: false,
                   tooltip: 'Prevent selecting Saturday and Sunday.',
                   weight: 60,
+                },
+                {
+                  type: 'textarea',
+                  key: 'disabledDates',
+                  label: 'Disabled Dates',
+                  input: true,
+                  rows: 2,
+                  placeholder: '2026-04-20, 2026-04-25, 2026-05-01',
+                  description:
+                    'Comma-separated list of dates to disable (yyyy-MM-dd). Example: 2026-04-20, 2026-04-25, 2026-05-01',
+                  weight: 62,
+                },
+                {
+                  type: 'textarea',
+                  key: 'disabledDateRanges',
+                  label: 'Disabled Date Ranges',
+                  input: true,
+                  rows: 3,
+                  placeholder: '2026-04-10 to 2026-04-15\n2026-05-01 to 2026-05-07',
+                  description:
+                    'One range per line in format: yyyy-MM-dd to yyyy-MM-dd. All dates between start and end (inclusive) will be disabled. Example:\n2026-04-10 to 2026-04-15\n2026-05-01 to 2026-05-07',
+                  weight: 64,
                 },
                 {
                   type: 'textfield',
