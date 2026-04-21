@@ -38,7 +38,7 @@ export class DatePickerComponent {
       tableView: true,
       placeholder: 'MM/DD/YYYY',
       displayFormat: 'MM/dd/yyyy',
-      allowManualInput: false,
+      allowManualInput: true,
       openOnInputClick: true,
       showCalendarIcon: true,
       clearable: true,
@@ -171,7 +171,7 @@ export class DatePickerComponent {
                   key: 'allowManualInput',
                   label: 'Allow Manual Input',
                   input: true,
-                  defaultValue: false,
+                  defaultValue: true,
                   tooltip:
                     'When enabled, users can type a date directly. When disabled, dates can only be selected from the calendar.',
                   weight: 50,

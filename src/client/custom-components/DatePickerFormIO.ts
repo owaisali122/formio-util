@@ -77,6 +77,15 @@ export function createDatePickerClass(FieldComponent: any) {
     _initialValueTimeout: ReturnType<typeof setTimeout> | null = null
     _onChangeBound: (v: string) => void
     _onRangeChangeBound: (v: string) => void
+          _onValidationChangeBound: (payload: {
+        isValid: boolean
+        message: string | null
+        rawValue: string
+      }) => void
+
+_rawInputValue: string = ''
+_manualInputInvalid: boolean = false
+_manualInputError: string | null = null
     _mounted: boolean = false
 
     static schema(...extend: any[]) {
@@ -120,6 +129,7 @@ export function createDatePickerClass(FieldComponent: any) {
       }
       this._onChangeBound = (v: string) => this.handleReactChange(v)
       this._onRangeChangeBound = (v: string) => this.handleReactChange(v)
+      this._onValidationChangeBound = (payload) => this.handleValidationChange(payload)
     }
 
     render() {
@@ -231,10 +241,10 @@ export function createDatePickerClass(FieldComponent: any) {
         value: isRange ? null : (this.currentValue || null),
         onChange: this._onChangeBound,
         displayFormat: comp.displayFormat || 'MM/dd/yyyy',
-        placeholder: comp.placeholder || (isRange ? 'MM/DD/YYYY \u2013 MM/DD/YYYY' : 'MM/DD/YYYY'),
+        placeholder: comp.placeholder || '',
         disabled: comp.disabled || false,
         readOnly: this.options?.readOnly || false,
-        allowManualInput: comp.allowManualInput || false,
+        allowManualInput: comp.allowManualInput !== false,
         openOnInputClick: comp.openOnInputClick !== false,
         showCalendarIcon: comp.showCalendarIcon !== false,
         clearable: comp.clearable !== false,
@@ -247,6 +257,7 @@ export function createDatePickerClass(FieldComponent: any) {
         pickerMode: isRange ? 'range' : 'single',
         disabledDates: comp.disabledDates || '',
         disabledDateRanges: comp.disabledDateRanges || '',
+        onValidationChange: this._onValidationChangeBound,
       }
 
       if (isRange) {
@@ -258,6 +269,10 @@ export function createDatePickerClass(FieldComponent: any) {
     }
 
     handleReactChange(newValue: string) {
+      this._manualInputInvalid = false
+      this._manualInputError = null
+      this._rawInputValue = ''
+      this.setCustomValidity('', true)
       if (newValue === this.currentValue) return
       this.currentValue = newValue
       const key = this.component?.key
@@ -286,6 +301,24 @@ export function createDatePickerClass(FieldComponent: any) {
       this.triggerChange()
     }
 
+  handleValidationChange(payload: {
+  isValid: boolean
+  message: string | null
+  rawValue: string
+    }) {
+      this._rawInputValue = payload.rawValue || ''
+
+      if (payload.isValid) {
+        this._manualInputInvalid = false
+        this._manualInputError = null
+        this.setCustomValidity('', true)
+        return
+      }
+
+      this._manualInputInvalid = true
+      this._manualInputError = payload.message || 'Invalid date.'
+      this.setCustomValidity(this._manualInputError, true)
+    }
     // ── Value lifecycle ──
 
     /** Normalize any value (string, object, null) into the internal string representation. */
@@ -427,6 +460,13 @@ export function createDatePickerClass(FieldComponent: any) {
 
     checkValidity(data: any, dirty: boolean, rowData: any) {
       this.setCustomValidity('', dirty)
+            if (this._manualInputInvalid) {
+        this.setCustomValidity(
+          this._manualInputError || 'Please enter a valid date.',
+          dirty,
+        )
+        return false
+      }
       const baseValid = super.checkValidity(data, dirty, rowData)
       if (!baseValid) return false
 

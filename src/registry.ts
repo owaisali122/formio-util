@@ -83,6 +83,15 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFormReview(Components)
     await registerDatePicker(Components)
 
+    // Override built-in datetime component: preserve typed value on invalid blur
+    // and show an inline validation error instead of silently clearing the field.
+    const DateTimeBase = (FormioModuleObj.Components as any)?.components?.datetime
+    if (DateTimeBase) {
+      const { createDateTimeOverrideClass } = await import('./client/custom-components/DateTimeFormIO')
+      const CustomDateTime = createDateTimeOverrideClass(DateTimeBase)
+      Components.setComponent('datetime', CustomDateTime as never)
+    }
+
     // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
     // standard value/update lifecycle, while keeping the builder behavior

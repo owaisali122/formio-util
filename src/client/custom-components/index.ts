@@ -14,6 +14,7 @@ export { default as createFileDownloadClass } from './FileDownloadFormIO'
 export { default as createDocumentViewerClass, setupDocumentViewerWorker } from './DocumentViewerFormIO'
 export { default as createFormReviewClass } from './FormReviewFormIO'
 export { default as createDatePickerClass } from './DatePickerFormIO'
+export { default as createDateTimeOverrideClass } from './DateTimeFormIO'
 export {
   createTanStackTableClass,
   TransStackReact,
