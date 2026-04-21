@@ -16,16 +16,16 @@ export { default as createFormReviewClass } from './FormReviewFormIO'
 export { default as createDatePickerClass } from './DatePickerFormIO'
 export {
   createTanStackTableClass,
-  DataGridReact,
-  type DataGridReactProps,
+  TransStackReact,
+  type TransStackReactProps,
   fetchServerData,
   resolvePath,
-  type DataGridFetchParams,
-  type DataGridFetchResult,
-  type DataGridGroupRow,
-  type DataGridRow,
-  type DataGridServiceConfig,
+  type TransStackFetchParams,
+  type TransStackFetchResult,
+  type TransStackGroupRow,
+  type TransStackRow,
+  type TransStackServiceConfig,
   registerTanStackTableHandlers,
   getTanStackTableHandlers,
   type TanStackTableActionHandlers,
-} from './data-grid'
+} from './trans-stack'

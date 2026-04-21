@@ -3,7 +3,7 @@ import { registerSSN } from './registries/register-ssn'
 import { registerSmartStreet } from './registries/register-smart-street'
 import { registerFileUploader } from './registries/register-file-upload'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
-import { registerTanStackTable } from './registries/register-data-grid'
+import { registerTanStackTable } from './registries/register-trans-stack'
 import { registerPopupComponent } from './registries/register-popup-component'
 import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
@@ -161,7 +161,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
 
         // TanStack Table runtime
-        const { default: createTanStackTableClass } = await import('./client/custom-components/data-grid/DataGridFormIO')
+        const { default: createTanStackTableClass } = await import('./client/custom-components/trans-stack/TransStackFormIO')
         const TanStackTableRuntime = createTanStackTableClass(FieldComponent)
         const ExistingTanStackTable = (Components as any).components?.tanstackTable
         if (ExistingTanStackTable) {

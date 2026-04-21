@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,19 +16,19 @@ import {
   type ColumnOrderState,
   type ColumnSizingState,
 } from '@tanstack/react-table'
-import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGridRow } from './DataGridService'
-import type { DataGridColumn } from '../../../components/DataGrid'
+import type { TransStackFetchParams, TransStackFetchResult, TransStackGroupRow, TransStackRow } from './TransStackService'
+import type { TransStackColumn } from '../../../components/TransStack'
 import { openPopup } from '../../popup/popupStore'
 import type { PopupButton, PopupConfig } from '../../popup/PopupTypes'
 import { createRoot } from 'react-dom/client'
 import { DocumentViewerContent, resolveFileType } from '../DocumentViewerContent'
 import { triggerFileDownload } from '../fileDownloadUtils'
 
-// ─── Props ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export interface DataGridReactProps {
+export interface TransStackReactProps {
   dataMode: 'client' | 'server'
-  columns: DataGridColumn[]
+  columns: TransStackColumn[]
   // pagination
   paginationEnabled: boolean
   pageSize: number
@@ -53,11 +53,11 @@ export interface DataGridReactProps {
   rowClickUrl: string
   enableRowClickNavigation?: boolean
   /** Called when an 'edit' action is triggered on a row */
-  onEdit?: (row: DataGridRow) => void
+  onEdit?: (row: TransStackRow) => void
   /** Called when a 'delete' action is triggered on a row */
-  onDelete?: (row: DataGridRow) => void
+  onDelete?: (row: TransStackRow) => void
   /** Called when row click navigation is triggered (if enableRowClickNavigation is true) */
-  onRowClick?: (row: DataGridRow) => void
+  onRowClick?: (row: TransStackRow) => void
   // action column
   actionColumnEnabled: boolean
   actionColumnLabel: string
@@ -71,10 +71,10 @@ export interface DataGridReactProps {
    * Data fetcher. For client mode, called once with page=0.
    * For server mode, called on every state change.
    */
-  fetchData: (params: DataGridFetchParams) => Promise<DataGridFetchResult>
+  fetchData: (params: TransStackFetchParams) => Promise<TransStackFetchResult>
 }
 
-// ─── Styles (inline to avoid external CSS dep in shared package) ─────
+// â”€â”€â”€ Styles (inline to avoid external CSS dep in shared package) â”€â”€â”€â”€â”€
 
 const S = {
   wrapper: { width: '100%', fontFamily: 'inherit', fontSize: 13 } as React.CSSProperties,
@@ -104,23 +104,23 @@ const S = {
   clickableRow: { cursor: 'pointer' } as React.CSSProperties,
   actionBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 13 } as React.CSSProperties,
   iconCell: { textAlign: 'center' as const, fontSize: 16 } as React.CSSProperties,
-  /** Resize handle — 5px hit-target absolutely positioned at the right edge of each header cell.
+  /** Resize handle â€” 5px hit-target absolutely positioned at the right edge of each header cell.
    *  Inline styles are required: Bootstrap CSS is not guaranteed in the renderer context. */
   resizeHandle: { position: 'absolute' as const, top: 0, right: 0, height: '100%', width: 5, cursor: 'col-resize', userSelect: 'none' as const, touchAction: 'none' as const, zIndex: 1, display: 'flex' as const, alignItems: 'stretch', justifyContent: 'center' } as React.CSSProperties,
-  /** Inner separator line — background is driven by hover/active state at render time */
+  /** Inner separator line â€” background is driven by hover/active state at render time */
   resizeHandleInner: { width: 2, borderRadius: 1, flexShrink: 0, transition: 'background 0.15s' } as React.CSSProperties,
 } as const
 
-// ─── Helpers ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Interpolate {{fieldKey}} tokens in a URL template using row data */
-function interpolateUrl(template: string, row: DataGridRow): string {
+function interpolateUrl(template: string, row: TransStackRow): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
     encodeURIComponent(String(row[key] ?? '')),
   )
 }
 
-// ─── File viewer helpers (used by 'fileViewer' action type) ─────
+// â”€â”€â”€ File viewer helpers (used by 'fileViewer' action type) â”€â”€â”€â”€â”€
 
 const _FILE_EXT_MAP: Record<string, 'image' | 'pdf' | 'video' | 'audio'> = {
   jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
@@ -144,7 +144,7 @@ function _escAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Parsed icon rule: value pattern → icon class + optional text */
+/** Parsed icon rule: value pattern â†’ icon class + optional text */
 interface IconRule {
   pattern: string
   iconClass: string
@@ -153,11 +153,11 @@ interface IconRule {
 }
 
 /** Parse icon map JSON into ordered rules. Keys support glob patterns:
- *  - "active"   → exact match (case-insensitive)
- *  - "active*"  → starts with
- *  - "*active"  → ends with
- *  - "*active*" → contains
- *  - "*"        → catch-all wildcard
+ *  - "active"   â†’ exact match (case-insensitive)
+ *  - "active*"  â†’ starts with
+ *  - "*active"  â†’ ends with
+ *  - "*active*" â†’ contains
+ *  - "*"        â†’ catch-all wildcard
  */
 function parseIconRules(raw?: string): IconRule[] {
   if (!raw) return []
@@ -206,9 +206,9 @@ function resolveIconRule(rules: IconRule[], rawValue: string): IconRule | null {
   return null
 }
 
-// ─── Component ───────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export function DataGridReact(props: DataGridReactProps) {
+export function TransStackReact(props: TransStackReactProps) {
   const {
     dataMode, columns: colDefs, paginationEnabled, pageSize: initialPageSize,
     pageSizeOptions, pageSizeSelectorEnabled,
@@ -223,9 +223,9 @@ export function DataGridReact(props: DataGridReactProps) {
     fetchData,
   } = props
 
-  // ── Local state ──
-  const [data, setData] = useState<DataGridRow[]>([])
-  const [groupedData, setGroupedData] = useState<DataGridGroupRow[]>([])
+  // â”€â”€ Local state â”€â”€
+  const [data, setData] = useState<TransStackRow[]>([])
+  const [groupedData, setGroupedData] = useState<TransStackGroupRow[]>([])
   const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -246,17 +246,17 @@ export function DataGridReact(props: DataGridReactProps) {
     groupingEnabled && groupingField ? [groupingField] : [],
   )
 
-  // Column reorder state — drag-and-drop reordering is UI-only, not persisted
+  // Column reorder state â€” drag-and-drop reordering is UI-only, not persisted
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const dragColumnRef = useRef<string | null>(null)
   const downloadingButtonsRef = useRef<Set<HTMLElement>>(new Set())
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
-  // Column resize state — session-only, not persisted
+  // Column resize state â€” session-only, not persisted
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
   const [hoveredResizeColId, setHoveredResizeColId] = useState<string | null>(null)
 
-  // ── Debounced search ──
+  // â”€â”€ Debounced search â”€â”€
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
@@ -268,14 +268,14 @@ export function DataGridReact(props: DataGridReactProps) {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchValue, searchDebounce])
 
-  // ── Cleanup ──
+  // â”€â”€ Cleanup â”€â”€
   useEffect(() => {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 
-  // ── Build fetch params ──
-  const buildParams = useCallback((): DataGridFetchParams => {
+  // â”€â”€ Build fetch params â”€â”€
+  const buildParams = useCallback((): TransStackFetchParams => {
     const s = sorting[0]
     return {
       page: pagination.pageIndex,
@@ -287,7 +287,7 @@ export function DataGridReact(props: DataGridReactProps) {
     }
   }, [pagination, sorting, debouncedSearch, groupingEnabled, groupingField])
 
-  // ── Data fetching ──
+  // â”€â”€ Data fetching â”€â”€
   // Server mode: re-fetch whenever params change (pagination, sorting, search).
   // Client mode: fetch once, TanStack handles the rest locally.
   //
@@ -308,12 +308,12 @@ export function DataGridReact(props: DataGridReactProps) {
     fetchDataRef.current(buildParams())
       .then((result) => {
         if (cancelled || !mountedRef.current) return
-        const hasGroups = result.rows.length > 0 && (result.rows[0] as DataGridGroupRow)?._isGroup
+        const hasGroups = result.rows.length > 0 && (result.rows[0] as TransStackGroupRow)?._isGroup
         if (hasGroups) {
-          setGroupedData(result.rows as DataGridGroupRow[])
+          setGroupedData(result.rows as TransStackGroupRow[])
           setData([])
         } else {
-          setData(result.rows as DataGridRow[])
+          setData(result.rows as TransStackRow[])
           setGroupedData([])
         }
         setTotalRows(result.total)
@@ -331,9 +331,9 @@ export function DataGridReact(props: DataGridReactProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode, clientDataLoaded, dataMode === 'server' ? buildParams : null])
 
-  // ── Column definitions for TanStack ──
-  const tanCols = useMemo<ColumnDef<DataGridRow>[]>(() => {
-    const result: ColumnDef<DataGridRow>[] = []
+  // â”€â”€ Column definitions for TanStack â”€â”€
+  const tanCols = useMemo<ColumnDef<TransStackRow>[]>(() => {
+    const result: ColumnDef<TransStackRow>[] = []
 
     // Expansion toggle column
     if (expansionEnabled) {
@@ -345,7 +345,7 @@ export function DataGridReact(props: DataGridReactProps) {
           if (!row.getCanExpand()) return null
           return (
             <button style={S.expandBtn} onClick={row.getToggleExpandedHandler()}>
-              {row.getIsExpanded() ? '▼' : '▶'}
+              {row.getIsExpanded() ? 'â–¼' : 'â–¶'}
             </button>
           )
         },
@@ -356,9 +356,9 @@ export function DataGridReact(props: DataGridReactProps) {
       if (col.visible === false) continue
       const renderType = col.renderType || 'text'
       const parsedWidth = col.width ? parseInt(col.width, 10) || undefined : undefined
-      // colWidth is percentage-based — stored as a CSS string, applied as CSS width on <th> directly
+      // colWidth is percentage-based â€” stored as a CSS string, applied as CSS width on <th> directly
       const cssColWidth = col.minWidth ? `${parseInt(col.minWidth, 10)}%` : undefined
-      const colDef: ColumnDef<DataGridRow> = {
+      const colDef: ColumnDef<TransStackRow> = {
         id: col.key,
         accessorKey: col.key,
         header: col.label || col.key,
@@ -393,7 +393,7 @@ export function DataGridReact(props: DataGridReactProps) {
       let actions: {
         icon?: string
         text?: string
-        /** Navigation URL — supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
+        /** Navigation URL â€” supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
         url?: string
         /**
          * Action type. Defaults to 'url'.
@@ -440,7 +440,7 @@ export function DataGridReact(props: DataGridReactProps) {
            *
            * 2. **Raw field name** (no `{{}}`):
            *    Reads the field value directly from the row data.
-           *    e.g. `"link"` → uses `row["link"]` as-is.
+           *    e.g. `"link"` â†’ uses `row["link"]` as-is.
            */
           fileUrlField?: string
           /**
@@ -463,15 +463,15 @@ export function DataGridReact(props: DataGridReactProps) {
         fileDownload?: {
           /**
            * File URL source. Same as fileViewer:
-           * Template (`{{fieldKey}}`) → interpolated, else raw field read.
+           * Template (`{{fieldKey}}`) â†’ interpolated, else raw field read.
            */
           fileUrlField?: string
           /** @deprecated Use `fileUrlField`. */
           fileUrl?: string
           /**
            * Optional file name. Supports two modes:
-           * - Template: `"{{formName}}"` → interpolated from row data (no encoding)
-           * - Raw field name: `"formName"` → reads `row["formName"]` directly
+           * - Template: `"{{formName}}"` â†’ interpolated from row data (no encoding)
+           * - Raw field name: `"formName"` â†’ reads `row["formName"]` directly
            */
           fileNameField?: string
         }
@@ -484,8 +484,8 @@ export function DataGridReact(props: DataGridReactProps) {
          */
         documentView?: {
           /**
-           * File URL. Template (`{{fieldKey}}`) → interpolated from row data (URL-encoded);
-           * plain field name → reads `row[fieldKey]` directly.
+           * File URL. Template (`{{fieldKey}}`) â†’ interpolated from row data (URL-encoded);
+           * plain field name â†’ reads `row[fieldKey]` directly.
            */
           fileUrlField?: string
           /** Modal title. Supports {{fieldKey}} interpolation (not URL-encoded). */
@@ -503,7 +503,7 @@ export function DataGridReact(props: DataGridReactProps) {
           /** Viewer height CSS value. Defaults to '70vh'. */
           viewerHeight?: string
           /**
-           * Toolbar configuration. Each key defaults to true — omit the key to keep
+           * Toolbar configuration. Each key defaults to true â€” omit the key to keep
            * the button visible, or set it to false to hide it.
            * Omitting toolbar entirely shows all buttons.
            */
@@ -548,7 +548,7 @@ export function DataGridReact(props: DataGridReactProps) {
                     if (onDelete) onDelete(row.original)
                   } else if (action.type === 'fileViewer' && action.fileViewer) {
                     const fv = action.fileViewer
-                    // Resolve file URL: template (has {{}}) → interpolate (no encoding), else raw field read
+                    // Resolve file URL: template (has {{}}) â†’ interpolate (no encoding), else raw field read
                     let resolvedUrl = ''
                     if (fv.fileUrlField) {
                       resolvedUrl = fv.fileUrlField.includes('{{')
@@ -629,7 +629,7 @@ export function DataGridReact(props: DataGridReactProps) {
                     })
                   } else if (action.type === 'documentView' && action.documentView) {
                     const dv = action.documentView
-                    // Resolve file URL — no encoding: link field is often a full path like
+                    // Resolve file URL â€” no encoding: link field is often a full path like
                     // "/api/download/abc123" where encodeURIComponent would break the slashes.
                     let dvUrl = ''
                     if (dv.fileUrlField) {
@@ -651,7 +651,7 @@ export function DataGridReact(props: DataGridReactProps) {
 
                     const dvHeight = dv.viewerHeight || '70vh'
 
-                    // Resolve toolbar visibility — each key defaults to true when omitted.
+                    // Resolve toolbar visibility â€” each key defaults to true when omitted.
                     const tb = dv.toolbar ?? {}
                     const tbSidebar  = tb.thumbnail !== false
                     const tbFind     = tb.search !== false
@@ -663,7 +663,7 @@ export function DataGridReact(props: DataGridReactProps) {
 
                     let dvRoot: ReturnType<typeof createRoot> | null = null
 
-                    // Open popup IMMEDIATELY — no HEAD request; avoids double network fetch.
+                    // Open popup IMMEDIATELY â€” no HEAD request; avoids double network fetch.
                     // File type: explicit config > URL extension > default 'pdf' (primary use case).
                     const dvFileType: 'pdf' | 'image' | 'text' | 'other' = dv.fileType
                       ?? (() => { const t = resolveFileType('auto', dvFileName, dvUrl); return t === 'other' ? 'pdf' : t })()
@@ -766,14 +766,14 @@ export function DataGridReact(props: DataGridReactProps) {
     setColumnOrder(tanCols.map((c) => c.id!).filter(Boolean))
   }, [tanCols])
 
-  // ── Is server-side grouped response? ──
+  // â”€â”€ Is server-side grouped response? â”€â”€
   const isGroupedResponse = groupedData.length > 0
 
-  // ── TanStack table instance ──
+  // â”€â”€ TanStack table instance â”€â”€
   const table = useReactTable({
     data,
     columns: tanCols,
-    // Column resizing — real-time width update while dragging
+    // Column resizing â€” real-time width update while dragging
     columnResizeMode: 'onChange',
     defaultColumn: { minSize: 50 },
     state: {
@@ -783,7 +783,7 @@ export function DataGridReact(props: DataGridReactProps) {
       columnOrder,
       columnSizing,
       grouping: !isGroupedResponse ? grouping : [],
-      // Client-side global filter — ignored in server mode
+      // Client-side global filter â€” ignored in server mode
       ...(globalSearchEnabled && dataMode === 'client' ? { globalFilter: debouncedSearch } : {}),
     },
     onColumnOrderChange: setColumnOrder,
@@ -811,7 +811,7 @@ export function DataGridReact(props: DataGridReactProps) {
     // Grouping (client-side only via TanStack)
     ...(groupingEnabled && !isGroupedResponse ? { getGroupedRowModel: getGroupedRowModel() } : {}),
     onGroupingChange: setGrouping,
-    // Expansion — sub-rows are rendered manually in a detail panel,
+    // Expansion â€” sub-rows are rendered manually in a detail panel,
     // NOT via TanStack's getSubRows, because child rows typically have
     // a different shape than parent rows.
     onExpandedChange: setExpanded,
@@ -825,7 +825,7 @@ export function DataGridReact(props: DataGridReactProps) {
     getCoreRowModel: getCoreRowModel(),
   })
 
-  // ── Render helpers ──
+  // â”€â”€ Render helpers â”€â”€
 
   const renderToolbar = () => {
     if (!toolbarEnabled) return null
@@ -876,8 +876,8 @@ export function DataGridReact(props: DataGridReactProps) {
     )
   }
 
-  const renderDetailPanel = (row: DataGridRow) => {
-    const subRows = row.subRows as DataGridRow[] | undefined
+  const renderDetailPanel = (row: TransStackRow) => {
+    const subRows = row.subRows as TransStackRow[] | undefined
     if (Array.isArray(subRows) && subRows.length > 0) {
       // Sub-row expansion: render a nested table
       const subFields = detailFields.length > 0
@@ -897,7 +897,7 @@ export function DataGridReact(props: DataGridReactProps) {
               {subRows.map((sr, i) => (
                 <tr key={i}>
                   {subFields.map((f) => (
-                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? '—')}</td>
+                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? 'â€”')}</td>
                   ))}
                 </tr>
               ))}
@@ -906,13 +906,13 @@ export function DataGridReact(props: DataGridReactProps) {
         </div>
       )
     }
-    // Detail field expansion: show key–value pairs from the row
+    // Detail field expansion: show keyâ€“value pairs from the row
     if (detailFields.length > 0) {
       return (
         <div style={S.detailCell}>
           {detailFields.map((f) => (
             <div key={f} style={{ marginBottom: 4 }}>
-              <strong>{f}: </strong>{String(row[f] ?? '—')}
+              <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
             </div>
           ))}
         </div>
@@ -921,7 +921,7 @@ export function DataGridReact(props: DataGridReactProps) {
     return null
   }
 
-  // ── Grouped response rendering (server-side groups) ──
+  // â”€â”€ Grouped response rendering (server-side groups) â”€â”€
   const renderGroupedTable = () => (
     <table style={S.table}>
       <thead>
@@ -947,10 +947,10 @@ export function DataGridReact(props: DataGridReactProps) {
     </table>
   )
 
-  // ── Guard: no columns configured yet → avoid TanStack crash ──
+  // â”€â”€ Guard: no columns configured yet â†’ avoid TanStack crash â”€â”€
   const hasDataColumns = colDefs.length > 0
 
-  // ── Main table rendering ──
+  // â”€â”€ Main table rendering â”€â”€
   if (!hasDataColumns) {
     return (
       <div style={S.center}>
@@ -1011,7 +1011,7 @@ export function DataGridReact(props: DataGridReactProps) {
                         setDragOverColumnId(null)
                         const dragId = dragColumnRef.current
                         if (!dragId || dragId === colId) return
-                        // Reorder columns — swap dragged column to drop target position
+                        // Reorder columns â€” swap dragged column to drop target position
                         setColumnOrder((prev) => {
                           const order = [...prev]
                           const fromIdx = order.indexOf(dragId)
@@ -1114,8 +1114,8 @@ export function DataGridReact(props: DataGridReactProps) {
 // ─── Server-side group row block (for grouped response) ──────────────
 
 function GroupRowBlock(props: {
-  group: DataGridGroupRow
-  tanCols: ColumnDef<DataGridRow>[]
+  group: TransStackGroupRow
+  tanCols: ColumnDef<TransStackRow>[]
   groupedRowExpansion: boolean
   expansionEnabled: boolean
   detailFields: string[]
@@ -1146,7 +1146,7 @@ function GroupRowBlock(props: {
 
 function ChildRow(props: {
   row: Record<string, unknown>
-  tanCols: ColumnDef<DataGridRow>[]
+  tanCols: ColumnDef<TransStackRow>[]
   groupedRowExpansion: boolean
   expansionEnabled: boolean
   detailFields: string[]
@@ -1160,7 +1160,7 @@ function ChildRow(props: {
         {groupedRowExpansion && (
           <td style={S.td}>
             {expansionEnabled && detailFields.length > 0 && (
-              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? '▼' : '▶'}</button>
+              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? 'â–¼' : 'â–¶'}</button>
             )}
           </td>
         )}
@@ -1174,7 +1174,7 @@ function ChildRow(props: {
           <td colSpan={tanCols.length + (groupedRowExpansion ? 1 : 0)} style={S.detailCell}>
             {detailFields.map((f) => (
               <div key={f} style={{ marginBottom: 4 }}>
-                <strong>{f}: </strong>{String(row[f] ?? '—')}
+                <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
               </div>
             ))}
           </td>

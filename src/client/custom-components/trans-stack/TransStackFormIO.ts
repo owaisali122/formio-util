@@ -1,22 +1,22 @@
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
 
-import type { DataGridReactProps } from './DataGridReact'
-import type { DataGridFetchParams, DataGridFetchResult, DataGridServiceConfig } from './DataGridService'
-import { fetchServerData } from './DataGridService'
-import { getTanStackTableHandlers } from './DataGridActionHandlers'
-import type { DataGridColumn } from '../../../components/DataGrid'
-import { TANSTACK_TABLE_TYPE } from '../../../components/DataGrid'
+import type { TransStackReactProps } from './TransStackReact'
+import type { TransStackFetchParams, TransStackFetchResult, TransStackServiceConfig } from './TransStackService'
+import { fetchServerData } from './TransStackService'
+import { getTanStackTableHandlers } from './TransStackActionHandlers'
+import type { TransStackColumn } from '../../../components/TransStack'
+import { TANSTACK_TABLE_TYPE } from '../../../components/TransStack'
 
-type ReactComponent = React.ComponentType<DataGridReactProps>
-let DataGridReactCmp: ReactComponent | null = null
+type ReactComponent = React.ComponentType<TransStackReactProps>
+let TransStackReactCmp: ReactComponent | null = null
 
 async function loadReactComponent(): Promise<ReactComponent | null> {
-  if (!DataGridReactCmp) {
-    const mod = await import('./DataGridReact')
-    DataGridReactCmp = mod.DataGridReact
+  if (!TransStackReactCmp) {
+    const mod = await import('./TransStackReact')
+    TransStackReactCmp = mod.TransStackReact
   }
-  return DataGridReactCmp
+  return TransStackReactCmp
 }
 
 /**
@@ -28,7 +28,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
     reactContainer: HTMLDivElement | null = null
     _mountedVersion: number = 0
     /** Stable fetcher reference — created once, never changes identity */
-    _stableFetcher: ((params: DataGridFetchParams) => Promise<DataGridFetchResult>) | null = null
+    _stableFetcher: ((params: TransStackFetchParams) => Promise<TransStackFetchResult>) | null = null
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -146,7 +146,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
       this.reactRoot.render(
         React.createElement(Cmp, {
           dataMode: c.dataMode || 'client',
-          columns: (c.columns || []) as DataGridColumn[],
+          columns: (c.columns || []) as TransStackColumn[],
           paginationEnabled: c.paginationEnabled !== false,
           pageSize: c.pageSize || 10,
           pageSizeOptions,
@@ -175,7 +175,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
           loadingText: c.loadingText || 'Loading…',
           errorText: c.errorText || 'Failed to load data',
           fetchData: this._stableFetcher,
-        } as DataGridReactProps),
+        } as TransStackReactProps),
       )
     }
 
@@ -183,7 +183,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
      * Build the fetch function from schema config.
      * Requires apiEndpoint to be configured in the component schema.
      */
-    buildFetcher(): (params: DataGridFetchParams) => Promise<DataGridFetchResult> {
+    buildFetcher(): (params: TransStackFetchParams) => Promise<TransStackFetchResult> {
       const handlers = getTanStackTableHandlers()
       if (handlers.fetchData) {
         return handlers.fetchData
@@ -195,7 +195,7 @@ export default function createTanStackTableClass(FieldComponent: any) {
         return async () => ({ rows: [], total: 0 })
       }
 
-      const config: DataGridServiceConfig = {
+      const config: TransStackServiceConfig = {
         apiEndpoint: c.apiEndpoint,
         apiMethod: c.apiMethod || 'GET',
         dataPath: c.dataPath || 'data',

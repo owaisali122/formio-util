@@ -24,7 +24,7 @@ export interface ReviewSectionConfig {
   defaultExpanded?: boolean
   columns?: number
   items?: ReviewItemConfig[]
-  /** JSON string alternative to items array — avoids nested datagrid */
+  /** JSON string alternative to items array — avoids nested grid in editForm */
   itemsJson?: string
 }
 
@@ -35,11 +35,26 @@ export interface FormReviewSettings {
   defaultSectionExpanded?: boolean
 }
 
+/** A single entry inside a referenced form / nested object value. */
+export interface NestedReviewEntry {
+  label: string
+  value: string
+  isEmpty: boolean
+  isBoolean?: boolean
+  booleanValue?: boolean
+  /** Sub-entries when the value itself is a nested object. */
+  nestedItems?: NestedReviewEntry[]
+}
+
 export interface ResolvedReviewItem {
   label: string
   value: string
   isEmpty: boolean
   isBoolean?: boolean
+  /** True when the field value is a referenced form / plain nested object. */
+  isObject?: boolean
+  /** Structured entries for referenced form objects — populated when isObject is true. */
+  nestedItems?: NestedReviewEntry[]
 }
 
 export interface ResolvedReviewSection {
@@ -117,7 +132,14 @@ export function resolveLabel(
   if (componentDef && typeof componentDef.label === 'string' && componentDef.label) {
     return componentDef.label
   }
-  return itemConfig.componentKey
+  // For dot-notation paths (e.g. "appDetailRef1.davidFileJointly"), derive a
+  // readable label from the last path segment rather than returning the raw key.
+  const key = itemConfig.componentKey
+  const lastSegment = key.includes('.') ? key.split('.').pop()! : key
+  return lastSegment
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim()
 }
 
 // ── Value Resolution ─────────────────────────────────────────────────
@@ -267,6 +289,90 @@ function formatDate(dateStr: string, format: string): string | null {
   }
 }
 
+// ── Referenced Form / Nested Object Helpers ──────────────────────────
+
+/**
+ * Convert a camelCase key to a human-readable label.
+ * e.g. "roseFileJointly" → "Rose File Jointly"
+ */
+function camelToLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim()
+}
+
+/**
+ * Return true when the object should be treated as a referenced-form /
+ * nested object rather than a select-value object.
+ *
+ * A select value object has a string `label` key and at most 2 keys
+ * total (e.g. `{ label: "Hawaii", value: "HI" }`). Anything beyond
+ * that is assumed to be a nested/referenced form data object.
+ */
+function isPlainNestedObject(obj: Record<string, unknown>): boolean {
+  if ('label' in obj && typeof obj.label === 'string' && Object.keys(obj).length <= 2) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Recursively build structured review entries from a plain nested object.
+ * Used for referenced form values so they render in a readable key/value tree.
+ */
+function buildNestedEntries(
+  obj: Record<string, unknown>,
+  boolTrueLabel: string,
+  boolFalseLabel: string,
+  emptyText: string,
+): NestedReviewEntry[] {
+  const entries: NestedReviewEntry[] = []
+  for (const [key, value] of Object.entries(obj)) {
+    const label = camelToLabel(key)
+    if (value === null || value === undefined || value === '') {
+      entries.push({ label, value: emptyText, isEmpty: true })
+    } else if (typeof value === 'boolean') {
+      entries.push({
+        label,
+        value: value ? boolTrueLabel : boolFalseLabel,
+        isEmpty: false,
+        isBoolean: true,
+        booleanValue: value,
+      })
+    } else if (Array.isArray(value)) {
+      const text =
+        value.length === 0
+          ? emptyText
+          : value
+              .map((v) => {
+                if (v && typeof v === 'object' && 'label' in v) return String((v as Record<string, unknown>).label)
+                return String(v)
+              })
+              .join(', ')
+      entries.push({ label, value: text, isEmpty: value.length === 0 })
+    } else if (typeof value === 'object') {
+      const nestedObj = value as Record<string, unknown>
+      if (isPlainNestedObject(nestedObj)) {
+        // Recurse into deeper nested objects
+        entries.push({
+          label,
+          value: '',
+          isEmpty: false,
+          nestedItems: buildNestedEntries(nestedObj, boolTrueLabel, boolFalseLabel, emptyText),
+        })
+      } else {
+        // Select-value object — use its label
+        const labelText = (nestedObj as Record<string, unknown>).label ?? emptyText
+        entries.push({ label, value: String(labelText), isEmpty: false })
+      }
+    } else {
+      entries.push({ label, value: String(value), isEmpty: false })
+    }
+  }
+  return entries
+}
+
 // ── Section Resolution ───────────────────────────────────────────────
 
 /**
@@ -299,6 +405,32 @@ export function resolveSections(
     for (const item of items) {
       const componentDef = componentMap.get(item.componentKey)
       const rawValue = getSubmissionValue(submissionData, item.componentKey)
+
+      // Detect referenced form / plain nested object values and build structured entries.
+      // This handles cases like referencedForm components where the saved value is an object
+      // containing child field values (e.g. { roseFileJointly: "no", davidSpouseSelection: {...} }).
+      if (
+        rawValue !== null &&
+        rawValue !== undefined &&
+        typeof rawValue === 'object' &&
+        !Array.isArray(rawValue) &&
+        isPlainNestedObject(rawValue as Record<string, unknown>)
+      ) {
+        const obj = rawValue as Record<string, unknown>
+        const isEmpty = Object.keys(obj).length === 0
+        if (item.excludeIfEmpty && isEmpty) continue
+        const boolTrueLabel = item.booleanTrueLabel || 'Yes'
+        const boolFalseLabel = item.booleanFalseLabel || 'No'
+        resolvedItems.push({
+          label: resolveLabel(item, componentDef),
+          value: '',
+          isEmpty,
+          isObject: true,
+          nestedItems: buildNestedEntries(obj, boolTrueLabel, boolFalseLabel, globalEmptyText),
+        })
+        continue
+      }
+
       const formatted = formatValue(rawValue, item, componentDef, globalEmptyText)
 
       if (item.excludeIfEmpty && formatted.isEmpty) continue

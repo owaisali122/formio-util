@@ -70,8 +70,8 @@ export type { ProfileFieldSectionSchema } from './components/ProfileFieldSection
 export {
   TanStackTableComponent,
   TANSTACK_TABLE_TYPE,
-} from './components/DataGrid'
-export type { DataGridSchema, DataGridColumn } from './components/DataGrid'
+} from './components/TransStack'
+export type { TransStackSchema, TransStackColumn } from './components/TransStack'
 
 export {
   PopupComponent,

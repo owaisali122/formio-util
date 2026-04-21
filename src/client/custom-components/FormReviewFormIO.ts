@@ -21,6 +21,7 @@ import {
   resolveSections,
   type ResolvedReviewSection,
   type ResolvedReviewItem,
+  type NestedReviewEntry,
 } from '../../utils/form-review-helpers'
 
 export function createFormReviewClass(FieldComponent: any) {
@@ -205,7 +206,62 @@ export function createFormReviewClass(FieldComponent: any) {
       }
     }
 
+    /**
+     * Recursively render structured nested entries for referenced form objects.
+     * Produces a nested list of key/value pairs supporting arbitrary depth.
+     */
+    _renderNestedEntries(entries: NestedReviewEntry[], depth: number = 0): string {
+      const indentClass = depth > 0 ? ' form-review-nested-indent' : ''
+      return (
+        '<ul class="form-review-nested-list' + indentClass + '">' +
+        entries
+          .map((entry) => {
+            if (entry.nestedItems) {
+              // This entry is itself a nested object — recurse
+              return (
+                '<li class="form-review-nested-entry form-review-nested-entry--group">' +
+                '<span class="form-review-nested-key">' + this._escapeHtml(entry.label) + '</span>' +
+                this._renderNestedEntries(entry.nestedItems, depth + 1) +
+                '</li>'
+              )
+            }
+            let valueHtml: string
+            if (entry.isBoolean) {
+              const isChecked = entry.booleanValue === true
+              const iconClass = isChecked ? 'fa fa-check-square-o' : 'fa fa-square-o'
+              const boolClass = isChecked ? 'form-review-bool-icon--checked' : 'form-review-bool-icon--unchecked'
+              valueHtml = '<i class="' + iconClass + ' ' + boolClass + '"></i> ' + this._escapeHtml(entry.value)
+            } else {
+              valueHtml = this._escapeHtml(entry.value)
+            }
+            const emptyClass = entry.isEmpty ? ' form-review-item-value--empty' : ''
+            return (
+              '<li class="form-review-nested-entry">' +
+              '<span class="form-review-nested-key">' + this._escapeHtml(entry.label) + '</span>' +
+              '<span class="form-review-nested-value' + emptyClass + '">' + valueHtml + '</span>' +
+              '</li>'
+            )
+          })
+          .join('') +
+        '</ul>'
+      )
+    }
+
     _renderItem(item: ResolvedReviewItem, colClass: string): string {
+      // Referenced form / nested object — always full width, rendered as a structured list
+      if (item.isObject) {
+        const nestedHtml =
+          item.nestedItems && item.nestedItems.length > 0
+            ? this._renderNestedEntries(item.nestedItems)
+            : '<span class="form-review-item-value--empty">' + this._escapeHtml('\u2014') + '</span>'
+        return (
+          '<div class="col-12 mb-3">' +
+          '<div class="form-review-item-label">' + this._escapeHtml(item.label) + '</div>' +
+          '<div class="form-review-nested-object">' + nestedHtml + '</div>' +
+          '</div>'
+        )
+      }
+
       const emptyClass = item.isEmpty ? ' form-review-item-value--empty' : ''
       let valueHtml: string
       if (item.isBoolean) {
