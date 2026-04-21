@@ -42,6 +42,16 @@ export interface DisabledDateRange {
   end: Date
 }
 
+export interface DateRestrictionValidationOptions {
+  minDate?: string | Date | null
+  maxDate?: string | Date | null
+  disablePastDates?: boolean
+  disableFutureDates?: boolean
+  disableWeekends?: boolean
+  disabledDates?: Date[]
+  disabledRanges?: DisabledDateRange[]
+}
+
 /** Parse disabled range entries. Each line: "2026-04-10 to 2026-04-15" */
 export function parseDisabledRanges(raw: string | undefined): DisabledDateRange[] {
   if (!raw || typeof raw !== 'string') return []
@@ -74,6 +84,77 @@ function isDateDisabled(
     if (time >= r.start.getTime() && time <= r.end.getTime()) return true
   }
   return false
+}
+
+function resolveDateBoundary(value: string | Date | null | undefined): Date | null {
+  if (!value) return null
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null
+    const normalized = new Date(value)
+    normalized.setHours(0, 0, 0, 0)
+    return normalized
+  }
+  return parseDateString(value)
+}
+
+export function getDateRestrictionError(
+  date: Date,
+  {
+    minDate,
+    maxDate,
+    disablePastDates = false,
+    disableFutureDates = false,
+    disableWeekends = false,
+    disabledDates = [],
+    disabledRanges = [],
+  }: DateRestrictionValidationOptions,
+): string | null {
+  const normalizedDate = resolveDateBoundary(date)
+  if (!normalizedDate) return 'Please enter a valid date.'
+
+  const resolvedMinDate = resolveDateBoundary(minDate)
+  if (resolvedMinDate && normalizedDate < resolvedMinDate) {
+    return `Date must be on or after ${formatDateString(resolvedMinDate)}.`
+  }
+
+  const resolvedMaxDate = resolveDateBoundary(maxDate)
+  if (resolvedMaxDate && normalizedDate > resolvedMaxDate) {
+    return `Date must be on or before ${formatDateString(resolvedMaxDate)}.`
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (disablePastDates && normalizedDate < today) {
+    return 'Past dates are not allowed.'
+  }
+
+  if (disableFutureDates && normalizedDate > today) {
+    return 'Future dates are not allowed.'
+  }
+
+  if (disableWeekends) {
+    const day = normalizedDate.getDay()
+    if (day === 0 || day === 6) {
+      return 'Weekends are not allowed.'
+    }
+  }
+
+  for (const disabledDate of disabledDates) {
+    if (resolveDateBoundary(disabledDate)?.getTime() === normalizedDate.getTime()) {
+      return 'This date is not available.'
+    }
+  }
+
+  for (const disabledRange of disabledRanges) {
+    const start = resolveDateBoundary(disabledRange.start)
+    const end = resolveDateBoundary(disabledRange.end)
+    if (start && end && normalizedDate >= start && normalizedDate <= end) {
+      return 'This date falls within a disabled range.'
+    }
+  }
+
+  return null
 }
 
 // ── Date range value type ──────────────────────────────────────────────
@@ -253,9 +334,14 @@ export function applyDateRangeMask(raw: string, displayFormat: string): string {
  * Returns an error message string when invalid, or null when valid.
  * Accepts partial input (only a start date, no separator) without erroring.
  */
-function validateRangeTypedInput(typed: string, displayFormat: string): string | null {
+function validateRangeTypedInput(
+  typed: string,
+  displayFormat: string,
+  restrictions: DateRestrictionValidationOptions,
+): string | null {
   const RANGE_SEP = ' - '
   const sepIdx = typed.indexOf(RANGE_SEP)
+  const withRangePrefix = (label: 'Start date' | 'End date', message: string) => `${label}: ${message}`
 
   if (sepIdx === -1) {
     // Only start date typed — validate it if it looks complete, else treat as partial
@@ -264,19 +350,46 @@ function validateRangeTypedInput(typed: string, displayFormat: string): string |
       const hint = formatToPlaceholder(displayFormat)
       return `Invalid date format. Expected: ${hint} - ${hint}`
     }
+
+    const restrictionError = getDateRestrictionError(parsed, restrictions)
+    if (restrictionError) {
+      return withRangePrefix('Start date', restrictionError)
+    }
+
     return null
   }
 
   const startStr = typed.slice(0, sepIdx)
   const endStr = typed.slice(sepIdx + RANGE_SEP.length)
   const hint = formatToPlaceholder(displayFormat)
+  const startParsed = startStr.trim() ? parseTypedDateString(startStr.trim(), displayFormat) : null
+  const endParsed = endStr.trim() ? parseTypedDateString(endStr.trim(), displayFormat) : null
 
-  if (startStr.trim() && !parseTypedDateString(startStr.trim(), displayFormat)) {
+  if (startStr.trim() && !startParsed) {
     return `Invalid start date. Expected format: ${hint}`
   }
-  if (endStr.trim() && !parseTypedDateString(endStr.trim(), displayFormat)) {
+  if (endStr.trim() && !endParsed) {
     return `Invalid end date. Expected format: ${hint}`
   }
+
+  if (startParsed) {
+    const restrictionError = getDateRestrictionError(startParsed, restrictions)
+    if (restrictionError) {
+      return withRangePrefix('Start date', restrictionError)
+    }
+  }
+
+  if (endParsed) {
+    const restrictionError = getDateRestrictionError(endParsed, restrictions)
+    if (restrictionError) {
+      return withRangePrefix('End date', restrictionError)
+    }
+  }
+
+  if (startParsed && endParsed && endParsed < startParsed) {
+    return 'End date must be on or after start date.'
+  }
+
   return null
 }
 
@@ -419,6 +532,27 @@ export function DatePickerInput({
   const parsedDisabledRanges = useMemo(
     () => parseDisabledRanges(disabledDateRangesStr),
     [disabledDateRangesStr],
+  )
+
+  const dateValidationRestrictions = useMemo(
+    () => ({
+      minDate: minDateStr,
+      maxDate: maxDateStr,
+      disablePastDates,
+      disableFutureDates,
+      disableWeekends,
+      disabledDates: parsedDisabledDates,
+      disabledRanges: parsedDisabledRanges,
+    }),
+    [
+      minDateStr,
+      maxDateStr,
+      disablePastDates,
+      disableFutureDates,
+      disableWeekends,
+      parsedDisabledDates,
+      parsedDisabledRanges,
+    ],
   )
 
   // ── Manual input error state ──
@@ -646,10 +780,11 @@ const handleRangeChange = useCallback(
 
       // ── Range mode ──
       if (pickerMode === 'range') {
-        const errorMsg = validateRangeTypedInput(typedValue, displayFormat)
+        const errorMsg = validateRangeTypedInput(typedValue, displayFormat, dateValidationRestrictions)
         if (errorMsg) {
           hasActiveErrorRef.current = true
           setManualInputError(errorMsg)
+          setInputValue(typedValue)
           onValidationChange?.({ isValid: false, message: errorMsg, rawValue: typedValue })
         } else {
           hasActiveErrorRef.current = false
@@ -670,6 +805,15 @@ const handleRangeChange = useCallback(
         return
       }
 
+      const restrictionError = getDateRestrictionError(parsed, dateValidationRestrictions)
+      if (restrictionError) {
+        hasActiveErrorRef.current = true
+        setManualInputError(restrictionError)
+        setInputValue(typedValue)
+        onValidationChange?.({ isValid: false, message: restrictionError, rawValue: typedValue })
+        return
+      }
+
       const normalizedStoredValue = formatDateString(parsed)
       const normalizedDisplayValue = formatDateByDisplayFormat(parsed, displayFormat)
       hasActiveErrorRef.current = false
@@ -681,7 +825,15 @@ const handleRangeChange = useCallback(
         onChange(normalizedStoredValue)
       }
     },
-    [allowManualInput, displayFormat, onChange, onValidationChange, pickerMode, value],
+    [
+      allowManualInput,
+      dateValidationRestrictions,
+      displayFormat,
+      onChange,
+      onValidationChange,
+      pickerMode,
+      value,
+    ],
   )
 
   /**
@@ -704,10 +856,11 @@ const handleRangeChange = useCallback(
 
     // ── Range mode ──
     if (pickerMode === 'range') {
-      const errorMsg = validateRangeTypedInput(typedValue, displayFormat)
+      const errorMsg = validateRangeTypedInput(typedValue, displayFormat, dateValidationRestrictions)
       if (errorMsg) {
         hasActiveErrorRef.current = true
         setManualInputError(errorMsg)
+        setInputValue(typedValue)
         onValidationChange?.({ isValid: false, message: errorMsg, rawValue: typedValue })
       } else {
         hasActiveErrorRef.current = false
@@ -728,6 +881,15 @@ const handleRangeChange = useCallback(
       return
     }
 
+    const restrictionError = getDateRestrictionError(parsed, dateValidationRestrictions)
+    if (restrictionError) {
+      hasActiveErrorRef.current = true
+      setManualInputError(restrictionError)
+      setInputValue(typedValue)
+      onValidationChange?.({ isValid: false, message: restrictionError, rawValue: typedValue })
+      return
+    }
+
     const normalizedStoredValue = formatDateString(parsed)
     const normalizedDisplayValue = formatDateByDisplayFormat(parsed, displayFormat)
     hasActiveErrorRef.current = false
@@ -738,7 +900,15 @@ const handleRangeChange = useCallback(
     if (normalizedStoredValue !== value) {
       onChange(normalizedStoredValue)
     }
-  }, [allowManualInput, displayFormat, onChange, onValidationChange, pickerMode, value])
+  }, [
+    allowManualInput,
+    dateValidationRestrictions,
+    displayFormat,
+    onChange,
+    onValidationChange,
+    pickerMode,
+    value,
+  ])
 
   /** Block keyboard typing when manual input is not allowed. */
   const handleKeyDown = useCallback(

@@ -12,7 +12,7 @@
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
 import type { DatePickerInputProps, DateRangeValue } from '../../components/DatePickerInput'
-import { parseDateString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
+import { getDateRestrictionError, parseDateString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
 import datepickerCSS from 'react-datepicker/dist/react-datepicker.css'
 
 let DatePickerInputComponent: React.ComponentType<DatePickerInputProps> | null = null
@@ -82,8 +82,6 @@ export function createDatePickerClass(FieldComponent: any) {
         message: string | null
         rawValue: string
       }) => void
-
-_rawInputValue: string = ''
 _manualInputInvalid: boolean = false
 _manualInputError: string | null = null
     _mounted: boolean = false
@@ -271,7 +269,6 @@ _manualInputError: string | null = null
     handleReactChange(newValue: string) {
       this._manualInputInvalid = false
       this._manualInputError = null
-      this._rawInputValue = ''
       this.setCustomValidity('', true)
       if (newValue === this.currentValue) return
       this.currentValue = newValue
@@ -306,8 +303,6 @@ _manualInputError: string | null = null
   message: string | null
   rawValue: string
     }) {
-      this._rawInputValue = payload.rawValue || ''
-
       if (payload.isValid) {
         this._manualInputInvalid = false
         this._manualInputError = null
@@ -374,85 +369,23 @@ _manualInputError: string | null = null
     // ── Validation ──
 
     /** Validate a single parsed date against all date-level constraints. */
-    _validateSingleDate(parsed: Date, dirty: boolean): boolean {
+    _validateSingleDate(parsed: Date, dirty: boolean, label?: 'Start date' | 'End date'): boolean {
       const comp = this.component
 
-      // Min date
-      const minStr = comp?.minDate
-      if (minStr) {
-        const minD = parseDateString(minStr)
-        if (minD && parsed < minD) {
-          this.setCustomValidity(
-            comp.validate?.customMessage || `Date must be on or after ${minStr}.`, dirty)
-          return false
-        }
-      }
+      const restrictionError = getDateRestrictionError(parsed, {
+        minDate: comp?.minDate,
+        maxDate: comp?.maxDate,
+        disablePastDates: comp?.disablePastDates,
+        disableFutureDates: comp?.disableFutureDates,
+        disableWeekends: comp?.disableWeekends,
+        disabledDates: comp?.disabledDates ? parseDisabledDates(comp.disabledDates) : [],
+        disabledRanges: comp?.disabledDateRanges ? parseDisabledRanges(comp.disabledDateRanges) : [],
+      })
 
-      // Max date
-      const maxStr = comp?.maxDate
-      if (maxStr) {
-        const maxD = parseDateString(maxStr)
-        if (maxD && parsed > maxD) {
-          this.setCustomValidity(
-            comp.validate?.customMessage || `Date must be on or before ${maxStr}.`, dirty)
-          return false
-        }
-      }
-
-      // Past dates
-      if (comp?.disablePastDates) {
-        const today = new Date(); today.setHours(0, 0, 0, 0)
-        if (parsed < today) {
-          this.setCustomValidity(
-            comp.validate?.customMessage || 'Past dates are not allowed.', dirty)
-          return false
-        }
-      }
-
-      // Future dates
-      if (comp?.disableFutureDates) {
-        const today = new Date(); today.setHours(0, 0, 0, 0)
-        if (parsed > today) {
-          this.setCustomValidity(
-            comp.validate?.customMessage || 'Future dates are not allowed.', dirty)
-          return false
-        }
-      }
-
-      // Weekends
-      if (comp?.disableWeekends) {
-        const day = parsed.getDay()
-        if (day === 0 || day === 6) {
-          this.setCustomValidity(
-            comp.validate?.customMessage || 'Weekends are not allowed.', dirty)
-          return false
-        }
-      }
-
-      // Disabled single dates
-      if (comp?.disabledDates) {
-        const disabledList = parseDisabledDates(comp.disabledDates)
-        const time = parsed.getTime()
-        for (const d of disabledList) {
-          if (d.getTime() === time) {
-            this.setCustomValidity(
-              comp.validate?.customMessage || 'This date is not available.', dirty)
-            return false
-          }
-        }
-      }
-
-      // Disabled date ranges
-      if (comp?.disabledDateRanges) {
-        const disabledRanges = parseDisabledRanges(comp.disabledDateRanges)
-        const time = parsed.getTime()
-        for (const r of disabledRanges) {
-          if (time >= r.start.getTime() && time <= r.end.getTime()) {
-            this.setCustomValidity(
-              comp.validate?.customMessage || 'This date falls within a disabled range.', dirty)
-            return false
-          }
-        }
+      if (restrictionError) {
+        const message = comp.validate?.customMessage || (label ? `${label}: ${restrictionError}` : restrictionError)
+        this.setCustomValidity(message, dirty)
+        return false
       }
 
       return true
@@ -497,9 +430,9 @@ _manualInputError: string | null = null
             this.setCustomValidity('Please select a valid end date.', dirty)
             return false
           }
-          if (!this._validateSingleDate(startParsed, dirty)) return false
+          if (!this._validateSingleDate(startParsed, dirty, 'Start date')) return false
           if (endParsed) {
-            if (!this._validateSingleDate(endParsed, dirty)) return false
+            if (!this._validateSingleDate(endParsed, dirty, 'End date')) return false
             if (endParsed < startParsed) {
               this.setCustomValidity('End date must be on or after start date.', dirty)
               return false

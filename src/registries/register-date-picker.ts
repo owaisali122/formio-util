@@ -41,7 +41,7 @@ export async function registerDatePicker(Components: FormioComponents): Promise<
       const isRange = this.component?.pickerMode === 'range'
       const placeholder = this.component?.placeholder || (isRange ? 'MM/DD/YYYY \u2013 MM/DD/YYYY' : 'MM/DD/YYYY')
       return super.render(`
-        <div ref="datePickerContainer" class="formio-datepicker-wrap formio-datepicker-preview">
+        <div class="formio-datepicker-wrap formio-datepicker-preview">
           <div class="input-group">
             ${showIcon ? '<div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-calendar"></i></span></div>' : ''}
             <input type="text" class="form-control" disabled placeholder="${placeholder}" />
