@@ -106,9 +106,11 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // For each runtime class, preserve the designer statics (editForm,
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
-
+        console.log('Registering fileUploader runtime...')
         const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploadFormIO')
+        console.log('Imported FileUploadFormIO successfully')
         const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
+        console.log('Created FileUploader runtime class successfully')
         const ExistingFileUploader = (Components as any).components?.fileUploader
         if (ExistingFileUploader) {
           if (ExistingFileUploader.editForm) FileUploaderRuntime.editForm = ExistingFileUploader.editForm
@@ -124,7 +126,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileUploader', FileUploaderRuntime as never)
-
+      console.log('Registered fileUploader runtime successfully')
         const TextFieldComponent = (FormioModuleObj.Components as any)?.components?.textfield
         if (TextFieldComponent) {
           const ExistingSSN = (Components as any).components?.ssn
@@ -147,7 +149,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
           Components.setComponent('ssn', SSNRuntime as never)
         }
-
+          console.log('Registered ssn runtime successfully')
         const FieldsetComponent = (FormioModuleObj.Components as any)?.components?.fieldset
         if (FieldsetComponent) {
           const { default: createProfileFieldSectionClass } = await import('./client/custom-components/ProfileFieldSectionFormIO')
@@ -302,7 +304,9 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
         Components.setComponent('datePicker', DatePickerRuntime as never)
       }
-    } catch {
+    } catch(error) {
+        console.error('Custom Form.io runtime registration failed:', error)
+         throw error
       // If registration fails, designer behavior remains intact; renderer
       // simply won't have the runtime components.
     }
