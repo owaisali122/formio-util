@@ -15,7 +15,10 @@ export interface ReviewItemConfig {
   booleanTrueLabel?: string
   booleanFalseLabel?: string
   dateFormat?: string
+  ssnFormat?: ReviewSSNFormat
 }
+
+export type ReviewSSNFormat = 'last4' | 'hidden' | 'full'
 
 export interface ReviewSectionConfig {
   title: string
@@ -46,7 +49,15 @@ export interface NestedReviewEntry {
   nestedItems?: NestedReviewEntry[]
 }
 
+export interface ReviewSensitiveValue {
+  kind: 'ssn'
+  defaultText: string
+  fullText: string
+  isToggleable: boolean
+}
+
 export interface ResolvedReviewItem {
+  reviewKey?: string
   label: string
   value: string
   isEmpty: boolean
@@ -55,6 +66,7 @@ export interface ResolvedReviewItem {
   isObject?: boolean
   /** Structured entries for referenced form objects — populated when isObject is true. */
   nestedItems?: NestedReviewEntry[]
+  sensitiveValue?: ReviewSensitiveValue
 }
 
 export interface ResolvedReviewSection {
@@ -162,6 +174,54 @@ export function getSubmissionValue(data: Record<string, unknown>, key: string): 
   return current
 }
 
+function formatNormalizedSSN(digits: string): string {
+  return `${digits.substring(0, 3)}-${digits.substring(3, 5)}-${digits.substring(5)}`
+}
+
+function maskNormalizedSSN(digits: string, ssnFormat: Exclude<ReviewSSNFormat, 'full'>): string {
+  if (ssnFormat === 'hidden') {
+    return '***-**-****'
+  }
+
+  return `***-**-${digits.substring(5)}`
+}
+
+export function normalizeSSN(value: unknown): string | null {
+  if (value == null || value === '') return null
+  const digits = String(value).replace(/\D/g, '')
+  return digits.length === 9 ? digits : null
+}
+
+export function formatSSNForReview(value: unknown, ssnFormat: ReviewSSNFormat): string {
+  const normalized = normalizeSSN(value)
+  if (!normalized) {
+    return value == null ? '' : String(value)
+  }
+
+  if (ssnFormat === 'full') {
+    return formatNormalizedSSN(normalized)
+  }
+
+  return maskNormalizedSSN(normalized, ssnFormat)
+}
+
+function resolveSSNReviewValue(
+  value: unknown,
+  ssnFormat: ReviewSSNFormat | undefined,
+): ReviewSensitiveValue | undefined {
+  if (!ssnFormat) return undefined
+
+  const normalized = normalizeSSN(value)
+  if (!normalized) return undefined
+
+  return {
+    kind: 'ssn',
+    defaultText: formatSSNForReview(normalized, ssnFormat),
+    fullText: formatNormalizedSSN(normalized),
+    isToggleable: ssnFormat !== 'full',
+  }
+}
+
 /**
  * Format a raw value into a readable string for display in the review.
  */
@@ -170,7 +230,13 @@ export function formatValue(
   itemConfig: ReviewItemConfig,
   componentDef: Record<string, unknown> | undefined,
   globalEmptyText: string,
-): { text: string; isEmpty: boolean; isBoolean?: boolean; booleanValue?: boolean } {
+): {
+  text: string
+  isEmpty: boolean
+  isBoolean?: boolean
+  booleanValue?: boolean
+  sensitiveValue?: ReviewSensitiveValue
+} {
   const emptyText = itemConfig.emptyValueText || globalEmptyText || '\u2014'
 
   // Null / undefined / empty string
@@ -213,6 +279,18 @@ export function formatValue(
     }
     if (parts.length === 0) return { text: emptyText, isEmpty: true }
     return { text: parts.join(', '), isEmpty: false }
+  }
+
+  if (itemConfig.ssnFormat) {
+    const strValue = String(rawValue)
+    if (!strValue.trim()) return { text: emptyText, isEmpty: true }
+
+    const sensitiveValue = resolveSSNReviewValue(strValue, itemConfig.ssnFormat)
+    return {
+      text: sensitiveValue?.defaultText ?? strValue,
+      isEmpty: false,
+      sensitiveValue,
+    }
   }
 
   // Number
@@ -262,6 +340,23 @@ function isDateLike(str: string): boolean {
   return /^\d{4}-\d{2}-\d{2}/.test(str) || /^\d{2}\/\d{2}\/\d{4}/.test(str)
 }
 
+function parseLocalDateString(dateStr: string): Date | null {
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2]) - 1
+  const day = Number(match[3])
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null
+
+  const date = new Date(year, month, day)
+  if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+    return null
+  }
+
+  return date
+}
+
 /**
  * Format a date string. Supports predefined formats:
  * - 'short': MM/DD/YYYY
@@ -271,16 +366,20 @@ function isDateLike(str: string): boolean {
  */
 function formatDate(dateStr: string, format: string): string | null {
   try {
-    const date = new Date(dateStr)
+    const date = parseLocalDateString(dateStr) ?? new Date(dateStr)
     if (isNaN(date.getTime())) return null
+
+    const yyyy = String(date.getFullYear())
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
 
     switch (format) {
       case 'short':
-        return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+        return `${mm}/${dd}/${yyyy}`
       case 'long':
         return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       case 'iso':
-        return date.toISOString().slice(0, 10)
+        return `${yyyy}-${mm}-${dd}`
       default:
         return date.toLocaleDateString()
     }
@@ -390,6 +489,7 @@ export function resolveSections(
 
   return (settings.sections || []).map((section, idx) => {
     const resolvedItems: ResolvedReviewItem[] = []
+    const sectionKey = section.sectionKey || `section-${idx}`
 
     // Support both an items array and itemsJson textarea string
     let items: ReviewItemConfig[] = section.items || []
@@ -402,7 +502,8 @@ export function resolveSections(
       }
     }
 
-    for (const item of items) {
+    for (const [itemIndex, item] of items.entries()) {
+      const reviewKey = `${sectionKey}::${item.componentKey}::${itemIndex}`
       const componentDef = componentMap.get(item.componentKey)
       const rawValue = getSubmissionValue(submissionData, item.componentKey)
 
@@ -422,6 +523,7 @@ export function resolveSections(
         const boolTrueLabel = item.booleanTrueLabel || 'Yes'
         const boolFalseLabel = item.booleanFalseLabel || 'No'
         resolvedItems.push({
+          reviewKey,
           label: resolveLabel(item, componentDef),
           value: '',
           isEmpty,
@@ -436,16 +538,18 @@ export function resolveSections(
       if (item.excludeIfEmpty && formatted.isEmpty) continue
 
       resolvedItems.push({
+        reviewKey,
         label: resolveLabel(item, componentDef),
         value: formatted.text,
         isEmpty: formatted.isEmpty,
         isBoolean: formatted.isBoolean,
+        sensitiveValue: formatted.sensitiveValue,
       })
     }
 
     return {
       title: section.title || `Section ${idx + 1}`,
-      sectionKey: section.sectionKey || `section-${idx}`,
+      sectionKey,
       collapsible: section.collapsible !== false,
       defaultExpanded: section.defaultExpanded ?? globalExpanded,
       columns: section.columns || 2,

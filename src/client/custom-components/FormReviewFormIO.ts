@@ -22,12 +22,19 @@ import {
   type ResolvedReviewSection,
   type ResolvedReviewItem,
   type NestedReviewEntry,
+  type ReviewSensitiveValue,
 } from '../../utils/form-review-helpers'
 
 export function createFormReviewClass(FieldComponent: any) {
   return class FormReviewFormIO extends FieldComponent {
     /** Per-section expanded state — survives re-attach within the same page visit. */
     _sectionStates: Map<string, boolean> = new Map()
+
+    /** Per-item reveal state for sensitive review values such as SSN / ITIN. */
+    _sensitiveItemStates: Map<string, boolean> = new Map()
+
+    /** Sensitive review values keyed by stable review item key. */
+    _sensitiveItems: Map<string, ReviewSensitiveValue> = new Map()
 
     /** Bound wizard page-navigation listener — stored for cleanup on destroy. */
     _onPageBound: (() => void) | null = null
@@ -187,6 +194,31 @@ export function createFormReviewClass(FieldComponent: any) {
       return this._sectionStates.get(sectionKey)!
     }
 
+    _syncSensitiveItems(sections: ResolvedReviewSection[]) {
+      const nextSensitiveItems = new Map<string, ReviewSensitiveValue>()
+
+      for (const section of sections) {
+        for (const item of section.items) {
+          if (item.reviewKey && item.sensitiveValue) {
+            nextSensitiveItems.set(item.reviewKey, item.sensitiveValue)
+          }
+        }
+      }
+
+      this._sensitiveItems = nextSensitiveItems
+
+      for (const reviewKey of Array.from(this._sensitiveItemStates.keys())) {
+        const sensitiveValue = nextSensitiveItems.get(reviewKey)
+        if (!sensitiveValue || !sensitiveValue.isToggleable) {
+          this._sensitiveItemStates.delete(reviewKey)
+        }
+      }
+    }
+
+    _isSensitiveItemRevealed(reviewKey: string): boolean {
+      return this._sensitiveItemStates.get(reviewKey) === true
+    }
+
     // ── HTML Builders ─────────────────────────────────────────────────
 
     _escapeHtml(str: string): string {
@@ -247,6 +279,31 @@ export function createFormReviewClass(FieldComponent: any) {
       )
     }
 
+    _renderSensitiveValue(item: ResolvedReviewItem, sensitiveValue: ReviewSensitiveValue): string {
+      const reviewKey = item.reviewKey
+      const revealed = !!(reviewKey && sensitiveValue.isToggleable && this._isSensitiveItemRevealed(reviewKey))
+      const visibleText = revealed ? sensitiveValue.fullText : sensitiveValue.defaultText
+
+      if (!reviewKey || !sensitiveValue.isToggleable) {
+        return this._escapeHtml(visibleText)
+      }
+
+      const safeKey = this._escapeHtml(reviewKey)
+      const toggleLabel = revealed ? 'Hide SSN / ITIN' : 'Show SSN / ITIN'
+      const safeToggleLabel = this._escapeHtml(toggleLabel)
+      const iconClass = revealed ? 'fa fa-eye-slash' : 'fa fa-eye'
+
+      return (
+        '<span class="form-review-sensitive-value">' +
+        '<span data-review-sensitive-value="' + safeKey + '">' + this._escapeHtml(visibleText) + '</span>' +
+        '<button type="button" class="form-review-sensitive-toggle" data-review-sensitive-toggle="' + safeKey + '"' +
+        ' aria-label="' + safeToggleLabel + '" aria-pressed="' + revealed + '" title="' + safeToggleLabel + '">' +
+        '<i class="' + iconClass + '" data-review-sensitive-icon="' + safeKey + '"></i>' +
+        '</button>' +
+        '</span>'
+      )
+    }
+
     _renderItem(item: ResolvedReviewItem, colClass: string): string {
       // Referenced form / nested object — always full width, rendered as a structured list
       if (item.isObject) {
@@ -263,8 +320,13 @@ export function createFormReviewClass(FieldComponent: any) {
       }
 
       const emptyClass = item.isEmpty ? ' form-review-item-value--empty' : ''
+      const sensitiveValue = item.reviewKey
+        ? this._sensitiveItems.get(item.reviewKey) ?? item.sensitiveValue
+        : item.sensitiveValue
       let valueHtml: string
-      if (item.isBoolean) {
+      if (sensitiveValue) {
+        valueHtml = this._renderSensitiveValue(item, sensitiveValue)
+      } else if (item.isBoolean) {
         const isChecked = item.value !== 'No' && item.value !== 'False' && item.value !== 'false'
         const iconClass = isChecked ? 'fa fa-check-square-o' : 'fa fa-square-o'
         const boolClass = isChecked ? 'form-review-bool-icon--checked' : 'form-review-bool-icon--unchecked'
@@ -387,6 +449,7 @@ export function createFormReviewClass(FieldComponent: any) {
       if (!container) return
 
       const sections = this._resolveSections()
+      this._syncSensitiveItems(sections)
       container.innerHTML = this._buildContent(sections)
 
       // Wire collapse toggles
@@ -415,6 +478,16 @@ export function createFormReviewClass(FieldComponent: any) {
           expandBtn.textContent = target ? 'Collapse All' : 'Expand All'
         })
       }
+
+      for (const toggleEl of Array.from(container.querySelectorAll('[data-review-sensitive-toggle]'))) {
+        toggleEl.addEventListener('click', (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+
+          const reviewKey = (toggleEl as HTMLElement).getAttribute('data-review-sensitive-toggle')
+          if (reviewKey) this._toggleSensitiveItem(container, reviewKey)
+        })
+      }
     }
 
     _toggleSection(container: HTMLElement, sectionKey: string) {
@@ -432,6 +505,39 @@ export function createFormReviewClass(FieldComponent: any) {
       if (header) header.setAttribute('aria-expanded', String(expanded))
 
       this._sectionStates.set(sectionKey, expanded)
+    }
+
+    _toggleSensitiveItem(container: HTMLElement, reviewKey: string) {
+      const sensitiveValue = this._sensitiveItems.get(reviewKey)
+      if (!sensitiveValue || !sensitiveValue.isToggleable) return
+
+      this._setSensitiveItemRevealed(container, reviewKey, !this._isSensitiveItemRevealed(reviewKey))
+    }
+
+    _setSensitiveItemRevealed(container: HTMLElement, reviewKey: string, revealed: boolean) {
+      const sensitiveValue = this._sensitiveItems.get(reviewKey)
+      if (!sensitiveValue) return
+
+      const valueEl = container.querySelector('[data-review-sensitive-value="' + reviewKey + '"]') as HTMLElement | null
+      const iconEl = container.querySelector('[data-review-sensitive-icon="' + reviewKey + '"]') as HTMLElement | null
+      const buttonEl = container.querySelector('[data-review-sensitive-toggle="' + reviewKey + '"]') as HTMLButtonElement | null
+      const toggleLabel = revealed ? 'Hide SSN / ITIN' : 'Show SSN / ITIN'
+
+      if (valueEl) {
+        valueEl.textContent = revealed ? sensitiveValue.fullText : sensitiveValue.defaultText
+      }
+
+      if (iconEl) {
+        iconEl.className = revealed ? 'fa fa-eye-slash' : 'fa fa-eye'
+      }
+
+      if (buttonEl) {
+        buttonEl.setAttribute('aria-label', toggleLabel)
+        buttonEl.setAttribute('aria-pressed', String(revealed))
+        buttonEl.setAttribute('title', toggleLabel)
+      }
+
+      this._sensitiveItemStates.set(reviewKey, revealed)
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────
@@ -454,6 +560,9 @@ export function createFormReviewClass(FieldComponent: any) {
       }
       this._onPageBound = null
       this._onChangeBound = null
+      this._sectionStates.clear()
+      this._sensitiveItemStates.clear()
+      this._sensitiveItems.clear()
       super.destroy()
     }
   }

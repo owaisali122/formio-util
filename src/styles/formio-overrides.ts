@@ -256,6 +256,30 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
   white-space: normal;
 }
 
+.form-review-sensitive-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.form-review-sensitive-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #6c757d;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.form-review-sensitive-toggle:hover,
+.form-review-sensitive-toggle:focus {
+  color: #495057;
+  text-decoration: none;
+}
+
 .form-review-item-value--empty {
   color: #6c757d;
 }

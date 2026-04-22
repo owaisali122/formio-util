@@ -19,6 +19,7 @@ export interface FormReviewItemSchema {
   booleanTrueLabel?: string
   booleanFalseLabel?: string
   dateFormat?: string
+  ssnFormat?: 'last4' | 'hidden' | 'full'
 }
 
 export interface FormReviewSectionSchema {
@@ -226,7 +227,7 @@ export class FormReviewComponent {
                       rows: 4,
                       defaultValue: '[]',
                       description:
-                        'JSON array of field references. Each entry: { "componentKey": "firstName", "customLabel": "", "excludeIfEmpty": false, "booleanTrueLabel": "", "booleanFalseLabel": "", "dateFormat": "" }',
+                        'JSON array of field references. Each entry: { "componentKey": "firstName", "customLabel": "", "excludeIfEmpty": false, "booleanTrueLabel": "", "booleanFalseLabel": "", "dateFormat": "", "ssnFormat": "last4|hidden|full" }',
                       placeholder:
                         '[{"componentKey":"firstName"},{"componentKey":"lastName","customLabel":"Surname"}]',
                     },
