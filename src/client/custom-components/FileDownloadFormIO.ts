@@ -155,7 +155,7 @@ export function createFileDownloadClass(FieldComponent: any) {
           <span
             ref="fileDownloadTrigger"
             role="button"
-            tabindex="0"
+            tabindex="${c.tabindex !== '' && c.tabindex != null ? Number(c.tabindex) : 0}"
             class="d-inline-flex align-items-center"
             style="cursor:pointer"
             title="${escAttr(label || 'Download')}"

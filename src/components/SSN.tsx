@@ -18,6 +18,7 @@ export interface TaxIdSchema {
   preventCopy: boolean
   hidden: boolean
   autofocus: boolean
+  tabindex: number | string
   /** Controls which tax ID formats are accepted: 'any' (SSN or ITIN), 'ssn', or 'itin' */
   validationMode: 'any' | 'ssn' | 'itin'
   [k: string]: unknown
@@ -40,6 +41,7 @@ export class TaxIdComponent {
       preventCopy: true,
       hidden: false,
       autofocus: false,
+      tabindex: '',
       validationMode: 'any',
       ...overrides,
     }
@@ -97,6 +99,16 @@ export class TaxIdComponent {
                   weight: 30,
                 },
                 {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 70,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
+                },
+                {
                   type: 'checkbox',
                   key: 'autofocus',
                   label: 'Initial Focus',
@@ -123,7 +135,7 @@ export class TaxIdComponent {
                   input: true,
                   defaultValue: false,
                   weight: 60,
-                },
+                }
               ],
             },
             // ── Masking tab ─────────────────────────────────────────

@@ -30,6 +30,7 @@ export interface FileDownloadSchema {
   fileNameKey: string
   /** Fallback text when no file URL is available */
   fallbackText: string
+  tabindex: number | string
   [k: string]: unknown
 }
 
@@ -48,6 +49,7 @@ export class FileDownloadComponent {
       fileUrlKey: '',
       fileNameKey: '',
       fallbackText: 'No file available',
+      tabindex: '',
       ...overrides,
     }
   }
@@ -110,6 +112,16 @@ export class FileDownloadComponent {
                   defaultValue: 'fa fa-download',
                   description: 'Font Awesome icon class (e.g., fa fa-download).',
                   weight: 40,
+                },
+                {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 70,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
                 },
                 {
                   type: 'checkbox',

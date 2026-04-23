@@ -198,6 +198,7 @@ export interface DatePickerInputProps {
   message: string | null
   rawValue: string
 }) => void
+  tabIndex?: number
 }
 
 // ── Auto-mask helpers ──────────────────────────────────────────────────
@@ -440,6 +441,7 @@ export function DatePickerInput({
   disabledDates: disabledDatesStr,
   disabledDateRanges: disabledDateRangesStr,
   onValidationChange,
+  tabIndex,
 }: DatePickerInputProps) {
   // ── Effective placeholder ──
   // If the caller passes an empty placeholder, fall back to a format-derived hint.
@@ -961,6 +963,7 @@ const handleRangeChange = useCallback(
           aria-label={effectivePlaceholder}
           aria-invalid={manualInputError ? 'true' : 'false'}
           value={inputValue}
+          tabIndex={tabIndex}
         />
       </div>
     )
@@ -999,6 +1002,7 @@ const handleRangeChange = useCallback(
         autoComplete="off"
         aria-label={effectivePlaceholder}
         aria-invalid={manualInputError ? 'true' : 'false'}
+        tabIndex={tabIndex}
       />
     </div>
   )

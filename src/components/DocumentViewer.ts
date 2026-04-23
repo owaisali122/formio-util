@@ -25,6 +25,7 @@ export interface DocumentViewerSchema {
   autofocus: boolean
   hidden: boolean
   disabled: boolean
+  tabindex: number | string
   // File Source
   sourceType: DocumentViewerSourceType
   fileUrl: string
@@ -63,6 +64,7 @@ export class DocumentViewerComponent {
       autofocus: false,
       hidden: false,
       disabled: false,
+      tabindex: '',
       sourceType: 'static',
       fileUrl: '',
       fileUrlDataKey: '',
@@ -136,6 +138,16 @@ export class DocumentViewerComponent {
                   weight: 30,
                 },
                 {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 70,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
+                },
+                {
                   type: 'checkbox',
                   key: 'autofocus',
                   label: 'Initial Focus',
@@ -159,7 +171,7 @@ export class DocumentViewerComponent {
                   input: true,
                   defaultValue: false,
                   weight: 60,
-                },
+                }
               ],
             },
             // ── File Source Tab ──────────────────────────────────────────────

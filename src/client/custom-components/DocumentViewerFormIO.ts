@@ -142,6 +142,8 @@ export function createDocumentViewerClass(FieldComponent: any) {
 
       // Disable the button when there is no URL or the component is disabled.
       const disabledAttr = noUrl || isDisabled ? 'disabled' : ''
+      const tabindex = c.tabindex !== '' && c.tabindex != null
+        ? ` tabindex="${Number(c.tabindex)}"` : ''
 
       const descHtml = description
         ? `<div class="help-block">${escAttr(description)}</div>`
@@ -153,7 +155,7 @@ export function createDocumentViewerClass(FieldComponent: any) {
             ref="documentViewerTrigger"
             type="button"
             class="btn btn-primary"
-            ${disabledAttr}
+            ${disabledAttr}${tabindex}
           >
             <i class="${iconClass}" aria-hidden="true" style="${iconStyle}"></i>${buttonText}
           </button>

@@ -28,6 +28,7 @@ export interface FileUploaderSchema {
   authPassword?: string
   partnerId?: string
   autofocus: boolean
+  tabindex: number | string
   [k: string]: unknown
 }
 
@@ -61,6 +62,7 @@ export class FileUploaderComponent {
       authPassword: '',
       partnerId: '',
       autofocus: false,
+      tabindex: '',
       ...overrides,
     }
   }
@@ -125,6 +127,16 @@ export class FileUploaderComponent {
                   weight: 40,
                 },
                 {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 80,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
+                },
+                {
                   type: 'checkbox',
                   key: 'autofocus',
                   label: 'Initial Focus',
@@ -148,7 +160,7 @@ export class FileUploaderComponent {
                   input: true,
                   defaultValue: false,
                   weight: 70,
-                },
+                }
               ],
             },
             // ── Files tab (File Settings + Behavior) ─────────────────

@@ -25,6 +25,7 @@ export interface DatePickerSchema {
   pickerMode: 'single' | 'range'
   disabledDates: string
   disabledDateRanges: string
+  tabindex: number | string
   [k: string]: unknown
 }
 
@@ -55,6 +56,7 @@ export class DatePickerComponent {
       pickerMode: 'single',
       disabledDates: '',
       disabledDateRanges: '',
+      tabindex: '',
       ...overrides,
     }
   }
@@ -158,6 +160,16 @@ export class DatePickerComponent {
                   weight: 35,
                 },
                 {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 100,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
+                },
+                {
                   type: 'checkbox',
                   key: 'showCalendarIcon',
                   label: 'Show Calendar Icon',
@@ -222,7 +234,7 @@ export class DatePickerComponent {
                   input: true,
                   defaultValue: false,
                   weight: 90,
-                },
+                }
               ],
             },
             // ── Data tab ────────────────────────────────────────────

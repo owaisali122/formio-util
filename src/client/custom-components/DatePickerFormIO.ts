@@ -256,6 +256,7 @@ _manualInputError: string | null = null
         disabledDates: comp.disabledDates || '',
         disabledDateRanges: comp.disabledDateRanges || '',
         onValidationChange: this._onValidationChangeBound,
+        tabIndex: comp.tabindex !== '' && comp.tabindex != null ? Number(comp.tabindex) : undefined,
       }
 
       if (isRange) {

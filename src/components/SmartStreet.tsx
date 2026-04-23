@@ -118,6 +118,7 @@ export interface SmartStreetProps {
   addressMapping?: AddressMapping
   onAddressSelected?: (address: AddressResult) => void
   disabled?: boolean
+  tabIndex?: number
 }
 
 // ── Option renderer — shows right-side entries badge only in dropdown menu ──
@@ -178,6 +179,7 @@ function SmartStreetInner({
   addressMapping,
   onAddressSelected,
   disabled = false,
+  tabIndex,
 }: SmartStreetProps) {
   const [options, setOptions] = useState<OptionType[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -456,6 +458,7 @@ function SmartStreetInner({
         isDisabled={disabled}
         classNamePrefix="react-select"
         blurInputOnSelect={false}
+        tabIndex={tabIndex}
       />
 
       {/* Editable address input fields — search field covers Address; show remaining fields */}
@@ -469,6 +472,7 @@ function SmartStreetInner({
             onChange={(e) => handleFieldChange('secondary', e.target.value)}
             aria-label={labels.secondary}
             disabled={disabled}
+            tabIndex={tabIndex}
           />
         </div>
           <div className="mb-2">
@@ -480,6 +484,7 @@ function SmartStreetInner({
             onChange={(e) => handleFieldChange('city', e.target.value)}
             aria-label={labels.city}
             disabled={disabled}
+            tabIndex={tabIndex}
           />
         </div>
          
@@ -492,6 +497,7 @@ function SmartStreetInner({
               onChange={(e) => handleFieldChange('state', e.target.value)}
               aria-label={labels.state}
               disabled={disabled}
+              tabIndex={tabIndex}
             />
           </div>
           <div className="mb-2">
@@ -503,6 +509,7 @@ function SmartStreetInner({
               onChange={(e) => handleFieldChange('zipcode', e.target.value)}
               aria-label={labels.zipcode}
               disabled={disabled}
+              tabIndex={tabIndex}
             />
           </div>
       </div>

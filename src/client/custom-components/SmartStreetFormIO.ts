@@ -212,6 +212,7 @@ export function createSearchableDropdownClass(FieldComponent: any) {
         addressMapping: this.component.addressMapping || undefined,
         onAddressSelected: this._onAddressSelectedBound,
         disabled: this.component.disabled || this.options?.readOnly || false,
+        tabIndex: this.component.tabindex !== '' && this.component.tabindex != null ? Number(this.component.tabindex) : undefined,
       }))
     }
 

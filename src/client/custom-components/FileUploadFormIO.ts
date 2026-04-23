@@ -333,13 +333,15 @@ export default function createFileUploaderClass(FieldComponent: any) {
       const label = this.component.uploadButtonLabel || ''
       const accept = this.acceptedExtensions || this.allowedFileTypes || ''
       const isDisabled = this.disabled
+      const tabindex = this.component.tabindex !== '' && this.component.tabindex != null
+        ? ` tabindex="${Number(this.component.tabindex)}"` : ''
 
       return super.render(`
         <div ref="fileUploaderContainer" class="formio-file-uploader">
           <button type="button" ref="uploadBtn"
                   class="btn btn-outline-secondary btn-sm${isDisabled ? ' disabled' : ''}"
                   title="${label || 'Upload file'}"
-                  ${isDisabled ? 'disabled' : ''}>
+                  ${isDisabled ? 'disabled' : ''}${tabindex}>
             <i class="${iconClass}"></i>${label ? ' ' + this.t(label) : ''}
           </button>
           <input ref="fileInput" type="file"
