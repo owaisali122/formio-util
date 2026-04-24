@@ -10,6 +10,8 @@ import { registerFileDownload } from './registries/register-file-download'
 import { registerDocumentViewer } from './registries/register-document-viewer'
 import { registerFormReview } from './registries/register-form-review'
 import { registerDatePicker } from './registries/register-date-picker'
+import { registerTabIndexManager } from './registries/register-tab-index-manager'
+import { setupTabIndexManagerDropdown } from './registries/register-tab-index-manager'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -82,6 +84,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerDocumentViewer(Components)
     await registerFormReview(Components)
     await registerDatePicker(Components)
+    await registerTabIndexManager(Components)
 
     // Override built-in datetime component: preserve typed value on invalid blur
     // and show an inline validation error instead of silently clearing the field.
@@ -303,6 +306,25 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('datePicker', DatePickerRuntime as never)
+
+        // Tab Index Manager runtime
+        const { default: createTabIndexManagerClass } = await import('./client/custom-components/TabIndexManagerFormIO')
+        const TabIndexManagerRuntime = createTabIndexManagerClass(FieldComponent)
+        const ExistingTabIndexManager = (Components as any).components?.tabIndexManager
+        if (ExistingTabIndexManager) {
+          if (ExistingTabIndexManager.editForm) TabIndexManagerRuntime.editForm = ExistingTabIndexManager.editForm
+          if (ExistingTabIndexManager.builderInfo) {
+            Object.defineProperty(TabIndexManagerRuntime, 'builderInfo', {
+              get: () => ExistingTabIndexManager.builderInfo,
+              configurable: true,
+            })
+          }
+          const origTabIndexManagerSchema = ExistingTabIndexManager.schema
+          if (typeof origTabIndexManagerSchema === 'function') {
+            TabIndexManagerRuntime.schema = origTabIndexManagerSchema.bind(ExistingTabIndexManager)
+          }
+        }
+        Components.setComponent('tabIndexManager', TabIndexManagerRuntime as never)
       }
     } catch(error) {
         console.error('Custom Form.io runtime registration failed:', error)
@@ -323,6 +345,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
       const originalReady = formBuilder.ready
       formBuilder.ready = originalReady.then((instance) => {
         setupReferencedFormDropdown(instance)
+        setupTabIndexManagerDropdown(instance)
         return instance
       }) as typeof formBuilder.ready
       return formBuilder
@@ -402,4 +425,4 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
   }
 }
 
-export { setupReferencedFormDropdown }
+export { setupReferencedFormDropdown, setupTabIndexManagerDropdown }

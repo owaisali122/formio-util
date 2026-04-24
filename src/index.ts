@@ -111,6 +111,14 @@ export { DatePickerInput, parseDateString, formatDateString, parseDisabledDates,
 export type { DatePickerInputProps, DateRangeValue, DisabledDateRange } from './components/DatePickerInput'
 
 export {
+  TabIndexManagerComponent,
+  TAB_INDEX_MANAGER_TYPE,
+} from './components/TabIndexManager'
+export type { TabIndexManagerSchema, TabIndexManagerRow } from './components/TabIndexManager'
+
+export { setupTabIndexManagerDropdown, collectBuilderKeys } from './registries/register-tab-index-manager'
+
+export {
   buildComponentMap,
   resolveLabel,
   getSubmissionValue,

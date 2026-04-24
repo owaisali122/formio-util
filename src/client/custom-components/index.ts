@@ -15,6 +15,7 @@ export { default as createDocumentViewerClass, setupDocumentViewerWorker } from 
 export { default as createFormReviewClass } from './FormReviewFormIO'
 export { default as createDatePickerClass } from './DatePickerFormIO'
 export { default as createDateTimeOverrideClass } from './DateTimeFormIO'
+export { default as createTabIndexManagerClass } from './TabIndexManagerFormIO'
 export {
   createTanStackTableClass,
   TransStackReact,

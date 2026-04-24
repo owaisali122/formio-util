@@ -4,3 +4,4 @@ src/styles/generated/
 *.tsbuildinfo
 .npmrc
 .github/
+.vscode/tasks.json

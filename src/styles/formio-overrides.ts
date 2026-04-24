@@ -329,4 +329,38 @@ export const formioOverridesCss = `/* Ensure cards render correctly inside Form.
 .formio-dialog .formio-component-sections .datagrid-table td textarea.form-control {
   min-width: 200px;
 }
+
+/* ========== Tab Index Manager — Designer Select Wrapping ========== */
+
+.tab-index-manager-key-select .choices__inner {
+  overflow: visible;
+  min-height: 44px;
+  height: auto;
+}
+
+.tab-index-manager-key-select .choices__list--single,
+.tab-index-manager-key-select .choices__list--single .choices__item,
+.tab-index-manager-key-select .choices__list--dropdown .choices__item,
+.tab-index-manager-key-select .choices__item.choices__item--selectable,
+.tab-index-manager-key-select .tab-index-manager-key-option {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tab-index-manager-key-select .choices__list--single .choices__item {
+  padding-right: 28px;
+}
+
+.tab-index-manager-key-select .choices__list--dropdown .choices__item--selectable,
+.tab-index-manager-key-select[dir='rtl'] .choices__list--dropdown .choices__item--selectable {
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
+.tab-index-manager-key-select .choices__list--dropdown .choices__item--selectable::after {
+  display: none;
+}
 `
