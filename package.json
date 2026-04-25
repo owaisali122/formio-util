@@ -54,7 +54,8 @@
     "bootstrap": "3.4.1",
     "font-awesome": "^4.7.0",
     "postgres": ">=3.4.4",
-    "react-datepicker": "^9.1.0"
+    "react-datepicker": "^9.1.0",
+    "winston": "^3.11.0"
   },
   "peerDependencies": {
     "@tanstack/react-table": ">=8.0.0",

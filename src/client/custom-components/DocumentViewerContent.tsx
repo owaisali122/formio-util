@@ -20,6 +20,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createComponentLogger } from '../../utils/logger'
+
+const documentViewerLogger = createComponentLogger({ component: 'DocumentViewer' })
 
 // ── Worker Configuration ─────────────────────────────────────────────────────
 
@@ -324,7 +327,12 @@ function PdfViewer({
         injectPdfCss()
         setPdfMod({ Document: mod.Document, Page: mod.Page })
       })
-      .catch(() => { if (!cancelled) setPdfModError(true) })
+      .catch((err) => {
+        if (!cancelled) {
+          documentViewerLogger.error('Failed to load react-pdf module', err, { action: 'load.reactPdf' })
+          setPdfModError(true)
+        }
+      })
     return () => { cancelled = true }
   }, [])
 

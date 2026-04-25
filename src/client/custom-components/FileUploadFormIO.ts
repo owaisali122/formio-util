@@ -21,6 +21,7 @@
  */
 
 import { FileUploaderComponent } from '../../components/FileUpload'
+import { createComponentLogger, describeFile, type ComponentLogger } from '../../utils/logger'
 
 interface SelectedFile {
   name: string
@@ -46,6 +47,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
     _syncing: boolean = false
     _lastValueJSON: string = ''
     _submitInProgress: boolean = false
+    _logger!: ComponentLogger
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(FileUploaderComponent.schema(), ...extend)
@@ -92,6 +94,12 @@ export default function createFileUploaderClass(FieldComponent: any) {
 
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
+      this._logger = createComponentLogger({
+        component: 'FileUpload',
+        key: component?.key,
+        multiple: !!component?.multiple,
+        scanEnabled: !!component?.scanEnabled,
+      })
       const key = component.key
       if (data && key && Array.isArray(data[key])) {
         this.selectedFiles = data[key]
@@ -202,7 +210,7 @@ export default function createFileUploaderClass(FieldComponent: any) {
             return false
           }
         } catch (err) {
-          console.error('FileUpload: custom validation error', err)
+          this._logger.error('Custom validation error', err, { action: 'checkComponentValidity' })
         }
       }
 
@@ -256,8 +264,9 @@ export default function createFileUploaderClass(FieldComponent: any) {
           let uploadResponse: Response
           try {
             uploadResponse = await fetch(uploadApiUrl, { method: 'POST', body: uploadForm, headers: this.buildApiHeaders() })
-          } catch {
+          } catch (err) {
             const msg = 'File upload failed: service unavailable.'
+            this._logger.error('Upload network error', err, { action: 'upload.networkError', ...describeFile(fileEntry) })
             fileEntry.status = 'error'
             fileEntry.error = msg
             this.updateFileListUI()
@@ -277,6 +286,11 @@ export default function createFileUploaderClass(FieldComponent: any) {
                 else if (body?.error) msg = body.error
               } catch { msg = text.trim() || msg }
             } catch { /* ignore */ }
+            this._logger.warn('Upload returned non-OK status', {
+              action: 'upload.failure',
+              status: uploadResponse.status,
+              ...describeFile(fileEntry),
+            })
             fileEntry.status = 'error'
             fileEntry.error = msg
             this.updateFileListUI()
@@ -478,8 +492,10 @@ export default function createFileUploaderClass(FieldComponent: any) {
         scanForm.append('file', fileEntry.file)
         let response: Response
         try {
+          this._logger.debug('Starting file scan', { action: 'scan.start', ...describeFile(fileEntry) })
           response = await fetch(scanApiUrl, { method: 'POST', body: scanForm, headers: this.buildApiHeaders() })
-        } catch {
+        } catch (err) {
+          this._logger.error('Scan network error', err, { action: 'scan.networkError', ...describeFile(fileEntry) })
           fileEntry.status = 'error'
           fileEntry.error = 'File scan failed: service unavailable.'
           return
@@ -493,6 +509,11 @@ export default function createFileUploaderClass(FieldComponent: any) {
             if (body?.message) msg = body.message
             else if (body?.error) msg = body.error
           } catch { /* ignore */ }
+          this._logger.warn('Scan rejected file', {
+            action: 'scan.rejected',
+            status: response.status,
+            ...describeFile(fileEntry),
+          })
           fileEntry.status = 'error'
           fileEntry.error = msg
           return

@@ -5,6 +5,10 @@
  * Form Review component. Works with the Form.io form schema and submission data.
  */
 
+import { createComponentLogger } from './logger'
+
+const formReviewLogger = createComponentLogger({ component: 'FormReview' })
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface ReviewItemConfig {
@@ -383,7 +387,11 @@ function formatDate(dateStr: string, format: string): string | null {
       default:
         return date.toLocaleDateString()
     }
-  } catch {
+  } catch (err) {
+    formReviewLogger.warn('Date parse fallback returned null', {
+      action: 'formatDate',
+      error: err instanceof Error ? err.message : String(err),
+    })
     return null
   }
 }
@@ -497,8 +505,12 @@ export function resolveSections(
       try {
         const parsed = JSON.parse(section.itemsJson)
         if (Array.isArray(parsed)) items = parsed as ReviewItemConfig[]
-      } catch {
-        // invalid JSON — treat as empty
+      } catch (err) {
+        formReviewLogger.warn('Section itemsJson is not valid JSON; treating as empty', {
+          action: 'resolveSections.parseItemsJson',
+          sectionKey,
+          error: err instanceof Error ? err.message : String(err),
+        })
       }
     }
 

@@ -5,6 +5,9 @@ import { registerCustomComponents } from '../registry'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
 import { runReferencedFormInjection } from '../utils/formio-referenced-form-logic'
 import { BootstrapProvider } from './BootstrapProvider'
+import { createComponentLogger } from '../utils/logger'
+
+const formRendererLogger = createComponentLogger({ component: 'FormRenderer' })
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
 export interface FormRendererSchema {
@@ -137,7 +140,7 @@ export function FormRenderer(props: FormRendererProps) {
           })
       })
       .catch((err) => {
-        if (!cancelled) console.error('[FormRenderer] createForm error:', err)
+        if (!cancelled) formRendererLogger.error('createForm failed', err, { action: 'createForm' })
       })
 
     return () => {

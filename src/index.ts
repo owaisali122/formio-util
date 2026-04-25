@@ -132,3 +132,13 @@ export type {
   ResolvedReviewItem,
   ResolvedReviewSection,
 } from './utils/form-review-helpers'
+
+export {
+  createComponentLogger,
+  configureSharedLogger,
+  packageLogger,
+  maskTaxId,
+  describeFile,
+  truncate,
+} from './utils/logger'
+export type { ComponentLogger, LogContext, LogLevel } from './utils/logger'

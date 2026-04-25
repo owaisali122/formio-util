@@ -4,6 +4,9 @@ import React, { useState, useCallback, useRef, useMemo } from 'react'
 import Select from 'react-select'
 import type { SingleValue, StylesConfig, InputActionMeta } from 'react-select'
 import type { SmartStreetDropdownItem } from './SmartStreetDropdown'
+import { createComponentLogger } from '../utils/logger'
+
+const smartStreetLogger = createComponentLogger({ component: 'SmartStreet' })
 
 interface OptionType {
   value: string
@@ -238,9 +241,17 @@ function SmartStreetInner({
       }
 
       const resp = await fetch(url, { method: 'GET', headers })
-      if (!resp.ok) return []
+      if (!resp.ok) {
+        smartStreetLogger.warn('Address autocomplete returned non-OK status', {
+          action: 'fetchSuggestions',
+          status: resp.status,
+          hasSelected: !!selected,
+        })
+        return []
+      }
       const data = await resp.json()
-      return Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
+      return list
     },
     [addressApiConfig?.url, addressApiConfig?.username, addressApiConfig?.password, addressApiConfig?.partnerId],
   )
@@ -269,7 +280,7 @@ function SmartStreetInner({
           if (opts.length > 0) setMenuIsOpen(true)
         } catch (err) {
           if (requestIdRef.current === reqId) {
-            console.error('SmartStreet: fetch error', err)
+            smartStreetLogger.error('Address autocomplete fetch failed', err, { action: 'fetchSuggestions.failure' })
             setOptions([])
           }
         } finally {
@@ -401,7 +412,7 @@ function SmartStreetInner({
           finalizeAddress(newVal, suggestion, suggestion)
         }
       } catch (err) {
-        console.error('SmartStreet: final lookup error', err)
+        smartStreetLogger.error('Address final lookup failed', err, { action: 'finalLookup.failure' })
         finalizeAddress(newVal, suggestion, suggestion)
       } finally {
         setIsLoading(false)

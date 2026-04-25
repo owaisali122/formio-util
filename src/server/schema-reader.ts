@@ -16,6 +16,9 @@
 
 import postgres from 'postgres'
 import { type DbConfig, type Form } from './types'
+import { createComponentLogger } from '../utils/logger'
+
+const schemaLogger = createComponentLogger({ component: 'schema-reader' })
 
 export type SchemaConnectionOptions = {
   tableName?: string
@@ -111,7 +114,7 @@ export async function getFormBySlug(
       await sql.end()
     }
   } catch (error) {
-    console.error('Error fetching form by slug:', error)
+    schemaLogger.error('Error fetching form by slug', error, { action: 'getFormBySlug' })
     throw error
   }
 }
@@ -182,7 +185,7 @@ export async function getFormById(
       await sql.end()
     }
   } catch (error) {
-    console.error('Error fetching form by id:', error)
+    schemaLogger.error('Error fetching form by id', error, { action: 'getFormById' })
     throw error
   }
 }
@@ -250,7 +253,7 @@ export async function getFormsBySlugs(
       await sql.end()
     }
   } catch (error) {
-    console.error('Error fetching forms by slugs:', error)
+    schemaLogger.error('Error fetching forms by slugs', error, { action: 'getFormsBySlugs' })
     throw error
   }
 }

@@ -15,6 +15,7 @@ import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from
 import { getDateRestrictionError, parseDateString, parseDateTimeString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
 import { normalizeDisplayFormat } from '../../components/date-picker-shared'
 import datepickerCSS from 'react-datepicker/dist/react-datepicker.css'
+import { createComponentLogger } from '../../utils/logger'
 
 let DatePickerInputComponent: React.ComponentType<DatePickerInputProps> | null = null
 let _cssInjected = false
@@ -120,6 +121,7 @@ export function createDatePickerClass(FieldComponent: any) {
 _manualInputInvalid: boolean = false
 _manualInputError: string | null = null
     _mounted: boolean = false
+    _logger: ReturnType<typeof createComponentLogger>
 
     static schema(...extend: any[]) {
       return FieldComponent.schema({
@@ -151,6 +153,13 @@ _manualInputError: string | null = null
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
       this.currentValue = ''
+      this._logger = createComponentLogger({
+        component: 'DatePicker',
+        key: component?.key,
+        pickerMode: component?.pickerMode,
+        enableTime: !!component?.enableTime,
+        enableTimeZone: !!component?.enableTimeZone,
+      })
       const key = component?.key
       if (data && key && data[key]) {
         const raw = data[key]
@@ -199,7 +208,7 @@ _manualInputError: string | null = null
 
       const container = (this.refs as any)?.datePickerContainer
       if (container) this.mountReactComponent(container as HTMLElement)
-
+        else this._logger.warn('attach: datePickerContainer ref missing', { action: 'attach' })
       if (!this.currentValue) {
         this._initialValueTimeout = setTimeout(() => {
           this._initialValueTimeout = null
@@ -260,8 +269,9 @@ _manualInputError: string | null = null
         this._mounted = true
         this.tryLoadInitialValue()
         this.renderReactComponent(Component)
-      } catch {
+      } catch (err) {
         container.innerHTML = '<div class="text-danger small">Error loading date picker</div>'
+        this._logger.error('Failed to mount React date picker', err, { action: 'mountReactComponent' })
       }
     }
 
@@ -463,7 +473,8 @@ _manualInputError: string | null = null
         }
         if (!isEmpty) {
           let rangeObj: DateRangeValue
-          try { rangeObj = JSON.parse(rawValue) } catch {
+          try { rangeObj = JSON.parse(rawValue) } catch (err) {
+            this._logger.warn('Range value JSON parse failed', { action: 'checkValidity.range', error: err instanceof Error ? err.message : String(err) })
             this.setCustomValidity('Invalid date range value.', dirty)
             return false
           }
@@ -545,7 +556,7 @@ _manualInputError: string | null = null
               return false
             }
           } catch (err) {
-            console.error('DatePicker: custom validation error', err)
+            this._logger.error('Custom validation error', err, { action: 'checkValidity.customValidation' })
           }
         }
       }

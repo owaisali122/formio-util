@@ -8,6 +8,9 @@
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
 import type { AddressResult, SmartStreetValue } from '../../components/SmartStreet'
+import { createComponentLogger } from '../../utils/logger'
+
+const smartStreetRuntimeLogger = createComponentLogger({ component: 'SmartStreet', mode: 'runtime' })
 
 export interface ApiResponseItem {
   id: string
@@ -312,7 +315,7 @@ export function createSearchableDropdownClass(FieldComponent: any) {
             return false
           }
         } catch (err) {
-          console.error('SmartStreet: custom validation error', err)
+          smartStreetRuntimeLogger.error('Custom validation error', err, { action: 'checkValidity.customValidation', key: this.component?.key })
         }
       }
 

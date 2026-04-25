@@ -6,6 +6,7 @@ import {
 } from '../components/SmartStreetDropdown'
 import type { AddressResult, SmartStreetValue } from '../components/SmartStreet'
 import type { FormioComponents } from './types'
+import { createComponentLogger, type ComponentLogger } from '../utils/logger'
 
 type ReactComponent = React.ComponentType<any>
 let SmartStreetComponent: ReactComponent | null = null
@@ -52,6 +53,7 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
     private _onChangeBound: (v: SmartStreetValue | null) => void
     private _onAddressSelectedBound: (address: AddressResult) => void
     private _mounted: boolean = false
+    private _logger!: ComponentLogger
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -74,6 +76,10 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
 
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
+      this._logger = createComponentLogger({
+        component: 'SmartStreet',
+        key: component?.key,
+      })
       this.currentValue = null
       const key = component.key
       if (data && key && data[key]) this.currentValue = data[key]
@@ -304,7 +310,7 @@ export async function registerSmartStreet(Components: FormioComponents): Promise
             return false
           }
         } catch (err) {
-          console.error('SmartStreet: custom validation error', err)
+          this._logger.error('Custom validation error', err, { action: 'checkValidity.customValidation' })
         }
       }
 

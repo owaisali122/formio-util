@@ -8,6 +8,10 @@
  * - Synchronizes embedded submission data with this component's value.
  */
 
+import { createComponentLogger } from '../utils/logger'
+
+const referencedFormLogger = createComponentLogger({ component: 'ReferencedForm' })
+
 export const REFERENCED_FORM_RUNTIME_TYPE = 'appDetailRefRuntime' as const
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -351,6 +355,10 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
           })
         })
         .catch((err: any) => {
+          referencedFormLogger.error('Failed to load referenced form', err, {
+            action: 'load',
+            key: this.component?.key,
+          })
           this.showError(err?.message ?? 'Failed to load form.')
         })
 
@@ -371,8 +379,12 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
       if (this.embeddedForm && typeof this.embeddedForm.destroy === 'function') {
         try {
           this.embeddedForm.destroy()
-        } catch {
-          // ignore
+        } catch (err) {
+          referencedFormLogger.warn('Embedded form destroy threw; ignoring', {
+            action: 'destroy',
+            key: this.component?.key,
+            error: err instanceof Error ? err.message : String(err),
+          })
         }
         this.embeddedForm = null
       }

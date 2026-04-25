@@ -14,6 +14,8 @@
  *   remains as a DOM-level fallback for late-rendered content.
  */
 
+import { createComponentLogger, type ComponentLogger } from '../../utils/logger'
+
 export function createTabIndexManagerClass(FieldComponent: any) {
   return class TabIndexManagerFormIO extends FieldComponent {
     /** requestAnimationFrame handle used to coalesce repeated apply calls. */
@@ -22,6 +24,7 @@ export function createTabIndexManagerClass(FieldComponent: any) {
     _observer: MutationObserver | null = null
     /** Shared root-event listener that queues a re-apply. */
     _onReapplyBound: (() => void) | null = null
+    _logger: ComponentLogger = createComponentLogger({ component: 'TabIndexManager' })
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -110,13 +113,21 @@ export function createTabIndexManagerClass(FieldComponent: any) {
       const keys = this._getOrderedKeys()
       if (keys.length === 0) return
 
+      const logger = this._logger.child({ key: this.component?.key })
+
       let tabIndex = 1
+      const missing: string[] = []
       for (const key of keys) {
         const el = this._findInputByKey(key)
         if (el) {
           el.setAttribute('tabindex', String(tabIndex))
           tabIndex++
+        } else {
+          missing.push(key)
         }
+      }
+      if (missing.length > 0) {
+        logger.warn('Some target keys could not be resolved', { action: 'apply.missingKeys', missing, applied: tabIndex - 1 })
       }
     }
 
