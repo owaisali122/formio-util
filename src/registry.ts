@@ -9,7 +9,7 @@ import { registerProgressBar } from './registries/register-progress-bar'
 import { registerFileDownload } from './registries/register-file-download'
 import { registerDocumentViewer } from './registries/register-document-viewer'
 import { registerFormReview } from './registries/register-form-review'
-import { registerDatePicker } from './registries/register-date-picker'
+import { registerDatePicker, setupDatePickerEditForm } from './registries/register-date-picker'
 import { registerTabIndexManager } from './registries/register-tab-index-manager'
 import { setupTabIndexManagerDropdown } from './registries/register-tab-index-manager'
 import type { FormioComponents } from './registries/types'
@@ -346,6 +346,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
       formBuilder.ready = originalReady.then((instance) => {
         setupReferencedFormDropdown(instance)
         setupTabIndexManagerDropdown(instance)
+        setupDatePickerEditForm(instance)
         return instance
       }) as typeof formBuilder.ready
       return formBuilder
@@ -425,4 +426,4 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
   }
 }
 
-export { setupReferencedFormDropdown, setupTabIndexManagerDropdown }
+export { setupDatePickerEditForm, setupReferencedFormDropdown, setupTabIndexManagerDropdown }

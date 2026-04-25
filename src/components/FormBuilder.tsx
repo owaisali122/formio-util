@@ -5,6 +5,7 @@ import {
   configure,
   getBuilderConfig,
   registerCustomComponents,
+  setupDatePickerEditForm,
   setupReferencedFormDropdown,
   setupTabIndexManagerDropdown,
 } from '../registry'
@@ -147,6 +148,7 @@ function FormBuilderInner({
       builderInstanceRef.current = instance
       setupReferencedFormDropdown(instance as unknown as Record<string, unknown>)
       setupTabIndexManagerDropdown(instance as unknown as Record<string, unknown>)
+      setupDatePickerEditForm(instance as unknown as Record<string, unknown>)
 
       const getSchemaFromInstance = (): FormBuilderSchema | null => {
         try {

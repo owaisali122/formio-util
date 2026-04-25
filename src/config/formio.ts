@@ -2,7 +2,13 @@
  * Form.io API URL config. Used by the Form.io designer and any components
  * that need to resolve forms list or submission URLs.
  */
-const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_APP_URL ?? ''
+const env = (globalThis as typeof globalThis & {
+  process?: {
+    env?: Record<string, string | undefined>
+  }
+}).process?.env
+
+const baseUrl = typeof window !== 'undefined' ? '' : env?.NEXT_PUBLIC_APP_URL ?? ''
 
 export function getFormsListUrl(): string {
   return `${baseUrl}/api/forms`

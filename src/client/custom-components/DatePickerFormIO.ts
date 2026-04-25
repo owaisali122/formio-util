@@ -11,8 +11,9 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
-import type { DatePickerInputProps, DateRangeValue } from '../../components/DatePickerInput'
-import { getDateRestrictionError, parseDateString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
+import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from '../../components/DatePickerInput'
+import { getDateRestrictionError, parseDateString, parseDateTimeString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
+import { normalizeDisplayFormat } from '../../components/date-picker-shared'
 import datepickerCSS from 'react-datepicker/dist/react-datepicker.css'
 
 let DatePickerInputComponent: React.ComponentType<DatePickerInputProps> | null = null
@@ -68,6 +69,40 @@ function injectDatePickerStyles() {
  * designer preview. Keyed by component property name.
  */
 const _mountCache = new Map<string, { mount: HTMLDivElement; root: Root }>()
+
+function parseStoredJsonValue(rawValue: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(rawValue) as Record<string, unknown>
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed
+    }
+  } catch {
+    // Keep legacy string storage untouched.
+  }
+
+  return null
+}
+
+/**
+ * Extract timezone from the stored value (if present).
+ * The value may be:
+ * - A simple date string: "2025-06-15" (no timezone)
+ * - A JSON object with timezone: {"date": "2025-06-15", "timeZone": "America/Los_Angeles"}
+ * - A JSON object with datetime and timezone: {"dateTime": "2025-06-15T14:30:00", "timeZone": "America/Chicago"}
+ * 
+ * Returns the timezone string if found, or empty string if not present.
+ */
+function extractTimeZoneFromStoredValue(rawValue: string | null | undefined): string {
+  if (!rawValue || typeof rawValue !== 'string') return ''
+
+  const parsed = parseStoredJsonValue(rawValue)
+  if (parsed && typeof parsed === 'object' && 'timeZone' in parsed) {
+    const tz = (parsed as any).timeZone
+    return typeof tz === 'string' ? tz : ''
+  }
+
+  return ''
+}
 
 export function createDatePickerClass(FieldComponent: any) {
   return class DatePickerFormIO extends FieldComponent {
@@ -235,10 +270,16 @@ _manualInputError: string | null = null
       const comp = this.component || {}
       const isRange = this.isRangeMode
 
+      // Timezone priority: saved value → browser timezone (renderer).
+      // The designer no longer stores a default; renderer falls back to the
+      // browser's IANA zone (or UTC) inside DatePickerInput when this is empty.
+      const savedTimeZone = extractTimeZoneFromStoredValue(this.currentValue)
+      const effectiveTimeZone = savedTimeZone || ''
+
       const props: DatePickerInputProps = {
         value: isRange ? null : (this.currentValue || null),
         onChange: this._onChangeBound,
-        displayFormat: comp.displayFormat || 'MM/dd/yyyy',
+        displayFormat: normalizeDisplayFormat(comp.displayFormat, 'MM/dd/yyyy'),
         placeholder: comp.placeholder || '',
         disabled: comp.disabled || false,
         readOnly: this.options?.readOnly || false,
@@ -253,6 +294,12 @@ _manualInputError: string | null = null
         disableFutureDates: comp.disableFutureDates || false,
         disableWeekends: comp.disableWeekends || false,
         pickerMode: isRange ? 'range' : 'single',
+        enableTime: comp.enableTime || false,
+        enableTimeZone: comp.enableTimeZone || false,
+        timeFormat: comp.timeFormat || 'h:mm aa',
+        timeIntervals: comp.timeIntervals || 15,
+        timeZone: effectiveTimeZone,
+        timeZoneLabel: typeof comp.timeZoneLabel === 'string' ? comp.timeZoneLabel : 'Time Zone',
         disabledDates: comp.disabledDates || '',
         disabledDateRanges: comp.disabledDateRanges || '',
         onValidationChange: this._onValidationChangeBound,
@@ -275,14 +322,11 @@ _manualInputError: string | null = null
       this.currentValue = newValue
       const key = this.component?.key
 
-      // For range mode, store the parsed object in Form.io data;
-      // for single mode, store the plain string.
       let dataValue: any = newValue
-      if (this.isRangeMode && newValue) {
-        try {
-          dataValue = JSON.parse(newValue)
-        } catch {
-          dataValue = newValue
+      if (newValue) {
+        const parsedValue = parseStoredJsonValue(newValue)
+        if (parsedValue) {
+          dataValue = parsedValue
         }
       }
 
@@ -329,10 +373,12 @@ _manualInputError: string | null = null
 
     getValue() {
       if (!this.currentValue) return this.currentValue
-      // Return parsed object for range mode, plain string for single
-      if (this.isRangeMode) {
-        try { return JSON.parse(this.currentValue) } catch { return this.currentValue }
+
+      const parsedValue = parseStoredJsonValue(this.currentValue)
+      if (parsedValue) {
+        return parsedValue
       }
+
       return this.currentValue
     }
 
@@ -349,8 +395,9 @@ _manualInputError: string | null = null
 
     get dataValue() {
       if (this.currentValue) {
-        if (this.isRangeMode) {
-          try { return JSON.parse(this.currentValue) } catch { /* fall through */ }
+        const parsedValue = parseStoredJsonValue(this.currentValue)
+        if (parsedValue) {
+          return parsedValue
         }
         return this.currentValue
       }
@@ -420,8 +467,12 @@ _manualInputError: string | null = null
             this.setCustomValidity('Invalid date range value.', dirty)
             return false
           }
-          const startParsed = parseDateString(rangeObj.startDate)
-          const endParsed = parseDateString(rangeObj.endDate)
+          const startParsed = this.component?.enableTime
+            ? parseDateTimeString(rangeObj.startDateTime || rangeObj.startDate)
+            : parseDateString(rangeObj.startDate)
+          const endParsed = this.component?.enableTime
+            ? parseDateTimeString(rangeObj.endDateTime || rangeObj.endDate)
+            : parseDateString(rangeObj.endDate)
           if (!startParsed) {
             this.setCustomValidity('Please select a valid start date.', dirty)
             return false
@@ -439,6 +490,10 @@ _manualInputError: string | null = null
               return false
             }
           }
+          if (this.component?.enableTimeZone && !String(rangeObj.timeZone || '').trim()) {
+            this.setCustomValidity('Please select a time zone.', dirty)
+            return false
+          }
         }
         return true
       }
@@ -452,12 +507,22 @@ _manualInputError: string | null = null
       }
 
       if (!isEmpty) {
-        const parsed = parseDateString(rawValue)
+        const parsedPayload = parseStoredJsonValue(rawValue) as DatePickerSingleValue | null
+        const parsed = this.component?.enableTime
+          ? parseDateTimeString(parsedPayload?.dateTime || parsedPayload?.date || rawValue)
+          : parseDateString(parsedPayload?.date || rawValue)
         if (!parsed) {
-          this.setCustomValidity('Please enter a valid date.', dirty)
+          this.setCustomValidity(
+            this.component?.enableTime ? 'Please enter a valid date and time.' : 'Please enter a valid date.',
+            dirty,
+          )
           return false
         }
         if (!this._validateSingleDate(parsed, dirty)) return false
+        if (this.component?.enableTimeZone && !String(parsedPayload?.timeZone || '').trim()) {
+          this.setCustomValidity('Please select a time zone.', dirty)
+          return false
+        }
 
         // Custom JavaScript validation
         const customValidation = this.component?.validate?.custom

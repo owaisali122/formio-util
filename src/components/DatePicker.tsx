@@ -1,3 +1,11 @@
+import {
+  DATE_PICKER_TIME_FORMAT_OPTIONS,
+  DEFAULT_DATE_PICKER_DISPLAY_FORMAT,
+  DEFAULT_DATE_PICKER_TIME_FORMAT,
+  DEFAULT_DATE_PICKER_TIME_INTERVALS,
+  getDatePickerDisplayFormatOptions,
+} from './date-picker-shared'
+
 export const DATE_PICKER_TYPE = 'datePicker'
 
 export interface DatePickerSchema {
@@ -12,6 +20,11 @@ export interface DatePickerSchema {
   openOnInputClick: boolean
   showCalendarIcon: boolean
   clearable: boolean
+  enableTime: boolean
+  enableTimeZone: boolean
+  timeFormat: string
+  timeIntervals: number
+  timeZoneLabel: string
   hidden: boolean
   autofocus: boolean
   disabled: boolean
@@ -37,12 +50,17 @@ export class DatePickerComponent {
       key: 'datePicker',
       input: true,
       tableView: true,
-      placeholder: 'MM/DD/YYYY',
-      displayFormat: 'MM/dd/yyyy',
+      placeholder: '',
+      displayFormat: DEFAULT_DATE_PICKER_DISPLAY_FORMAT,
       allowManualInput: true,
       openOnInputClick: true,
       showCalendarIcon: true,
       clearable: true,
+      enableTime: false,
+      enableTimeZone: false,
+      timeFormat: DEFAULT_DATE_PICKER_TIME_FORMAT,
+      timeIntervals: DEFAULT_DATE_PICKER_TIME_INTERVALS,
+      timeZoneLabel: 'Time Zone',
       hidden: false,
       autofocus: false,
       disabled: false,
@@ -111,26 +129,72 @@ export class DatePickerComponent {
                   weight: 15,
                 },
                 {
-                  type: 'textfield',
-                  key: 'placeholder',
-                  label: 'Placeholder',
+                  type: 'checkbox',
+                  key: 'enableTime',
+                  label: 'Enable Time',
                   input: true,
-                  defaultValue: 'MM/DD/YYYY',
+                  defaultValue: false,
+                  weight: 18,
+                  tooltip: 'Allow selecting a time alongside the date in the existing Single Date or Date Range modes.',
+                },
+                {
+                  type: 'select',
+                  key: 'timeFormat',
+                  label: 'Time Format',
+                  input: true,
+                  defaultValue: DEFAULT_DATE_PICKER_TIME_FORMAT,
+                  dataSrc: 'values',
+                  data: {
+                    values: [...DATE_PICKER_TIME_FORMAT_OPTIONS],
+                  },
+                  weight: 19,
+                  conditional: {
+                    json: { '===': [{ var: 'data.enableTime' }, true] },
+                  },
+                },
+                {
+                  type: 'number',
+                  key: 'timeIntervals',
+                  label: 'Time Intervals',
+                  input: true,
+                  defaultValue: DEFAULT_DATE_PICKER_TIME_INTERVALS,
                   weight: 20,
                   conditional: {
-                    json: { '===': [{ var: 'data.pickerMode' }, 'single'] },
+                    json: { '===': [{ var: 'data.enableTime' }, true] },
                   },
+                  description: 'Minutes between time options in the dropdown.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'enableTimeZone',
+                  label: 'Enable Time Zone',
+                  input: true,
+                  defaultValue: false,
+                  weight: 22,
+                  tooltip: 'Show a time zone selector in the renderer and include the selected zone in the saved value.',
+                },
+                {
+                  type: 'textfield',
+                  key: 'timeZoneLabel',
+                  label: 'Time Zone Label',
+                  input: true,
+                  defaultValue: 'Time Zone',
+                  weight: 24,
+                  conditional: {
+                    json: { '===': [{ var: 'data.enableTimeZone' }, true] },
+                  },
+                  description:
+                    'Label shown above the time zone dropdown in the renderer. Leave blank to hide the label. The renderer resolves the time zone dynamically (saved value → browser → UTC); no fixed default is stored in the designer.',
                 },
                 {
                   type: 'textfield',
                   key: 'placeholder',
                   label: 'Placeholder',
                   input: true,
-                  defaultValue: 'MM/DD/YYYY – MM/DD/YYYY',
-                  weight: 20,
-                  conditional: {
-                    json: { '===': [{ var: 'data.pickerMode' }, 'range'] },
-                  },
+                  defaultValue: '',
+                  weight: 26,
+                  description:
+                    'Leave blank to derive the placeholder from the effective display format, including time and time zone when enabled.',
                 },
                 {
                   type: 'textarea',
@@ -144,20 +208,23 @@ export class DatePickerComponent {
                   key: 'displayFormat',
                   label: 'Display Format',
                   input: true,
-                  defaultValue: 'MM/dd/yyyy',
-                  dataSrc: 'values',
+                  defaultValue: DEFAULT_DATE_PICKER_DISPLAY_FORMAT,
+                  dataSrc: 'custom',
                   data: {
-                    values: [
-                      { label: 'MM/DD/YYYY', value: 'MM/dd/yyyy' },
-                      { label: 'DD/MM/YYYY', value: 'dd/MM/yyyy' },
-                      { label: 'YYYY-MM-DD', value: 'yyyy-MM-dd' },
-                      { label: 'MM-DD-YYYY', value: 'MM-dd-yyyy' },
-                      { label: 'DD-MM-YYYY', value: 'dd-MM-yyyy' },
-                    ],
+                    custom: function (context: { data: Record<string, any> }) {
+                      const options = getDatePickerDisplayFormatOptions({
+                        pickerMode: context.data.pickerMode || 'single',
+                        enableTime: !!context.data.enableTime,
+                        enableTimeZone: !!context.data.enableTimeZone,
+                      });
+                      return options.map((v: string) => ({ label: v, value: v }));
+                    }
                   },
-                  description:
-                    'How the date appears in the input field. Stored value is always yyyy-MM-dd.',
+                  clearOnRefresh: true,
+                  refreshOn: 'pickerMode,enableTime,enableTimeZone',
                   weight: 35,
+                  description:
+                    'Select the display format for the date picker. Options update based on Picker Mode, Enable Time, and Enable Time Zone.',
                 },
                 {
                   type: 'number',
@@ -376,6 +443,16 @@ export class DatePickerComponent {
                   description:
                     'Write custom JavaScript validation. Set "valid" to true or an error message string. Available variables: valid, input, data, row, component, instance.',
                 },
+                {
+                  type: 'textarea',
+                  key: 'customDefaultValue',
+                  label: 'Custom Default Value',
+                  input: true,
+                  rows: 5,
+                  weight: 90,
+                  description:
+                    'Write custom JavaScript for the default value. Set the "value" variable.',
+                },
               ],
             },
             // ── API tab ─────────────────────────────────────────────
@@ -458,6 +535,16 @@ export class DatePickerComponent {
                     },
                   ],
                 },
+                {
+                  type: 'textarea',
+                  key: 'customConditional',
+                  label: 'Custom Conditional (JavaScript)',
+                  input: true,
+                  rows: 5,
+                  weight: 30,
+                  description:
+                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                },
               ],
             },
             // ── Logic tab ───────────────────────────────────────────
@@ -466,24 +553,189 @@ export class DatePickerComponent {
               key: 'logic',
               components: [
                 {
-                  type: 'textarea',
-                  key: 'customConditional',
-                  label: 'Custom Conditional',
+                  weight: 0,
+                  type: 'datagrid',
                   input: true,
-                  rows: 5,
-                  weight: 10,
-                  description:
-                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
-                },
-                {
-                  type: 'textarea',
-                  key: 'customDefaultValue',
-                  label: 'Custom Default Value',
-                  input: true,
-                  rows: 5,
-                  weight: 20,
-                  description:
-                    'Write custom JavaScript for the default value. Set the "value" variable.',
+                  key: 'logic',
+                  label: 'Logic',
+                  reorder: true,
+                  addAnother: 'Add Logic',
+                  components: [
+                    {
+                      type: 'textfield',
+                      key: 'name',
+                      label: 'Name',
+                      input: true,
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Trigger',
+                      key: 'logicTrigger',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'select',
+                          key: 'trigger.type',
+                          label: 'Type',
+                          dataSrc: 'values',
+                          data: {
+                            values: [
+                              { label: 'Simple', value: 'simple' },
+                              { label: 'JavaScript', value: 'javascript' },
+                              { label: 'JSON Logic', value: 'json' },
+                              { label: 'Event', value: 'event' },
+                            ],
+                          },
+                          input: true,
+                          weight: 10,
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.javascript',
+                          label: 'JavaScript',
+                          input: true,
+                          rows: 5,
+                          weight: 20,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'javascript'] } },
+                        },
+                        {
+                          type: 'textarea',
+                          key: 'trigger.json',
+                          label: 'JSON Logic',
+                          input: true,
+                          rows: 5,
+                          weight: 30,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'json'] } },
+                        },
+                        {
+                          type: 'textfield',
+                          key: 'trigger.event',
+                          label: 'Event Name',
+                          input: true,
+                          weight: 40,
+                          conditional: { json: { '===': [{ var: 'row.trigger.type' }, 'event'] } },
+                        },
+                      ],
+                    },
+                    {
+                      type: 'panel',
+                      title: 'Actions',
+                      key: 'logicActions',
+                      theme: 'default',
+                      components: [
+                        {
+                          type: 'datagrid',
+                          key: 'actions',
+                          label: 'Actions',
+                          addAnother: 'Add Action',
+                          components: [
+                            {
+                              type: 'textfield',
+                              key: 'name',
+                              label: 'Action Name',
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'type',
+                              label: 'Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Property', value: 'property' },
+                                  { label: 'Value', value: 'value' },
+                                  { label: 'Merge Component Schema', value: 'mergeComponentSchema' },
+                                  { label: 'Custom Action (JavaScript)', value: 'customAction' },
+                                ],
+                              },
+                              input: true,
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.label',
+                              label: 'Component Property',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Hidden', value: 'hidden' },
+                                  { label: 'Required', value: 'validate.required' },
+                                  { label: 'Disabled', value: 'disabled' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'select',
+                              key: 'property.type',
+                              label: 'Property Type',
+                              dataSrc: 'values',
+                              data: {
+                                values: [
+                                  { label: 'Boolean', value: 'boolean' },
+                                  { label: 'String', value: 'string' },
+                                ],
+                              },
+                              input: true,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'property'] } },
+                            },
+                            {
+                              type: 'checkbox',
+                              key: 'state',
+                              label: 'Toggle Component Visibility',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'boolean'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textfield',
+                              key: 'text',
+                              label: 'Value (String)',
+                              input: true,
+                              conditional: {
+                                json: {
+                                  and: [
+                                    { '===': [{ var: 'row.type' }, 'property'] },
+                                    { '===': [{ var: 'row.property.type' }, 'string'] },
+                                  ],
+                                },
+                              },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'value',
+                              label: 'Value (JavaScript)',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'value'] } },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'schemaDefinition',
+                              label: 'Schema Definition',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'mergeComponentSchema'] } },
+                            },
+                            {
+                              type: 'textarea',
+                              key: 'customAction',
+                              label: 'Custom Action (JavaScript)',
+                              input: true,
+                              rows: 5,
+                              conditional: { json: { '===': [{ var: 'row.type' }, 'customAction'] } },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
                 },
               ],
             },
