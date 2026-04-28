@@ -5,7 +5,9 @@ import {
   configure,
   getBuilderConfig,
   registerCustomComponents,
+  setupDatePickerEditForm,
   setupReferencedFormDropdown,
+  setupTabIndexManagerDropdown,
 } from '../registry'
 import { BootstrapProvider } from './BootstrapProvider'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
@@ -145,6 +147,8 @@ function FormBuilderInner({
       const instance = (await formBuilder.ready) as FormioBuilderInstance
       builderInstanceRef.current = instance
       setupReferencedFormDropdown(instance as unknown as Record<string, unknown>)
+      setupTabIndexManagerDropdown(instance as unknown as Record<string, unknown>)
+      setupDatePickerEditForm(instance as unknown as Record<string, unknown>)
 
       const getSchemaFromInstance = (): FormBuilderSchema | null => {
         try {

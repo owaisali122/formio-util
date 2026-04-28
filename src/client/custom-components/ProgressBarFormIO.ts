@@ -10,7 +10,7 @@
  *  - auto   : reads the parent wizard's page index and page count,
  *             calculates ((page + 1) / totalPages) × 100 on page-change events
  *
- * Reference pattern: createGenericPopupClass (GenericPopupFormIO.ts)
+ * Reference pattern: createPopupComponentClass (PopupComponentFormIO.ts)
  */
 
 export function createProgressBarClass(FieldComponent: any) {

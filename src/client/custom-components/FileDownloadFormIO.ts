@@ -10,6 +10,7 @@
  */
 
 import { FILE_DOWNLOAD_TYPE } from '../../components/FileDownload'
+import { triggerFileDownload } from './fileDownloadUtils'
 
 function escAttr(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -20,6 +21,8 @@ function escAttr(str: string): string {
 export function createFileDownloadClass(FieldComponent: any) {
   return class FileDownloadFormIO extends FieldComponent {
     _triggerBtn: HTMLElement | null = null
+    _iconEl: HTMLElement | null = null
+    _isDownloading = false
     _clickBound: (() => void) | null = null
     _onChangeBound: (() => void) | null = null
     _lastRenderedUrl = ''
@@ -88,35 +91,24 @@ export function createFileDownloadClass(FieldComponent: any) {
     // ── Download via fetch ──
 
     _doDownload() {
+      if (this._isDownloading) return
       const url = this._resolveFileUrl()
       if (!url) return
 
       const fileName = this._resolveFileName() || this._fileNameFromUrl(url) || 'download'
       const btn = this._triggerBtn
-      if (btn) btn.style.opacity = '0.4'
+      const iconEl = this._iconEl
+      const originalIconClass = iconEl ? iconEl.className : ''
 
-      fetch(url, { credentials: 'include' })
-        .then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`)
-          return r.blob()
-        })
-        .then(blob => {
-          const blobUrl = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = blobUrl
-          a.download = fileName
-          a.style.display = 'none'
-          document.body.appendChild(a)
-          a.click()
-          setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 200)
-        })
-        .catch(() => {
-          // Fallback: open in new tab
-          window.open(url, '_blank', 'noopener,noreferrer')
-        })
-        .finally(() => {
-          if (btn) btn.style.opacity = '1'
-        })
+      this._isDownloading = true
+      if (btn) btn.style.pointerEvents = 'none'
+      if (iconEl) iconEl.className = 'fa fa-spinner fa-spin'
+
+      triggerFileDownload(url, fileName).finally(() => {
+        this._isDownloading = false
+        if (btn) btn.style.pointerEvents = ''
+        if (iconEl && originalIconClass) iconEl.className = originalIconClass
+      })
     }
 
     _fileNameFromUrl(url: string): string {
@@ -140,34 +132,35 @@ export function createFileDownloadClass(FieldComponent: any) {
       this._lastRenderedUrl = url
 
       const labelHtml = label
-        ? `<span style="margin-left:6px;font-size:14px;">${this.t(label)}</span>`
+        ? `<span class="ms-1 small">${this.t(label)}</span>`
         : ''
       const descHtml = description
-        ? `<div style="color:#666;font-size:12px;margin-top:4px;">${this.t(description)}</div>`
+        ? `<div class="text-muted small mt-1">${this.t(description)}</div>`
         : ''
 
       if (!hasUrl) {
         const fallback = c.fallbackText || 'No file available'
         return super.render(`
-          <div ref="fileDownloadContainer" style="display:inline-block;">
-            <span style="display:inline-flex;align-items:center;opacity:0.4;">
-              <i class="${escAttr(icon)}" aria-hidden="true" style="font-size:1.4em;"></i>${labelHtml}
+          <div ref="fileDownloadContainer" class="d-inline-block">
+            <span class="d-inline-flex align-items-center opacity-50">
+              <i class="${escAttr(icon)} fs-5" aria-hidden="true"></i>${labelHtml}
             </span>
-            ${descHtml || `<div style="color:#999;font-size:12px;margin-top:2px;">${this.t(fallback)}</div>`}
+            ${descHtml || `<div class="text-muted small mt-1">${this.t(fallback)}</div>`}
           </div>
         `)
       }
 
       return super.render(`
-        <div ref="fileDownloadContainer" style="display:inline-block;">
+        <div ref="fileDownloadContainer" class="d-inline-block">
           <span
             ref="fileDownloadTrigger"
             role="button"
-            tabindex="0"
-            style="cursor:pointer;display:inline-flex;align-items:center;"
+            tabindex="${c.tabindex !== '' && c.tabindex != null ? Number(c.tabindex) : 0}"
+            class="d-inline-flex align-items-center"
+            style="cursor:pointer"
             title="${escAttr(label || 'Download')}"
           >
-            <i class="${escAttr(icon)}" aria-hidden="true" style="font-size:1.4em;"></i>${labelHtml}
+            <i class="${escAttr(icon)} fs-5" aria-hidden="true"></i>${labelHtml}
           </span>
           ${descHtml}
         </div>
@@ -187,11 +180,15 @@ export function createFileDownloadClass(FieldComponent: any) {
       const btn = (this.refs as any)?.fileDownloadTrigger as HTMLElement | undefined
       if (btn) {
         this._triggerBtn = btn
+        this._iconEl = btn.querySelector('i') as HTMLElement | null
         this._clickBound = () => this._doDownload()
         btn.addEventListener('click', this._clickBound)
         btn.addEventListener('keydown', (e: KeyboardEvent) => {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._doDownload() }
         })
+        if (this.component.autofocus) {
+          btn.focus()
+        }
       }
 
       // For dataKey mode: re-render only when URL actually changes
@@ -219,6 +216,8 @@ export function createFileDownloadClass(FieldComponent: any) {
         this._triggerBtn = null
         this._clickBound = null
       }
+      this._iconEl = null
+      this._isDownloading = false
       return super.detach()
     }
 

@@ -318,17 +318,28 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
             (key && this.data?.[key])
 
           if (existingData != null && typeof existingData === 'object' && form.setSubmission) {
-            form.setSubmission({ data: existingData }, { noValidate: true })
+            await form.setSubmission({ data: existingData }, { noValidate: true })
           }
           this._pendingValue = undefined
 
-          // Apply initial focus if configured
-          if (this.component?.autofocus) {
-            requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Apply initial focus if configured.
+            if (this.component?.autofocus) {
               const firstInput = placeholder.querySelector('input, select, textarea') as HTMLElement | null
               if (firstInput) firstInput.focus()
-            })
-          }
+            }
+
+            const payload = {
+              component: this,
+              embeddedForm: form,
+              key: this.component?.key,
+            }
+            const eventTarget =
+              this.root && typeof (this.root as any).emit === 'function'
+                ? (this.root as any)
+                : this
+            eventTarget.emit('referencedFormReady', payload)
+          })
 
           form.on('change', () => {
             const key = this.component?.key

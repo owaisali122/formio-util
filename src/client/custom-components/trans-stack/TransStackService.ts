@@ -2,7 +2,7 @@
 // UI layer uses this interface. Swap the implementation to connect to a
 // real backend — the table component never needs to change.
 
-export interface DataGridFetchParams {
+export interface TransStackFetchParams {
   page: number
   pageSize: number
   sortField?: string
@@ -11,7 +11,7 @@ export interface DataGridFetchParams {
   group?: string
 }
 
-export interface DataGridGroupRow {
+export interface TransStackGroupRow {
   _isGroup: true
   groupKey: string
   groupValue: string
@@ -19,11 +19,11 @@ export interface DataGridGroupRow {
   children: Record<string, unknown>[]
 }
 
-export type DataGridRow = Record<string, unknown>
+export type TransStackRow = Record<string, unknown>
 
-export interface DataGridFetchResult {
+export interface TransStackFetchResult {
   /** Flat rows or grouped rows */
-  rows: (DataGridRow | DataGridGroupRow)[]
+  rows: (TransStackRow | TransStackGroupRow)[]
   /** Total row count (for server-side pagination) */
   total: number
 }
@@ -42,7 +42,7 @@ export function resolvePath(obj: unknown, path: string): unknown {
 }
 
 /** Configuration derived from the Form.io component schema */
-export interface DataGridServiceConfig {
+export interface TransStackServiceConfig {
   apiEndpoint: string
   apiMethod: string
   dataPath: string
@@ -67,9 +67,9 @@ export interface DataGridServiceConfig {
  * Supports secure API calls with Basic Auth and partner-id header.
  */
 export async function fetchServerData(
-  config: DataGridServiceConfig,
-  params: DataGridFetchParams,
-): Promise<DataGridFetchResult> {
+  config: TransStackServiceConfig,
+  params: TransStackFetchParams,
+): Promise<TransStackFetchResult> {
   const url = new URL(config.apiEndpoint, window.location.origin)
 
   url.searchParams.set(config.pageParamName, String(params.page))
@@ -104,7 +104,7 @@ export async function fetchServerData(
   if (!res.ok) throw new Error(`Data fetch failed: ${res.status}`)
 
   const json = await res.json()
-  const rows = (resolvePath(json, config.dataPath) as DataGridRow[]) || []
+  const rows = (resolvePath(json, config.dataPath) as TransStackRow[]) || []
   const total = (resolvePath(json, config.totalCountPath) as number) || rows.length
 
   return { rows, total }

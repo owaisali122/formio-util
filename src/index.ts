@@ -61,8 +61,8 @@ export type { ReactSmartStreetComponentProps, ReactSmartStreetWrapperProps } fro
 export {
   FileUploaderComponent,
   FILE_UPLOADER_TYPE,
-} from './components/FileUploader'
-export type { FileUploaderSchema } from './components/FileUploader'
+} from './components/FileUpload'
+export type { FileUploaderSchema } from './components/FileUpload'
 
 export {
   ProfileFieldSectionComponent,
@@ -73,14 +73,14 @@ export type { ProfileFieldSectionSchema } from './components/ProfileFieldSection
 export {
   TanStackTableComponent,
   TANSTACK_TABLE_TYPE,
-} from './components/DataGrid'
-export type { DataGridSchema, DataGridColumn } from './components/DataGrid'
+} from './components/TransStack'
+export type { TransStackSchema, TransStackColumn } from './components/TransStack'
 
 export {
-  GenericPopupComponent,
-  GENERIC_POPUP_TYPE,
-} from './components/GenericPopup'
-export type { GenericPopupSchema, GenericPopupButtonSchema } from './components/GenericPopup'
+  PopupComponent,
+  POPUP_COMPONENT_TYPE,
+} from './components/PopupComponent'
+export type { PopupComponentSchema, PopupComponentButtonSchema } from './components/PopupComponent'
 
 export {
   ProgressBarComponent,
@@ -89,13 +89,49 @@ export {
 export type { ProgressBarSchema } from './components/ProgressBar'
 
 export {
-  FileViewerComponent,
-  FILE_VIEWER_TYPE,
-} from './components/FileViewer'
-export type { FileViewerSchema } from './components/FileViewer'
-
-export {
   FileDownloadComponent,
   FILE_DOWNLOAD_TYPE,
 } from './components/FileDownload'
 export type { FileDownloadSchema } from './components/FileDownload'
+
+export {
+  FormReviewComponent,
+  FORM_REVIEW_TYPE,
+} from './components/FormReview'
+export type {
+  FormReviewSchema,
+  FormReviewSectionSchema,
+  FormReviewItemSchema,
+} from './components/FormReview'
+
+export {
+  DatePickerComponent,
+  DATE_PICKER_TYPE,
+} from './components/DatePicker'
+export type { DatePickerSchema } from './components/DatePicker'
+
+export { DatePickerInput, parseDateString, formatDateString, parseDisabledDates, parseDisabledRanges } from './components/DatePickerInput'
+export type { DatePickerInputProps, DateRangeValue, DisabledDateRange } from './components/DatePickerInput'
+
+export {
+  TabIndexManagerComponent,
+  TAB_INDEX_MANAGER_TYPE,
+} from './components/TabIndexManager'
+export type { TabIndexManagerSchema, TabIndexManagerRow } from './components/TabIndexManager'
+
+export { setupTabIndexManagerDropdown, collectBuilderKeys } from './registries/register-tab-index-manager'
+
+export {
+  buildComponentMap,
+  resolveLabel,
+  getSubmissionValue,
+  formatValue,
+  resolveSections,
+} from './utils/form-review-helpers'
+export type {
+  ReviewItemConfig,
+  ReviewSectionConfig,
+  FormReviewSettings,
+  ResolvedReviewItem,
+  ResolvedReviewSection,
+} from './utils/form-review-helpers'

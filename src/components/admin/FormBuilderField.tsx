@@ -3,7 +3,7 @@
 import { useField } from '@payloadcms/ui'
 import { FormBuilder } from 'kolea-shared-package'
 import type { FormBuilderSchema } from 'kolea-shared-package'
-import { getFormsListUrl } from '@/config/formio'
+import { getFormsListUrl } from '../../config/formio'
 
 function FormBuilderField() {
   const { value, setValue } = useField<FormBuilderSchema>()

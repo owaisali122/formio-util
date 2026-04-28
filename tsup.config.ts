@@ -12,7 +12,7 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: false,
-  external: ['formiojs', 'react', 'react-dom', 'react-select', 'react-select/async', '@tanstack/react-table'],
+  external: ['formiojs', 'react', 'react-dom', 'react-pdf', 'react-select', 'react-select/async', '@tanstack/react-table'],
   splitting: false,
   treeshake: true,
   esbuildOptions(options) {

@@ -1,13 +1,17 @@
 import { registerReferencedForm, setupReferencedFormDropdown } from './registries/register-referenced-form'
 import { registerSSN } from './registries/register-ssn'
 import { registerSmartStreet } from './registries/register-smart-street'
-import { registerFileUploader } from './registries/register-file-uploader'
+import { registerFileUploader } from './registries/register-file-upload'
 import { registerProfileFieldSection } from './registries/register-profile-field-section'
-import { registerTanStackTable } from './registries/register-data-grid'
-import { registerGenericPopup } from './registries/register-generic-popup'
+import { registerTanStackTable } from './registries/register-trans-stack'
+import { registerPopupComponent } from './registries/register-popup-component'
 import { registerProgressBar } from './registries/register-progress-bar'
-import { registerFileViewer } from './registries/register-file-viewer'
 import { registerFileDownload } from './registries/register-file-download'
+import { registerDocumentViewer } from './registries/register-document-viewer'
+import { registerFormReview } from './registries/register-form-review'
+import { registerDatePicker, setupDatePickerEditForm } from './registries/register-date-picker'
+import { registerTabIndexManager } from './registries/register-tab-index-manager'
+import { setupTabIndexManagerDropdown } from './registries/register-tab-index-manager'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -74,10 +78,22 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFileUploader(Components)
     await registerProfileFieldSection(Components)
     await registerTanStackTable(Components)
-    await registerGenericPopup(Components)
+    await registerPopupComponent(Components)
     await registerProgressBar(Components)
-    await registerFileViewer(Components)
     await registerFileDownload(Components)
+    await registerDocumentViewer(Components)
+    await registerFormReview(Components)
+    await registerDatePicker(Components)
+    await registerTabIndexManager(Components)
+
+    // Override built-in datetime component: preserve typed value on invalid blur
+    // and show an inline validation error instead of silently clearing the field.
+    const DateTimeBase = (FormioModuleObj.Components as any)?.components?.datetime
+    if (DateTimeBase) {
+      const { createDateTimeOverrideClass } = await import('./client/custom-components/DateTimeFormIO')
+      const CustomDateTime = createDateTimeOverrideClass(DateTimeBase)
+      Components.setComponent('datetime', CustomDateTime as never)
+    }
 
     // Register runtime Referenced Form component for renderer.
     // This uses the base FieldComponent so it plays nicely with Form.io's
@@ -93,9 +109,11 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // For each runtime class, preserve the designer statics (editForm,
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
-
-        const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploaderFormIO')
+        console.log('Registering fileUploader runtime...')
+        const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploadFormIO')
+        console.log('Imported FileUploadFormIO successfully')
         const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
+        console.log('Created FileUploader runtime class successfully')
         const ExistingFileUploader = (Components as any).components?.fileUploader
         if (ExistingFileUploader) {
           if (ExistingFileUploader.editForm) FileUploaderRuntime.editForm = ExistingFileUploader.editForm
@@ -111,7 +129,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileUploader', FileUploaderRuntime as never)
-
+      console.log('Registered fileUploader runtime successfully')
         const TextFieldComponent = (FormioModuleObj.Components as any)?.components?.textfield
         if (TextFieldComponent) {
           const ExistingSSN = (Components as any).components?.ssn
@@ -134,7 +152,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
           Components.setComponent('ssn', SSNRuntime as never)
         }
-
+          console.log('Registered ssn runtime successfully')
         const FieldsetComponent = (FormioModuleObj.Components as any)?.components?.fieldset
         if (FieldsetComponent) {
           const { default: createProfileFieldSectionClass } = await import('./client/custom-components/ProfileFieldSectionFormIO')
@@ -157,7 +175,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
 
         // TanStack Table runtime
-        const { default: createTanStackTableClass } = await import('./client/custom-components/data-grid/DataGridFormIO')
+        const { default: createTanStackTableClass } = await import('./client/custom-components/trans-stack/TransStackFormIO')
         const TanStackTableRuntime = createTanStackTableClass(FieldComponent)
         const ExistingTanStackTable = (Components as any).components?.tanstackTable
         if (ExistingTanStackTable) {
@@ -175,24 +193,24 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
         Components.setComponent('tanstackTable', TanStackTableRuntime as never)
 
-        // Generic Popup runtime
-        const { createGenericPopupClass } = await import('./client/custom-components/GenericPopupFormIO')
-        const GenericPopupRuntime = createGenericPopupClass(FieldComponent)
-        const ExistingGenericPopup = (Components as any).components?.genericPopup
-        if (ExistingGenericPopup) {
-          if (ExistingGenericPopup.editForm) GenericPopupRuntime.editForm = ExistingGenericPopup.editForm
-          if (ExistingGenericPopup.builderInfo) {
-            Object.defineProperty(GenericPopupRuntime, 'builderInfo', {
-              get: () => ExistingGenericPopup.builderInfo,
+        // Popup Component runtime
+        const { createPopupComponentClass } = await import('./client/custom-components/PopupComponentFormIO')
+        const PopupComponentRuntime = createPopupComponentClass(FieldComponent)
+        const ExistingPopupComponent = (Components as any).components?.popupComponent
+        if (ExistingPopupComponent) {
+          if (ExistingPopupComponent.editForm) PopupComponentRuntime.editForm = ExistingPopupComponent.editForm
+          if (ExistingPopupComponent.builderInfo) {
+            Object.defineProperty(PopupComponentRuntime, 'builderInfo', {
+              get: () => ExistingPopupComponent.builderInfo,
               configurable: true,
             })
           }
-          const origGenericPopupSchema = ExistingGenericPopup.schema
-          if (typeof origGenericPopupSchema === 'function') {
-            GenericPopupRuntime.schema = origGenericPopupSchema.bind(ExistingGenericPopup)
+          const origPopupComponentSchema = ExistingPopupComponent.schema
+          if (typeof origPopupComponentSchema === 'function') {
+            PopupComponentRuntime.schema = origPopupComponentSchema.bind(ExistingPopupComponent)
           }
         }
-        Components.setComponent('genericPopup', GenericPopupRuntime as never)
+        Components.setComponent('popupComponent', PopupComponentRuntime as never)
 
         // Progress Bar runtime
         const { createProgressBarClass } = await import('./client/custom-components/ProgressBarFormIO')
@@ -213,25 +231,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         }
         Components.setComponent('progressBar', ProgressBarRuntime as never)
 
-        // File Viewer runtime
-        const { default: createFileViewerClass } = await import('./client/custom-components/FileViewerFormIO')
-        const FileViewerRuntime = createFileViewerClass(FieldComponent)
-        const ExistingFileViewer = (Components as any).components?.fileViewer
-        if (ExistingFileViewer) {
-          if (ExistingFileViewer.editForm) FileViewerRuntime.editForm = ExistingFileViewer.editForm
-          if (ExistingFileViewer.builderInfo) {
-            Object.defineProperty(FileViewerRuntime, 'builderInfo', {
-              get: () => ExistingFileViewer.builderInfo,
-              configurable: true,
-            })
-          }
-          const origFileViewerSchema = ExistingFileViewer.schema
-          if (typeof origFileViewerSchema === 'function') {
-            FileViewerRuntime.schema = origFileViewerSchema.bind(ExistingFileViewer)
-          }
-        }
-        Components.setComponent('fileViewer', FileViewerRuntime as never)
-
         // File Download runtime
         const { default: createFileDownloadClass } = await import('./client/custom-components/FileDownloadFormIO')
         const FileDownloadRuntime = createFileDownloadClass(FieldComponent)
@@ -250,8 +249,86 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileDownload', FileDownloadRuntime as never)
+
+        // Document Viewer runtime
+        const { default: createDocumentViewerClass } = await import('./client/custom-components/DocumentViewerFormIO')
+        const DocumentViewerRuntime = createDocumentViewerClass(FieldComponent)
+        const ExistingDocumentViewer = (Components as any).components?.documentViewer
+        if (ExistingDocumentViewer) {
+          if (ExistingDocumentViewer.editForm) DocumentViewerRuntime.editForm = ExistingDocumentViewer.editForm
+          if (ExistingDocumentViewer.builderInfo) {
+            Object.defineProperty(DocumentViewerRuntime, 'builderInfo', {
+              get: () => ExistingDocumentViewer.builderInfo,
+              configurable: true,
+            })
+          }
+          const origDocumentViewerSchema = ExistingDocumentViewer.schema
+          if (typeof origDocumentViewerSchema === 'function') {
+            DocumentViewerRuntime.schema = origDocumentViewerSchema.bind(ExistingDocumentViewer)
+          }
+        }
+        Components.setComponent('documentViewer', DocumentViewerRuntime as never)
+
+        // Form Review runtime
+        const { default: createFormReviewClass } = await import('./client/custom-components/FormReviewFormIO')
+        const FormReviewRuntime = createFormReviewClass(FieldComponent)
+        const ExistingFormReview = (Components as any).components?.formReview
+        if (ExistingFormReview) {
+          if (ExistingFormReview.editForm) FormReviewRuntime.editForm = ExistingFormReview.editForm
+          if (ExistingFormReview.builderInfo) {
+            Object.defineProperty(FormReviewRuntime, 'builderInfo', {
+              get: () => ExistingFormReview.builderInfo,
+              configurable: true,
+            })
+          }
+          const origFormReviewSchema = ExistingFormReview.schema
+          if (typeof origFormReviewSchema === 'function') {
+            FormReviewRuntime.schema = origFormReviewSchema.bind(ExistingFormReview)
+          }
+        }
+        Components.setComponent('formReview', FormReviewRuntime as never)
+
+        // Date Picker runtime
+        const { default: createDatePickerClass } = await import('./client/custom-components/DatePickerFormIO')
+        const DatePickerRuntime = createDatePickerClass(FieldComponent)
+        const ExistingDatePicker = (Components as any).components?.datePicker
+        if (ExistingDatePicker) {
+          if (ExistingDatePicker.editForm) DatePickerRuntime.editForm = ExistingDatePicker.editForm
+          if (ExistingDatePicker.builderInfo) {
+            Object.defineProperty(DatePickerRuntime, 'builderInfo', {
+              get: () => ExistingDatePicker.builderInfo,
+              configurable: true,
+            })
+          }
+          const origDatePickerSchema = ExistingDatePicker.schema
+          if (typeof origDatePickerSchema === 'function') {
+            DatePickerRuntime.schema = origDatePickerSchema.bind(ExistingDatePicker)
+          }
+        }
+        Components.setComponent('datePicker', DatePickerRuntime as never)
+
+        // Tab Index Manager runtime
+        const { default: createTabIndexManagerClass } = await import('./client/custom-components/TabIndexManagerFormIO')
+        const TabIndexManagerRuntime = createTabIndexManagerClass(FieldComponent)
+        const ExistingTabIndexManager = (Components as any).components?.tabIndexManager
+        if (ExistingTabIndexManager) {
+          if (ExistingTabIndexManager.editForm) TabIndexManagerRuntime.editForm = ExistingTabIndexManager.editForm
+          if (ExistingTabIndexManager.builderInfo) {
+            Object.defineProperty(TabIndexManagerRuntime, 'builderInfo', {
+              get: () => ExistingTabIndexManager.builderInfo,
+              configurable: true,
+            })
+          }
+          const origTabIndexManagerSchema = ExistingTabIndexManager.schema
+          if (typeof origTabIndexManagerSchema === 'function') {
+            TabIndexManagerRuntime.schema = origTabIndexManagerSchema.bind(ExistingTabIndexManager)
+          }
+        }
+        Components.setComponent('tabIndexManager', TabIndexManagerRuntime as never)
       }
-    } catch {
+    } catch(error) {
+        console.error('Custom Form.io runtime registration failed:', error)
+         throw error
       // If registration fails, designer behavior remains intact; renderer
       // simply won't have the runtime components.
     }
@@ -268,6 +345,8 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
       const originalReady = formBuilder.ready
       formBuilder.ready = originalReady.then((instance) => {
         setupReferencedFormDropdown(instance)
+        setupTabIndexManagerDropdown(instance)
+        setupDatePickerEditForm(instance)
         return instance
       }) as typeof formBuilder.ready
       return formBuilder
@@ -320,12 +399,10 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           radio: true,
           button: true,
           currency: true,
-          datetime: true,
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
           fileUploader: true,
-          fileViewer: true,
           fileDownload: true,
         },
       },
@@ -338,8 +415,8 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           columns: true,
           panel: true,
           well: true,
-          tanstackTable: true,
           profileFieldSection: true,
+          formReview: true,
         },
       },
       data: { default: false },
@@ -349,4 +426,4 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
   }
 }
 
-export { setupReferencedFormDropdown }
+export { setupDatePickerEditForm, setupReferencedFormDropdown, setupTabIndexManagerDropdown }

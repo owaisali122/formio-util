@@ -1,58 +1,90 @@
-// Backward-compatible alias — existing forms store type: 'ssn' in their JSON schema
-export const SSN_TYPE = 'ssn'
-// New primary type constant for forms created going forward
-export const TAX_ID_TYPE = 'taxId'
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface TaxIdSchema {
+export interface PopupComponentButtonSchema {
+  label: string
+  actionKey: string
+  variant: string
+  icon: string
+  closeOnClick: boolean
+  disabled: boolean
+}
+
+export interface PopupComponentSchema {
   type: string
   label: string
   key: string
   input: boolean
-  tableView: boolean
-  inputMask: string
-  placeholder: string
-  masked: boolean
-  maskedDisplayMode: 'last4' | 'fullMask'
-  maskCharacter: string
-  allowToggleMask: boolean
-  preventCopy: boolean
-  hidden: boolean
+  /** Visual purpose */
+  popupVariant: string
+  /** Popup title */
+  popupTitle: string
+  /** Popup body message */
+  popupMessage: string
+  /** Font Awesome icon class */
+  popupIcon: string
+  /** Modal size: sm | md | lg */
+  popupSize: string
+  /** JSON array of button definitions */
+  popupButtons: string
+  /** Label on the trigger button rendered inside the form */
+  triggerLabel: string
+  /** Font Awesome icon on the trigger button */
+  triggerIcon: string
+  showCloseIcon: boolean
+  closeOnBackdrop: boolean
+  closeOnEscape: boolean
+  /** Focus the trigger button when the form loads */
   autofocus: boolean
-  /** Controls which tax ID formats are accepted: 'any' (SSN or ITIN), 'ssn', or 'itin' */
-  validationMode: 'any' | 'ssn' | 'itin'
-  [k: string]: unknown
+  /** Hide this component */
+  hidden: boolean
+  /** Disable the trigger button */
+  disabled: boolean
 }
 
-export class TaxIdComponent {
-  static schema(overrides?: Record<string, unknown>): TaxIdSchema {
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+export const POPUP_COMPONENT_TYPE = 'popupComponent'
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+/**
+ * Form.io Designer (builder-side) component definition for Popup Component.
+ *
+ * Reference pattern: SmartStreetDropdownComponent (src/components/SmartStreetDropdown.ts)
+ */
+export class PopupComponent {
+  static schema(overrides?: Partial<PopupComponentSchema>): PopupComponentSchema {
     return {
-      type: SSN_TYPE,
-      label: 'SSN / ITIN',
-      key: 'taxId',
-      input: true,
-      tableView: false,
-      inputMask: '999-99-9999',
-      placeholder: '___-__-____',
-      masked: true,
-      maskedDisplayMode: 'last4',
-      maskCharacter: '*',
-      allowToggleMask: true,
-      preventCopy: true,
-      hidden: false,
+      type: POPUP_COMPONENT_TYPE,
+      label: 'Popup Component',
+      key: 'popupComponent',
+      input: false,
+      popupVariant: 'confirm',
+      popupTitle: 'Are you sure?',
+      popupMessage: '',
+      popupIcon: '',
+      popupSize: 'md',
+      popupButtons: '',
+      triggerLabel: 'Open Popup',
+      triggerIcon: '',
+      showCloseIcon: true,
+      closeOnBackdrop: false,
+      closeOnEscape: true,
       autofocus: false,
-      validationMode: 'any',
+      hidden: false,
+      disabled: false,
       ...overrides,
     }
   }
 
   static get builderInfo() {
     return {
-      title: 'SSN / ITIN',
+      title: 'Popup',
       group: 'basic',
-      icon: 'id-card',
-      weight: 26,
-      documentation: 'SSN or ITIN input with NNN-NN-NNNN masking, reveal toggle, and configurable validation.',
-      schema: TaxIdComponent.schema(),
+      icon: 'window-restore',
+      weight: 35,
+      documentation: 'A configurable popup/modal that renders at page-root level',
+      schema: PopupComponent.schema(),
     }
   }
 
@@ -63,7 +95,7 @@ export class TaxIdComponent {
           type: 'tabs',
           key: 'tabs',
           components: [
-            // ── Display tab ─────────────────────────────────────────
+            // ── Display tab ─────────────────────────────────────────────────
             {
               label: 'Display',
               key: 'display',
@@ -71,30 +103,30 @@ export class TaxIdComponent {
                 {
                   type: 'textfield',
                   key: 'label',
-                  label: 'Label',
+                  label: 'Component Label',
                   input: true,
-                  required: true,
-                  validate: {
-                    required: true,
-                  },
-                  defaultValue: 'SSN / ITIN',
-                  weight: 10,
+                  defaultValue: 'Popup Component',
+                  weight: 5,
+                  tooltip: 'Label shown in the Form.io designer sidebar and builder',
                 },
                 {
                   type: 'textfield',
-                  key: 'placeholder',
-                  label: 'Placeholder',
+                  key: 'triggerLabel',
+                  label: 'Trigger Button Label',
                   input: true,
-                  defaultValue: '___-__-____',
-                  weight: 20,
+                  required: true,
+                  validate: { required: true },
+                  defaultValue: 'Open Popup',
+                  weight: 10,
+                  tooltip: 'Text displayed on the button that opens the popup. This field is required.',
                 },
                 {
-                  type: 'textarea',
-                  key: 'description',
-                  label: 'Description',
+                  type: 'textfield',
+                  key: 'triggerIcon',
+                  label: 'Trigger Button Icon (Font Awesome class)',
                   input: true,
-                  defaultValue: 'Enter your 9-digit SSN or ITIN (NNN-NN-NNNN)',
-                  weight: 30,
+                  placeholder: 'e.g. fa fa-bell',
+                  weight: 15,
                 },
                 {
                   type: 'checkbox',
@@ -102,9 +134,8 @@ export class TaxIdComponent {
                   label: 'Initial Focus',
                   input: true,
                   defaultValue: false,
-                  weight: 40,
-                  tooltip:
-                    'When enabled, this field receives focus when the form loads.',
+                  weight: 20,
+                  tooltip: 'Automatically focus the trigger button when the form loads.',
                 },
                 {
                   type: 'checkbox',
@@ -112,9 +143,8 @@ export class TaxIdComponent {
                   label: 'Hidden',
                   input: true,
                   defaultValue: false,
-                  weight: 50,
-                  tooltip:
-                    'When enabled, this component is hidden from the form.',
+                  weight: 25,
+                  tooltip: 'Hide this component from the form. Can be toggled via conditional logic.',
                 },
                 {
                   type: 'checkbox',
@@ -122,137 +152,79 @@ export class TaxIdComponent {
                   label: 'Disabled',
                   input: true,
                   defaultValue: false,
-                  weight: 60,
-                },
-              ],
-            },
-            // ── Masking tab ─────────────────────────────────────────
-            {
-              label: 'Masking',
-              key: 'masking',
-              components: [
-                {
-                  type: 'checkbox',
-                  key: 'masked',
-                  label: 'Enable Masked Display',
-                  input: true,
-                  defaultValue: true,
-                  description: 'When enabled, the SSN / ITIN is masked when not being edited.',
-                  weight: 10,
-                },
-                {
-                  type: 'select',
-                  key: 'maskedDisplayMode',
-                  label: 'Default Display Mode',
-                  input: true,
-                  required: true,
-                  validate: {
-                    required: true,
-                  },
-                  defaultValue: 'last4',
-                  data: {
-                    values: [
-                      { label: 'Show Last 4 Digits (***-**-1234)', value: 'last4' },
-                      { label: 'Fully Masked (***-**-****)', value: 'fullMask' },
-                    ],
-                  },
-                  description: 'How the SSN / ITIN appears when masked.',
-                  weight: 20,
-                },
-                {
-                  type: 'textfield',
-                  key: 'maskCharacter',
-                  label: 'Mask Character',
-                  input: true,
-                  defaultValue: '*',
-                  placeholder: '*',
-                  description: 'Single character used to replace hidden digits.',
                   weight: 30,
-                },
-                {
-                  type: 'checkbox',
-                  key: 'allowToggleMask',
-                  label: 'Enable Eye Icon Toggle',
-                  input: true,
-                  defaultValue: true,
-                  description: 'Show an eye icon that lets the user reveal or hide the full SSN / ITIN.',
-                  weight: 40,
-                },
-                {
-                  type: 'checkbox',
-                  key: 'preventCopy',
-                  label: 'Prevent Copy',
-                  input: true,
-                  defaultValue: true,
-                  description: 'Prevent the user from copying the SSN value.',
-                  weight: 50,
+                  tooltip: 'Disable the trigger button so it cannot be clicked.',
                 },
               ],
             },
-            // ── Validation tab ──────────────────────────────────────
+            // ── Popup Content tab ───────────────────────────────────────────
             {
-              label: 'Validation',
-              key: 'validation',
+              label: 'Popup Content',
+              key: 'popupContent',
               components: [
                 {
-                  type: 'checkbox',
-                  key: 'validate.required',
-                  label: 'Required',
-                  input: true,
-                  defaultValue: false,
-                  weight: 10,
-                },
-                {
                   type: 'select',
-                  key: 'validationMode',
-                  label: 'Validation Mode',
+                  key: 'popupVariant',
+                  label: 'Variant',
                   input: true,
-                  required: true,
-                  validate: { required: true },
-                  defaultValue: 'any',
                   dataSrc: 'values',
+                  defaultValue: 'confirm',
+                  weight: 5,
                   data: {
                     values: [
-                      { label: 'SSN or ITIN', value: 'any' },
-                      { label: 'SSN Only', value: 'ssn' },
-                      { label: 'ITIN Only', value: 'itin' },
+                      { label: 'Confirm', value: 'confirm' },
+                      { label: 'Alert', value: 'alert' },
+                      { label: 'Warning', value: 'warning' },
+                      { label: 'Delete', value: 'delete' },
+                      { label: 'Custom', value: 'custom' },
                     ],
                   },
-                  description: 'Controls which tax ID formats are accepted during validation.',
-                  weight: 15,
+                  tooltip: 'Controls default icon and button set when no custom buttons are defined',
                 },
                 {
                   type: 'textfield',
-                  key: 'validate.customMessage',
-                  label: 'Custom Error Message',
+                  key: 'popupTitle',
+                  label: 'Title',
                   input: true,
-                  placeholder: 'Please enter a valid SSN / ITIN',
-                  description: 'Error message shown when validation fails.',
+                  defaultValue: 'Are you sure?',
+                  weight: 10,
+                },
+                {
+                  type: 'textarea',
+                  key: 'popupMessage',
+                  label: 'Message / Body Text',
+                  input: true,
+                  weight: 15,
+                  rows: 3,
+                },
+                {
+                  type: 'textfield',
+                  key: 'popupIcon',
+                  label: 'Header Icon (Font Awesome class)',
+                  input: true,
+                  placeholder: 'e.g. fa fa-exclamation-triangle',
                   weight: 20,
+                  tooltip: 'Overrides the default variant icon',
                 },
                 {
-                  type: 'textarea',
-                  key: 'validate.custom',
-                  label: 'Custom Validation (JavaScript)',
+                  type: 'select',
+                  key: 'popupSize',
+                  label: 'Size',
                   input: true,
-                  rows: 5,
-                  weight: 30,
-                  description:
-                    'Write custom JavaScript validation. Set "valid" to true or an error message string. Available variables: valid, input, data, row, component, instance.',
-                },
-                {
-                  type: 'textarea',
-                  key: 'customDefaultValue',
-                  label: 'Custom Default Value',
-                  input: true,
-                  rows: 5,
-                  weight: 40,
-                  description:
-                    'Write custom JavaScript for the default value. Set the "value" variable.',
+                  dataSrc: 'values',
+                  defaultValue: 'md',
+                  weight: 25,
+                  data: {
+                    values: [
+                      { label: 'Small (380px)', value: 'sm' },
+                      { label: 'Medium (520px)', value: 'md' },
+                      { label: 'Large (720px)', value: 'lg' },
+                    ],
+                  },
                 },
               ],
             },
-            // ── API tab ─────────────────────────────────────────────
+            // ── API tab ──────────────────────────────────────────────────────
             {
               label: 'API',
               key: 'api',
@@ -263,17 +235,89 @@ export class TaxIdComponent {
                   label: 'Property Name',
                   input: true,
                   required: true,
-                  validate: {
-                    required: true,
-                  },
-                  defaultValue: 'taxId',
-                  description:
-                    'Unique key for this component (e.g. taxId).',
+                  validate: { required: true },
+                  defaultValue: 'popupComponent',
+                  description: 'Unique key for this component used in form submission data and event handling (e.g. popupComponent).',
                   weight: 10,
                 },
               ],
             },
-            // ── Conditional tab ─────────────────────────────────────
+            // ── Buttons tab ─────────────────────────────────────────────────
+            {
+              label: 'Buttons',
+              key: 'buttons',
+              components: [
+                {
+                  type: 'textarea',
+                  key: 'popupButtons',
+                  label: 'Custom Buttons (JSON)',
+                  input: true,
+                  rows: 8,
+                  weight: 5,
+                  description:
+                    'Define the buttons shown inside the popup. Each button must have a label (the visible text), an actionKey (the identifier emitted with the popupAction event), a variant (primary, secondary, danger, warning, or success), and a closeOnClick flag. Leave blank to use the default buttons for the selected Variant. Example: [{"label":"Confirm","actionKey":"confirm","variant":"primary","closeOnClick":true},{"label":"Cancel","actionKey":"cancel","variant":"secondary","closeOnClick":true}]',
+                  tooltip:
+                    'JSON array of button definitions. Each item: label, actionKey, variant (primary|secondary|danger|warning|success), icon (FA class, optional), closeOnClick (boolean), disabled (boolean, optional).',
+                },
+              ],
+            },
+            // ── Behavior tab ────────────────────────────────────────────────
+            {
+              label: 'Behavior',
+              key: 'behavior',
+              components: [
+                {
+                  type: 'checkbox',
+                  key: 'showCloseIcon',
+                  label: 'Show close (×) icon',
+                  input: true,
+                  defaultValue: true,
+                  weight: 5,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'closeOnBackdrop',
+                  label: 'Close when clicking backdrop',
+                  input: true,
+                  defaultValue: false,
+                  weight: 10,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'closeOnEscape',
+                  label: 'Close on Escape key',
+                  input: true,
+                  defaultValue: true,
+                  weight: 15,
+                },
+              ],
+            },
+            // ── Validation tab ───────────────────────────────────────────────
+            {
+              label: 'Validation',
+              key: 'validation',
+              components: [
+                {
+                  type: 'textfield',
+                  key: 'validate.customMessage',
+                  label: 'Custom Error Message',
+                  input: true,
+                  weight: 10,
+                  description: 'Error message shown when custom validation fails.',
+                },
+                {
+                  type: 'textarea',
+                  key: 'validate.custom',
+                  label: 'Custom Validation (JavaScript)',
+                  input: true,
+                  rows: 5,
+                  weight: 20,
+                  description:
+                    'Write custom JavaScript validation. Set "valid" to true to pass, or set it to an error message string to fail. Available variables: valid, input, data, row, component, instance.',
+                },
+              ],
+            },
+            // ── Conditional tab ──────────────────────────────────────────────
             {
               label: 'Conditional',
               key: 'conditional',
@@ -304,8 +348,7 @@ export class TaxIdComponent {
                       label: 'When the form component:',
                       input: true,
                       weight: 20,
-                      description:
-                        'Enter the API key of the component to check.',
+                      description: 'Enter the API key of the component to check.',
                     },
                     {
                       type: 'textfield',
@@ -342,11 +385,11 @@ export class TaxIdComponent {
                   rows: 5,
                   weight: 30,
                   description:
-                    'Write custom JavaScript. Set "show" to true/false. Available variables: show, data, row, component, instance.',
+                    'Write custom JavaScript. Set "show" to true or false. Available variables: show, data, row, component, instance.',
                 },
               ],
             },
-            // ── Logic tab ───────────────────────────────────────────
+            // ── Logic tab ────────────────────────────────────────────────────
             {
               label: 'Logic',
               key: 'logic',
@@ -457,7 +500,6 @@ export class TaxIdComponent {
                               data: {
                                 values: [
                                   { label: 'Hidden', value: 'hidden' },
-                                  { label: 'Required', value: 'validate.required' },
                                   { label: 'Disabled', value: 'disabled' },
                                 ],
                               },

@@ -63,6 +63,44 @@ function buildAddressDisplayLabel(s: AddressSuggestion): string {
   return [streetLine, cityStateZip].filter(Boolean).join(', ')
 }
 
+// ── Client-side filter helpers ───────────────────────────────────────────
+
+function normalize(value: string | undefined | null): string {
+  return (value ?? '').trim().toLowerCase()
+}
+
+function getAddressKey(s: AddressSuggestion): string {
+  return `${normalize(s.street_line)}|${normalize(s.city)}|${normalize(s.state)}|${normalize(s.zipcode)}`
+}
+
+/**
+ * Removes confusing blank base-address rows from autocomplete results when
+ * more specific secondary variants already exist in the same group.
+ *
+ * Rule: if multiple suggestions share the same street_line/city/state/zipcode
+ * and at least one has a non-empty secondary, drop the row whose secondary is
+ * blank AND entries is 0 or empty.
+ *
+ * Applied only on initial top-level search results — never on secondary expansion.
+ */
+function filterIrrelevantSuggestions(suggestions: AddressSuggestion[]): AddressSuggestion[] {
+  // Single pass: collect keys that have at least one specific secondary
+  const keysWithSecondary = new Set<string>()
+  for (const s of suggestions) {
+    if ((s.secondary ?? '').trim() !== '') {
+      keysWithSecondary.add(getAddressKey(s))
+    }
+  }
+  if (keysWithSecondary.size === 0) return suggestions
+  return suggestions.filter((s) => {
+    const blankSecondary = (s.secondary ?? '').trim() === ''
+    const noEntries = Number(s.entries || 0) === 0
+    return !(blankSecondary && noEntries && keysWithSecondary.has(getAddressKey(s)))
+  })
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 /** The shape stored in Form.io submission data for this component */
 export interface SmartStreetValue {
   selectedLabel: string
@@ -80,6 +118,7 @@ export interface SmartStreetProps {
   addressMapping?: AddressMapping
   onAddressSelected?: (address: AddressResult) => void
   disabled?: boolean
+  tabIndex?: number
 }
 
 // ── Option renderer — shows right-side entries badge only in dropdown menu ──
@@ -140,6 +179,7 @@ function SmartStreetInner({
   addressMapping,
   onAddressSelected,
   disabled = false,
+  tabIndex,
 }: SmartStreetProps) {
   const [options, setOptions] = useState<OptionType[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -218,7 +258,9 @@ function SmartStreetInner({
           const results = await fetchSuggestions(query, selected)
           if (requestIdRef.current !== reqId) return
 
-          const opts = results.map((s) => ({
+          // Apply client-side filter only for top-level (non-selected) searches
+          const filtered = selected === null ? filterIrrelevantSuggestions(results) : results
+          const opts = filtered.map((s) => ({
             value: buildSelectedParam(s),
             label: buildAddressDisplayLabel(s),
             data: s as unknown as SmartStreetDropdownItem,
@@ -416,6 +458,7 @@ function SmartStreetInner({
         isDisabled={disabled}
         classNamePrefix="react-select"
         blurInputOnSelect={false}
+        tabIndex={tabIndex}
       />
 
       {/* Editable address input fields — search field covers Address; show remaining fields */}
@@ -429,6 +472,7 @@ function SmartStreetInner({
             onChange={(e) => handleFieldChange('secondary', e.target.value)}
             aria-label={labels.secondary}
             disabled={disabled}
+            tabIndex={tabIndex}
           />
         </div>
           <div className="mb-2">
@@ -440,6 +484,7 @@ function SmartStreetInner({
             onChange={(e) => handleFieldChange('city', e.target.value)}
             aria-label={labels.city}
             disabled={disabled}
+            tabIndex={tabIndex}
           />
         </div>
          
@@ -452,6 +497,7 @@ function SmartStreetInner({
               onChange={(e) => handleFieldChange('state', e.target.value)}
               aria-label={labels.state}
               disabled={disabled}
+              tabIndex={tabIndex}
             />
           </div>
           <div className="mb-2">
@@ -463,6 +509,7 @@ function SmartStreetInner({
               onChange={(e) => handleFieldChange('zipcode', e.target.value)}
               aria-label={labels.zipcode}
               disabled={disabled}
+              tabIndex={tabIndex}
             />
           </div>
       </div>

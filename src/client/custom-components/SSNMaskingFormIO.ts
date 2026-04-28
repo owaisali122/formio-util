@@ -174,6 +174,11 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
       input.autocomplete = 'off'
       input.setAttribute('inputmode', 'numeric')
 
+      const tabindex = this.component?.tabindex
+      if (tabindex !== '' && tabindex != null) {
+        input.setAttribute('tabindex', String(Number(tabindex)))
+      }
+
       // Avoid double-initializing
       if (input.parentElement?.classList.contains('ssn-wrap')) return
       const wrap = document.createElement('div')

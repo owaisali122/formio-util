@@ -36,6 +36,7 @@ export class SmartStreetDropdownComponent {
         state: 'State',
         zipcode: 'Zipcode',
       },
+      tabindex: '',
       ...overrides,
     }
   }
@@ -100,6 +101,16 @@ export class SmartStreetDropdownComponent {
                   weight: 40,
                 },
                 {
+                  type: 'number',
+                  key: 'tabindex',
+                  label: 'Tab Index',
+                  input: true,
+                  defaultValue: '',
+                  placeholder: '0',
+                  weight: 80,
+                  tooltip: 'Sets the tabindex attribute of this component to override the tab order of the form. See the MDN documentation on tabindex for details.',
+                },
+                {
                   type: 'checkbox',
                   key: 'autofocus',
                   label: 'Initial Focus',
@@ -125,7 +136,7 @@ export class SmartStreetDropdownComponent {
                   defaultValue: false,
                   weight: 70,
                   tooltip: 'When enabled, this component is disabled and the user cannot interact with it.',
-                },
+                }
               ],
             },
             // ── API tab ──────────────────────────────────────────────────────

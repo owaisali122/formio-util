@@ -53,22 +53,31 @@
   "dependencies": {
     "bootstrap": "3.4.1",
     "font-awesome": "^4.7.0",
-    "postgres": ">=3.4.4"
+    "postgres": ">=3.4.4",
+    "react-datepicker": "^9.1.0"
   },
   "peerDependencies": {
     "@tanstack/react-table": ">=8.0.0",
     "formiojs": "^4.21.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
+    "react-pdf": ">=7.0.0",
     "react-select": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-pdf": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@tanstack/react-table": "^8.21.3",
     "@types/react": "^19.0.0",
+    "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^19.0.0",
     "formiojs": "^4.21.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-pdf": "^9.2.1",
     "react-select": "^5.9.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0"

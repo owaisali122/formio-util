@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,16 +16,19 @@ import {
   type ColumnOrderState,
   type ColumnSizingState,
 } from '@tanstack/react-table'
-import type { DataGridFetchParams, DataGridFetchResult, DataGridGroupRow, DataGridRow } from './DataGridService'
-import type { DataGridColumn } from '../../../components/DataGrid'
+import type { TransStackFetchParams, TransStackFetchResult, TransStackGroupRow, TransStackRow } from './TransStackService'
+import type { TransStackColumn } from '../../../components/TransStack'
 import { openPopup } from '../../popup/popupStore'
 import type { PopupButton, PopupConfig } from '../../popup/PopupTypes'
+import { createRoot } from 'react-dom/client'
+import { DocumentViewerContent, resolveFileType } from '../DocumentViewerContent'
+import { triggerFileDownload } from '../fileDownloadUtils'
 
-// ─── Props ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export interface DataGridReactProps {
+export interface TransStackReactProps {
   dataMode: 'client' | 'server'
-  columns: DataGridColumn[]
+  columns: TransStackColumn[]
   // pagination
   paginationEnabled: boolean
   pageSize: number
@@ -50,11 +53,11 @@ export interface DataGridReactProps {
   rowClickUrl: string
   enableRowClickNavigation?: boolean
   /** Called when an 'edit' action is triggered on a row */
-  onEdit?: (row: DataGridRow) => void
+  onEdit?: (row: TransStackRow) => void
   /** Called when a 'delete' action is triggered on a row */
-  onDelete?: (row: DataGridRow) => void
+  onDelete?: (row: TransStackRow) => void
   /** Called when row click navigation is triggered (if enableRowClickNavigation is true) */
-  onRowClick?: (row: DataGridRow) => void
+  onRowClick?: (row: TransStackRow) => void
   // action column
   actionColumnEnabled: boolean
   actionColumnLabel: string
@@ -68,10 +71,10 @@ export interface DataGridReactProps {
    * Data fetcher. For client mode, called once with page=0.
    * For server mode, called on every state change.
    */
-  fetchData: (params: DataGridFetchParams) => Promise<DataGridFetchResult>
+  fetchData: (params: TransStackFetchParams) => Promise<TransStackFetchResult>
 }
 
-// ─── Styles (inline to avoid external CSS dep in shared package) ─────
+// â”€â”€â”€ Styles (inline to avoid external CSS dep in shared package) â”€â”€â”€â”€â”€
 
 const S = {
   wrapper: { width: '100%', fontFamily: 'inherit', fontSize: 13 } as React.CSSProperties,
@@ -101,33 +104,23 @@ const S = {
   clickableRow: { cursor: 'pointer' } as React.CSSProperties,
   actionBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 13 } as React.CSSProperties,
   iconCell: { textAlign: 'center' as const, fontSize: 16 } as React.CSSProperties,
-  /** Resize handle — 5px hit-target absolutely positioned at the right edge of each header cell.
+  /** Resize handle â€” 5px hit-target absolutely positioned at the right edge of each header cell.
    *  Inline styles are required: Bootstrap CSS is not guaranteed in the renderer context. */
   resizeHandle: { position: 'absolute' as const, top: 0, right: 0, height: '100%', width: 5, cursor: 'col-resize', userSelect: 'none' as const, touchAction: 'none' as const, zIndex: 1, display: 'flex' as const, alignItems: 'stretch', justifyContent: 'center' } as React.CSSProperties,
-  /** Inner separator line — background is driven by hover/active state at render time */
+  /** Inner separator line â€” background is driven by hover/active state at render time */
   resizeHandleInner: { width: 2, borderRadius: 1, flexShrink: 0, transition: 'background 0.15s' } as React.CSSProperties,
 } as const
 
-// ─── Helpers ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Interpolate {{fieldKey}} tokens in a URL template using row data */
-function interpolateUrl(template: string, row: DataGridRow): string {
+function interpolateUrl(template: string, row: TransStackRow): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
     encodeURIComponent(String(row[key] ?? '')),
   )
 }
 
-// ─── File viewer helpers (used by 'fileViewer' action type) ──────────
-
-/** Detect content category from Content-Type header */
-function _categoryFromContentType(ct: string): 'image' | 'pdf' | 'video' | 'audio' | 'unknown' {
-  const t = ct.toLowerCase()
-  if (t.includes('pdf')) return 'pdf'
-  if (t.startsWith('image/')) return 'image'
-  if (t.startsWith('video/')) return 'video'
-  if (t.startsWith('audio/')) return 'audio'
-  return 'unknown'
-}
+// â”€â”€â”€ File viewer helpers (used by 'fileViewer' action type) â”€â”€â”€â”€â”€
 
 const _FILE_EXT_MAP: Record<string, 'image' | 'pdf' | 'video' | 'audio'> = {
   jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
@@ -151,29 +144,7 @@ function _escAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-function _buildFileViewerHtml(url: string, pdfViewerMode?: string, fileType?: string): string {
-  const ext = _getFileExt(url)
-  const cat = (fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) ?? _FILE_EXT_MAP[ext] ?? 'unknown'
-  const safe = _escAttr(url)
-  switch (cat) {
-    case 'image':
-      return `<div style="text-align:center;"><img src="${safe}" alt="Preview" style="max-width:100%;height:auto;display:block;margin:0 auto;" /></div>`
-    case 'pdf': {
-      const src = pdfViewerMode === 'google'
-        ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
-        : url
-      return `<iframe src="${_escAttr(src)}" style="width:100%;height:70vh;border:none;" title="PDF Document" allow="fullscreen"></iframe>`
-    }
-    case 'video':
-      return `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;" preload="metadata"><source src="${safe}" />Your browser does not support video playback.</video>`
-    case 'audio':
-      return `<div style="padding:20px;"><audio controls style="width:100%;" preload="metadata"><source src="${safe}" />Your browser does not support audio playback.</audio></div>`
-    default:
-      return `<div style="padding:30px;text-align:center;color:#888;font-size:14px;"><i class="fa fa-file-o" style="font-size:36px;margin-bottom:12px;display:block;"></i>Preview not available for this file type.</div>`
-  }
-}
-
-/** Parsed icon rule: value pattern → icon class + optional text */
+/** Parsed icon rule: value pattern â†’ icon class + optional text */
 interface IconRule {
   pattern: string
   iconClass: string
@@ -182,11 +153,11 @@ interface IconRule {
 }
 
 /** Parse icon map JSON into ordered rules. Keys support glob patterns:
- *  - "active"   → exact match (case-insensitive)
- *  - "active*"  → starts with
- *  - "*active"  → ends with
- *  - "*active*" → contains
- *  - "*"        → catch-all wildcard
+ *  - "active"   â†’ exact match (case-insensitive)
+ *  - "active*"  â†’ starts with
+ *  - "*active"  â†’ ends with
+ *  - "*active*" â†’ contains
+ *  - "*"        â†’ catch-all wildcard
  */
 function parseIconRules(raw?: string): IconRule[] {
   if (!raw) return []
@@ -235,9 +206,9 @@ function resolveIconRule(rules: IconRule[], rawValue: string): IconRule | null {
   return null
 }
 
-// ─── Component ───────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export function DataGridReact(props: DataGridReactProps) {
+export function TransStackReact(props: TransStackReactProps) {
   const {
     dataMode, columns: colDefs, paginationEnabled, pageSize: initialPageSize,
     pageSizeOptions, pageSizeSelectorEnabled,
@@ -252,9 +223,9 @@ export function DataGridReact(props: DataGridReactProps) {
     fetchData,
   } = props
 
-  // ── Local state ──
-  const [data, setData] = useState<DataGridRow[]>([])
-  const [groupedData, setGroupedData] = useState<DataGridGroupRow[]>([])
+  // â”€â”€ Local state â”€â”€
+  const [data, setData] = useState<TransStackRow[]>([])
+  const [groupedData, setGroupedData] = useState<TransStackGroupRow[]>([])
   const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -275,16 +246,17 @@ export function DataGridReact(props: DataGridReactProps) {
     groupingEnabled && groupingField ? [groupingField] : [],
   )
 
-  // Column reorder state — drag-and-drop reordering is UI-only, not persisted
+  // Column reorder state â€” drag-and-drop reordering is UI-only, not persisted
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const dragColumnRef = useRef<string | null>(null)
+  const downloadingButtonsRef = useRef<Set<HTMLElement>>(new Set())
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
-  // Column resize state — session-only, not persisted
+  // Column resize state â€” session-only, not persisted
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
   const [hoveredResizeColId, setHoveredResizeColId] = useState<string | null>(null)
 
-  // ── Debounced search ──
+  // â”€â”€ Debounced search â”€â”€
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
@@ -296,14 +268,14 @@ export function DataGridReact(props: DataGridReactProps) {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchValue, searchDebounce])
 
-  // ── Cleanup ──
+  // â”€â”€ Cleanup â”€â”€
   useEffect(() => {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 
-  // ── Build fetch params ──
-  const buildParams = useCallback((): DataGridFetchParams => {
+  // â”€â”€ Build fetch params â”€â”€
+  const buildParams = useCallback((): TransStackFetchParams => {
     const s = sorting[0]
     return {
       page: pagination.pageIndex,
@@ -315,7 +287,7 @@ export function DataGridReact(props: DataGridReactProps) {
     }
   }, [pagination, sorting, debouncedSearch, groupingEnabled, groupingField])
 
-  // ── Data fetching ──
+  // â”€â”€ Data fetching â”€â”€
   // Server mode: re-fetch whenever params change (pagination, sorting, search).
   // Client mode: fetch once, TanStack handles the rest locally.
   //
@@ -336,12 +308,12 @@ export function DataGridReact(props: DataGridReactProps) {
     fetchDataRef.current(buildParams())
       .then((result) => {
         if (cancelled || !mountedRef.current) return
-        const hasGroups = result.rows.length > 0 && (result.rows[0] as DataGridGroupRow)?._isGroup
+        const hasGroups = result.rows.length > 0 && (result.rows[0] as TransStackGroupRow)?._isGroup
         if (hasGroups) {
-          setGroupedData(result.rows as DataGridGroupRow[])
+          setGroupedData(result.rows as TransStackGroupRow[])
           setData([])
         } else {
-          setData(result.rows as DataGridRow[])
+          setData(result.rows as TransStackRow[])
           setGroupedData([])
         }
         setTotalRows(result.total)
@@ -359,9 +331,9 @@ export function DataGridReact(props: DataGridReactProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode, clientDataLoaded, dataMode === 'server' ? buildParams : null])
 
-  // ── Column definitions for TanStack ──
-  const tanCols = useMemo<ColumnDef<DataGridRow>[]>(() => {
-    const result: ColumnDef<DataGridRow>[] = []
+  // â”€â”€ Column definitions for TanStack â”€â”€
+  const tanCols = useMemo<ColumnDef<TransStackRow>[]>(() => {
+    const result: ColumnDef<TransStackRow>[] = []
 
     // Expansion toggle column
     if (expansionEnabled) {
@@ -373,7 +345,7 @@ export function DataGridReact(props: DataGridReactProps) {
           if (!row.getCanExpand()) return null
           return (
             <button style={S.expandBtn} onClick={row.getToggleExpandedHandler()}>
-              {row.getIsExpanded() ? '▼' : '▶'}
+              {row.getIsExpanded() ? 'â–¼' : 'â–¶'}
             </button>
           )
         },
@@ -384,9 +356,9 @@ export function DataGridReact(props: DataGridReactProps) {
       if (col.visible === false) continue
       const renderType = col.renderType || 'text'
       const parsedWidth = col.width ? parseInt(col.width, 10) || undefined : undefined
-      // colWidth is percentage-based — stored as a CSS string, applied as CSS width on <th> directly
+      // colWidth is percentage-based â€” stored as a CSS string, applied as CSS width on <th> directly
       const cssColWidth = col.minWidth ? `${parseInt(col.minWidth, 10)}%` : undefined
-      const colDef: ColumnDef<DataGridRow> = {
+      const colDef: ColumnDef<TransStackRow> = {
         id: col.key,
         accessorKey: col.key,
         header: col.label || col.key,
@@ -421,14 +393,14 @@ export function DataGridReact(props: DataGridReactProps) {
       let actions: {
         icon?: string
         text?: string
-        /** Navigation URL — supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
+        /** Navigation URL â€” supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
         url?: string
         /**
          * Action type. Defaults to 'url'.
          * - 'url'   : navigate to action.url (existing behaviour)
          * - 'popup' : open the generic popup with action.popup config and row data as payload
          */
-        type?: 'url' | 'popup' | 'edit' | 'delete' | 'fileViewer' | 'fileDownload'
+        type?: 'url' | 'popup' | 'edit' | 'delete' | 'fileViewer' | 'fileDownload' | 'documentView'
         /** Popup configuration for type='popup' actions */
         popup?: {
           title?: string
@@ -468,7 +440,7 @@ export function DataGridReact(props: DataGridReactProps) {
            *
            * 2. **Raw field name** (no `{{}}`):
            *    Reads the field value directly from the row data.
-           *    e.g. `"link"` → uses `row["link"]` as-is.
+           *    e.g. `"link"` â†’ uses `row["link"]` as-is.
            */
           fileUrlField?: string
           /**
@@ -481,8 +453,6 @@ export function DataGridReact(props: DataGridReactProps) {
            * e.g. `"{{formName}}"`
            */
           title?: string
-          /** PDF viewer mode. If omitted, the component auto-detects and fetches. */
-          pdfViewerMode?: 'direct' | 'google' | 'fetch'
           /** Force file type. If omitted, auto-detected from Content-Type header. */
           fileType?: 'pdf' | 'image' | 'video' | 'audio'
         }
@@ -493,17 +463,66 @@ export function DataGridReact(props: DataGridReactProps) {
         fileDownload?: {
           /**
            * File URL source. Same as fileViewer:
-           * Template (`{{fieldKey}}`) → interpolated, else raw field read.
+           * Template (`{{fieldKey}}`) â†’ interpolated, else raw field read.
            */
           fileUrlField?: string
           /** @deprecated Use `fileUrlField`. */
           fileUrl?: string
           /**
            * Optional file name. Supports two modes:
-           * - Template: `"{{formName}}"` → interpolated from row data (no encoding)
-           * - Raw field name: `"formName"` → reads `row["formName"]` directly
+           * - Template: `"{{formName}}"` â†’ interpolated from row data (no encoding)
+           * - Raw field name: `"formName"` â†’ reads `row["formName"]` directly
            */
           fileNameField?: string
+        }
+        /**
+         * Document viewer configuration for type='documentView' actions.
+         * Opens the full DocumentViewerContent React component inside the popup modal.
+         * Supports PDF (with toolbar, find, zoom, rotate, scroll/page mode) and images.
+         * The {{fieldKey}} tokens in fileUrlField, title, and fileNameField are replaced
+         * with the corresponding value from the row data.
+         */
+        documentView?: {
+          /**
+           * File URL. Template (`{{fieldKey}}`) â†’ interpolated from row data (URL-encoded);
+           * plain field name â†’ reads `row[fieldKey]` directly.
+           */
+          fileUrlField?: string
+          /** Modal title. Supports {{fieldKey}} interpolation (not URL-encoded). */
+          title?: string
+          /** File name used by the viewer's download button. Supports {{fieldKey}} interpolation. */
+          fileNameField?: string
+          /**
+           * Force file type. When omitted, auto-detected from URL extension.
+           * If the extension is unrecognised, defaults to 'pdf' (the primary use case).
+           * Set explicitly to 'image' or 'other' if needed.
+           */
+          fileType?: 'pdf' | 'image' | 'other'
+          /** Render mode: 'page' (default, one page at a time) or 'scroll' (all pages stacked). */
+          viewMode?: 'page' | 'scroll'
+          /** Viewer height CSS value. Defaults to '70vh'. */
+          viewerHeight?: string
+          /**
+           * Toolbar configuration. Each key defaults to true â€” omit the key to keep
+           * the button visible, or set it to false to hide it.
+           * Omitting toolbar entirely shows all buttons.
+           */
+          toolbar?: {
+            /** Toggle page thumbnails sidebar. Default: true */
+            thumbnail?: boolean
+            /** Find/search bar toggle button. Default: true */
+            search?: boolean
+            /** Page navigation (prev/next/page input). Default: true */
+            navigation?: boolean
+            /** Zoom controls (in/out/select). Default: true */
+            zoomControls?: boolean
+            /** Rotate CW/CCW buttons. Default: true */
+            rotateButtons?: boolean
+            /** Print button. Default: true */
+            printButton?: boolean
+            /** Download button. Default: true */
+            download?: boolean
+          }
         }
       }[] = []
       try { actions = JSON.parse(actionColumnActions || '[]') } catch { /* invalid JSON */ }
@@ -529,7 +548,7 @@ export function DataGridReact(props: DataGridReactProps) {
                     if (onDelete) onDelete(row.original)
                   } else if (action.type === 'fileViewer' && action.fileViewer) {
                     const fv = action.fileViewer
-                    // Resolve file URL: template (has {{}}) → interpolate (no encoding), else raw field read
+                    // Resolve file URL: template (has {{}}) â†’ interpolate (no encoding), else raw field read
                     let resolvedUrl = ''
                     if (fv.fileUrlField) {
                       resolvedUrl = fv.fileUrlField.includes('{{')
@@ -543,82 +562,35 @@ export function DataGridReact(props: DataGridReactProps) {
                     // Interpolate title without URL encoding
                     const resolvedTitle = fv.title
                       ? fv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
-                      : (action.text || 'File Preview')
+                      : (action.text || 'Document Preview')
 
-                    const fetchUrl = resolvedUrl
-
-                    // Determine approach from extension (quick check for known direct-embeddable types)
                     const extCat = _FILE_EXT_MAP[_getFileExt(resolvedUrl)]
-                    const mode = fv.pdfViewerMode || (extCat === 'image' ? 'direct' : 'fetch')
+                    const detectedCat = (fv.fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) || extCat || 'unknown'
 
-                    if (mode === 'direct' && extCat) {
-                      // Known extension, direct embed (images, known static PDFs, etc.)
-                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'direct', fv.fileType || extCat)
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: viewerHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                      }, { ...row.original })
-                    } else if (mode === 'google') {
-                      const viewerHtml = _buildFileViewerHtml(resolvedUrl, 'google', fv.fileType || 'pdf')
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: viewerHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                      }, { ...row.original })
+                    let bodyHtml: string
+                    if (detectedCat === 'pdf') {
+                      bodyHtml = `<iframe src="${_escAttr(resolvedUrl)}" style="width:100%;height:70vh;border:none;" title="PDF Preview"></iframe>`
+                    } else if (detectedCat === 'image') {
+                      bodyHtml = `<div class="text-center"><img src="${_escAttr(resolvedUrl)}" alt="Preview" class="d-block mx-auto" style="max-width:100%;height:auto;" /></div>`
+                    } else if (detectedCat === 'video') {
+                      bodyHtml = `<video controls class="d-block mx-auto" style="max-width:100%;height:auto;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" />Your browser does not support video playback.</video>`
+                    } else if (detectedCat === 'audio') {
+                      bodyHtml = `<div class="p-3"><audio controls style="width:100%;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" /></audio></div>`
                     } else {
-                      // Fetch mode (default): download file first, auto-detect type, embed blob
-                      const loadingHtml = '<div style="text-align:center;padding:40px;"><i class="fa fa-spinner fa-spin" style="font-size:28px;color:#337ab7;"></i><p style="margin-top:12px;color:#666;font-size:14px;">Loading preview...</p></div>'
-                      openPopup({
-                        title: resolvedTitle,
-                        icon: action.icon || 'fa fa-eye',
-                        variant: 'custom',
-                        size: 'lg',
-                        htmlContent: loadingHtml,
-                        buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
-                        showCloseIcon: true,
-                        closeOnBackdrop: true,
-                        closeOnEscape: true,
-                        onMount: (bodyEl: HTMLElement) => {
-                          fetch(fetchUrl, { credentials: 'include' })
-                            .then(r => {
-                              if (!r.ok) throw new Error(`HTTP ${r.status}`)
-                              const ct = r.headers.get('content-type') || ''
-                              return r.blob().then(blob => ({ blob, ct }))
-                            })
-                            .then(({ blob, ct }) => {
-                              const detectedCat = fv.fileType || _categoryFromContentType(ct) || extCat || 'unknown'
-                              const blobUrl = URL.createObjectURL(blob)
-                              if (detectedCat === 'pdf' || detectedCat === 'unknown') {
-                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
-                              } else if (detectedCat === 'image') {
-                                bodyEl.innerHTML = `<div style="text-align:center;"><img src="${_escAttr(blobUrl)}" alt="Preview" style="max-width:100%;height:auto;" /></div>`
-                              } else if (detectedCat === 'video') {
-                                bodyEl.innerHTML = `<video controls style="max-width:100%;height:auto;display:block;margin:0 auto;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></video>`
-                              } else if (detectedCat === 'audio') {
-                                bodyEl.innerHTML = `<div style="padding:20px;"><audio controls style="width:100%;"><source src="${_escAttr(blobUrl)}" type="${_escAttr(ct)}" /></audio></div>`
-                              } else {
-                                bodyEl.innerHTML = `<iframe src="${_escAttr(blobUrl)}" style="width:100%;height:70vh;border:none;" title="Document" allow="fullscreen"></iframe>`
-                              }
-                            })
-                            .catch(() => {
-                              bodyEl.innerHTML = `<div style="padding:30px;text-align:center;color:#c00;font-size:14px;"><i class="fa fa-exclamation-triangle" style="font-size:28px;margin-bottom:8px;display:block;"></i>Failed to load file preview.<br/><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#337ab7;text-decoration:underline;margin-top:8px;display:inline-block;"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
-                            })
-                        },
-                      }, { ...row.original })
+                      bodyHtml = `<div class="p-4 text-center text-muted"><i class="fa fa-file-o" style="font-size:36px;"></i><p class="mt-2">Preview not available for this file type.</p><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="small"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
                     }
+
+                    openPopup({
+                      title: resolvedTitle,
+                      icon: action.icon || 'fa fa-file-text-o',
+                      variant: 'custom',
+                      size: 'lg',
+                      htmlContent: bodyHtml,
+                      buttons: [{ label: 'Close', actionKey: 'close', variant: 'secondary', closeOnClick: true }],
+                      showCloseIcon: true,
+                      closeOnBackdrop: true,
+                      closeOnEscape: true,
+                    } as PopupConfig, { ...row.original })
                   } else if (action.type === 'fileDownload' && action.fileDownload) {
                     const fd = action.fileDownload
                     let dlUrl = ''
@@ -640,24 +612,99 @@ export function DataGridReact(props: DataGridReactProps) {
                       try { const p = new URL(dlUrl, window.location.origin).pathname.split('/'); return p[p.length - 1] || 'download' } catch { return 'download' }
                     })()
 
-                    // Visual feedback on the button
                     const btnEl = e.currentTarget as HTMLElement
-                    btnEl.style.opacity = '0.4'
+                    if (downloadingButtonsRef.current.has(btnEl)) return
 
-                    fetch(dlUrl, { credentials: 'include' })
-                      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob() })
-                      .then(blob => {
-                        const blobUrl = URL.createObjectURL(blob)
-                        const a = document.createElement('a')
-                        a.href = blobUrl
-                        a.download = dlFileName || fallbackName
-                        a.style.display = 'none'
-                        document.body.appendChild(a)
-                        a.click()
-                        setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove() }, 200)
-                      })
-                      .catch(() => { window.open(dlUrl, '_blank', 'noopener,noreferrer') })
-                      .finally(() => { btnEl.style.opacity = '1' })
+                    const iconEl = btnEl.querySelector('i') as HTMLElement | null
+                    const originalIconClass = iconEl ? iconEl.className : ''
+
+                    downloadingButtonsRef.current.add(btnEl)
+                    btnEl.style.pointerEvents = 'none'
+                    if (iconEl) iconEl.className = 'fa fa-spinner fa-spin'
+
+                    triggerFileDownload(dlUrl, dlFileName || fallbackName).finally(() => {
+                      downloadingButtonsRef.current.delete(btnEl)
+                      btnEl.style.pointerEvents = ''
+                      if (iconEl && originalIconClass) iconEl.className = originalIconClass
+                    })
+                  } else if (action.type === 'documentView' && action.documentView) {
+                    const dv = action.documentView
+                    // Resolve file URL â€” no encoding: link field is often a full path like
+                    // "/api/download/abc123" where encodeURIComponent would break the slashes.
+                    let dvUrl = ''
+                    if (dv.fileUrlField) {
+                      dvUrl = dv.fileUrlField.includes('{{')
+                        ? dv.fileUrlField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[dv.fileUrlField] ?? '')
+                    }
+                    if (!dvUrl) return
+
+                    // Resolve title and fileName (no encoding)
+                    const dvTitle = dv.title
+                      ? dv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                      : (action.text || 'Document Preview')
+                    const dvFileName = dv.fileNameField
+                      ? dv.fileNameField.includes('{{')
+                        ? dv.fileNameField.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
+                        : String(row.original[dv.fileNameField] ?? '')
+                      : undefined
+
+                    const dvHeight = dv.viewerHeight || '70vh'
+
+                    // Resolve toolbar visibility â€” each key defaults to true when omitted.
+                    const tb = dv.toolbar ?? {}
+                    const tbSidebar  = tb.thumbnail !== false
+                    const tbFind     = tb.search !== false
+                    const tbNav      = tb.navigation !== false
+                    const tbZoom     = tb.zoomControls !== false
+                    const tbRotate   = tb.rotateButtons !== false
+                    const tbPrint    = tb.printButton !== false
+                    const tbDownload = tb.download !== false
+
+                    let dvRoot: ReturnType<typeof createRoot> | null = null
+
+                    // Open popup IMMEDIATELY â€” no HEAD request; avoids double network fetch.
+                    // File type: explicit config > URL extension > default 'pdf' (primary use case).
+                    const dvFileType: 'pdf' | 'image' | 'text' | 'other' = dv.fileType
+                      ?? (() => { const t = resolveFileType('auto', dvFileName, dvUrl); return t === 'other' ? 'pdf' : t })()
+
+                    openPopup({
+                      title: dvTitle,
+                      icon: action.icon || 'fa fa-file-text-o',
+                      variant: 'custom',
+                      size: 'lg',
+                      htmlContent: '<div></div>',
+                      buttons: [],
+                      showCloseIcon: true,
+                      closeOnBackdrop: false,
+                      closeOnEscape: true,
+                      onMount: (bodyEl: HTMLElement) => {
+                        const container = document.createElement('div')
+                        bodyEl.appendChild(container)
+                        dvRoot = createRoot(container)
+                        dvRoot.render(
+                          React.createElement(DocumentViewerContent, {
+                            url: dvUrl,
+                            fileType: dvFileType,
+                            fileName: dvFileName,
+                            viewerHeight: dvHeight,
+                            maxWidth: '100%',
+                            fallbackText: 'Preview not available for this file type.',
+                            viewMode: dv.viewMode ?? 'page',
+                            showToolbarSidebar: tbSidebar,
+                            showToolbarFind: tbFind,
+                            showToolbarNavigation: tbNav,
+                            showToolbarZoom: tbZoom,
+                            showToolbarRotate: tbRotate,
+                            showToolbarPrint: tbPrint,
+                            showToolbarDownload: tbDownload,
+                          })
+                        )
+                      },
+                      onClose: () => {
+                        setTimeout(() => { try { dvRoot?.unmount() } catch (_) {} }, 0)
+                      },
+                    } as PopupConfig, { ...row.original })
                   } else if (action.type === 'popup' && action.popup) {
                     // Build popup config from action definition
                     let buttons: PopupButton[] | undefined
@@ -719,14 +766,14 @@ export function DataGridReact(props: DataGridReactProps) {
     setColumnOrder(tanCols.map((c) => c.id!).filter(Boolean))
   }, [tanCols])
 
-  // ── Is server-side grouped response? ──
+  // â”€â”€ Is server-side grouped response? â”€â”€
   const isGroupedResponse = groupedData.length > 0
 
-  // ── TanStack table instance ──
+  // â”€â”€ TanStack table instance â”€â”€
   const table = useReactTable({
     data,
     columns: tanCols,
-    // Column resizing — real-time width update while dragging
+    // Column resizing â€” real-time width update while dragging
     columnResizeMode: 'onChange',
     defaultColumn: { minSize: 50 },
     state: {
@@ -736,7 +783,7 @@ export function DataGridReact(props: DataGridReactProps) {
       columnOrder,
       columnSizing,
       grouping: !isGroupedResponse ? grouping : [],
-      // Client-side global filter — ignored in server mode
+      // Client-side global filter â€” ignored in server mode
       ...(globalSearchEnabled && dataMode === 'client' ? { globalFilter: debouncedSearch } : {}),
     },
     onColumnOrderChange: setColumnOrder,
@@ -764,7 +811,7 @@ export function DataGridReact(props: DataGridReactProps) {
     // Grouping (client-side only via TanStack)
     ...(groupingEnabled && !isGroupedResponse ? { getGroupedRowModel: getGroupedRowModel() } : {}),
     onGroupingChange: setGrouping,
-    // Expansion — sub-rows are rendered manually in a detail panel,
+    // Expansion â€” sub-rows are rendered manually in a detail panel,
     // NOT via TanStack's getSubRows, because child rows typically have
     // a different shape than parent rows.
     onExpandedChange: setExpanded,
@@ -778,7 +825,7 @@ export function DataGridReact(props: DataGridReactProps) {
     getCoreRowModel: getCoreRowModel(),
   })
 
-  // ── Render helpers ──
+  // â”€â”€ Render helpers â”€â”€
 
   const renderToolbar = () => {
     if (!toolbarEnabled) return null
@@ -829,8 +876,8 @@ export function DataGridReact(props: DataGridReactProps) {
     )
   }
 
-  const renderDetailPanel = (row: DataGridRow) => {
-    const subRows = row.subRows as DataGridRow[] | undefined
+  const renderDetailPanel = (row: TransStackRow) => {
+    const subRows = row.subRows as TransStackRow[] | undefined
     if (Array.isArray(subRows) && subRows.length > 0) {
       // Sub-row expansion: render a nested table
       const subFields = detailFields.length > 0
@@ -850,7 +897,7 @@ export function DataGridReact(props: DataGridReactProps) {
               {subRows.map((sr, i) => (
                 <tr key={i}>
                   {subFields.map((f) => (
-                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? '—')}</td>
+                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? 'â€”')}</td>
                   ))}
                 </tr>
               ))}
@@ -859,13 +906,13 @@ export function DataGridReact(props: DataGridReactProps) {
         </div>
       )
     }
-    // Detail field expansion: show key–value pairs from the row
+    // Detail field expansion: show keyâ€“value pairs from the row
     if (detailFields.length > 0) {
       return (
         <div style={S.detailCell}>
           {detailFields.map((f) => (
             <div key={f} style={{ marginBottom: 4 }}>
-              <strong>{f}: </strong>{String(row[f] ?? '—')}
+              <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
             </div>
           ))}
         </div>
@@ -874,7 +921,7 @@ export function DataGridReact(props: DataGridReactProps) {
     return null
   }
 
-  // ── Grouped response rendering (server-side groups) ──
+  // â”€â”€ Grouped response rendering (server-side groups) â”€â”€
   const renderGroupedTable = () => (
     <table style={S.table}>
       <thead>
@@ -900,10 +947,10 @@ export function DataGridReact(props: DataGridReactProps) {
     </table>
   )
 
-  // ── Guard: no columns configured yet → avoid TanStack crash ──
+  // â”€â”€ Guard: no columns configured yet â†’ avoid TanStack crash â”€â”€
   const hasDataColumns = colDefs.length > 0
 
-  // ── Main table rendering ──
+  // â”€â”€ Main table rendering â”€â”€
   if (!hasDataColumns) {
     return (
       <div style={S.center}>
@@ -964,7 +1011,7 @@ export function DataGridReact(props: DataGridReactProps) {
                         setDragOverColumnId(null)
                         const dragId = dragColumnRef.current
                         if (!dragId || dragId === colId) return
-                        // Reorder columns — swap dragged column to drop target position
+                        // Reorder columns â€” swap dragged column to drop target position
                         setColumnOrder((prev) => {
                           const order = [...prev]
                           const fromIdx = order.indexOf(dragId)
@@ -1067,8 +1114,8 @@ export function DataGridReact(props: DataGridReactProps) {
 // ─── Server-side group row block (for grouped response) ──────────────
 
 function GroupRowBlock(props: {
-  group: DataGridGroupRow
-  tanCols: ColumnDef<DataGridRow>[]
+  group: TransStackGroupRow
+  tanCols: ColumnDef<TransStackRow>[]
   groupedRowExpansion: boolean
   expansionEnabled: boolean
   detailFields: string[]
@@ -1099,7 +1146,7 @@ function GroupRowBlock(props: {
 
 function ChildRow(props: {
   row: Record<string, unknown>
-  tanCols: ColumnDef<DataGridRow>[]
+  tanCols: ColumnDef<TransStackRow>[]
   groupedRowExpansion: boolean
   expansionEnabled: boolean
   detailFields: string[]
@@ -1113,7 +1160,7 @@ function ChildRow(props: {
         {groupedRowExpansion && (
           <td style={S.td}>
             {expansionEnabled && detailFields.length > 0 && (
-              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? '▼' : '▶'}</button>
+              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? 'â–¼' : 'â–¶'}</button>
             )}
           </td>
         )}
@@ -1127,7 +1174,7 @@ function ChildRow(props: {
           <td colSpan={tanCols.length + (groupedRowExpansion ? 1 : 0)} style={S.detailCell}>
             {detailFields.map((f) => (
               <div key={f} style={{ marginBottom: 4 }}>
-                <strong>{f}: </strong>{String(row[f] ?? '—')}
+                <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
               </div>
             ))}
           </td>

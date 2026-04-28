@@ -24,12 +24,12 @@ export async function registerFileDownload(Components: FormioComponents): Promis
     render() {
       const iconClass = this.component.downloadIcon || 'fa fa-download'
       const label = this.component.label || ''
-      const labelHtml = label ? `<span style="margin-left:6px;font-size:14px;">${this.t(label)}</span>` : ''
+      const labelHtml = label ? `<span class="ms-1 small">${this.t(label)}</span>` : ''
 
       return super.render(`
-        <div ref="fileDownloadContainer" class="formio-file-download" style="display:inline-block;">
-          <span style="display:inline-flex;align-items:center;opacity:0.6;">
-            <i class="${iconClass}" style="font-size:1.4em;"></i>${labelHtml}
+        <div ref="fileDownloadContainer" class="formio-file-download d-inline-block">
+          <span class="d-inline-flex align-items-center opacity-50">
+            <i class="${iconClass} fs-5"></i>${labelHtml}
           </span>
         </div>
       `)

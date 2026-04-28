@@ -1,4 +1,4 @@
-import type { DataGridFetchParams, DataGridFetchResult, DataGridRow } from './DataGridService'
+import type { TransStackFetchParams, TransStackFetchResult, TransStackRow } from './TransStackService'
 
 /**
  * Action handlers that the renderer app registers to handle table actions.
@@ -7,13 +7,13 @@ import type { DataGridFetchParams, DataGridFetchResult, DataGridRow } from './Da
  */
 export interface TanStackTableActionHandlers {
   /** Called when an 'edit' action is triggered on a row */
-  onEdit?: (row: DataGridRow) => void
+  onEdit?: (row: TransStackRow) => void
   /** Called when a 'delete' action is triggered on a row */
-  onDelete?: (row: DataGridRow) => void
+  onDelete?: (row: TransStackRow) => void
   /** Called when row click navigation is triggered (if enableRowClickNavigation is true) */
-  onRowClick?: (row: DataGridRow) => void
+  onRowClick?: (row: TransStackRow) => void
   /** Custom data fetcher. If provided, overrides the built-in apiEndpoint-based fetch. */
-  fetchData?: (params: DataGridFetchParams) => Promise<DataGridFetchResult>
+  fetchData?: (params: TransStackFetchParams) => Promise<TransStackFetchResult>
 }
 
 let _handlers: TanStackTableActionHandlers = {}

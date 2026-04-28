@@ -1,12 +1,22 @@
-import { TanStackTableComponent, TANSTACK_TABLE_TYPE } from '../components/DataGrid'
+import { TanStackTableComponent, TANSTACK_TABLE_TYPE } from '../components/TransStack'
 import type { FormioComponents } from './types'
+
+/**
+ * Module-level preview cache — survives across component instance destruction.
+ * Form.io's designer may destroy and recreate the preview component instance
+ * on every editForm change event. This cache ensures the preview HTML is only
+ * rebuilt when preview-relevant properties actually change.
+ */
+let _modulePreviewCache: { key: string; html: string } = { key: '', html: '' }
 
 export async function registerTanStackTable(Components: FormioComponents): Promise<void> {
   const FieldComponent = (Components.components as any).field as any
 
   class TanStackTable extends FieldComponent {
-    /** Snapshot of preview-relevant properties for change detection */
+    /** Instance-level snapshot of preview-relevant properties for change detection */
     _prevPreviewKey: string = ''
+    /** Instance-level cached preview HTML string */
+    _cachedPreviewHtml: string = ''
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(TanStackTableComponent.schema(), ...extend)
@@ -26,7 +36,7 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
 
     /**
      * Build a key from only the properties that affect the preview.
-     * If this key hasn't changed, we skip rebuilding the HTML.
+     * If this key hasn't changed, we skip the full DOM rebuild.
      */
     _buildPreviewKey(): string {
       const c = this.component
@@ -45,12 +55,64 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
       ].join('|')
     }
 
+    /**
+     * Resolve the effective preview cache — prefer instance cache,
+     * fall back to module-level cache (survives instance destruction).
+     */
+    _resolvePreviewCache(): { key: string; html: string } | null {
+      if (this._prevPreviewKey && this._cachedPreviewHtml) {
+        return { key: this._prevPreviewKey, html: this._cachedPreviewHtml }
+      }
+      if (_modulePreviewCache.key && _modulePreviewCache.html) {
+        return { key: _modulePreviewCache.key, html: _modulePreviewCache.html }
+      }
+      return null
+    }
+
+    /**
+     * Override rebuild() to avoid the full destroy → init → redraw cycle
+     * that Form.io's base implementation performs. In the designer preview,
+     * the component schema (this.component) is already updated before
+     * rebuild() is called. Delegating to redraw() preserves our caching
+     * and prevents the instance-level cache from being wiped by destroy().
+     */
+    rebuild() {
+      return this.redraw()
+    }
+
+    /**
+     * Override redraw to prevent full DOM replacement when preview-relevant
+     * properties haven't changed. Form.io calls redraw() on every property
+     * change, every tab switch, and every field interaction in the designer
+     * edit dialog. Each call destroys and recreates the DOM — causing the
+     * visible "flicker" / repeated refresh.
+     *
+     * When the preview key is unchanged and we have cached HTML (from either
+     * instance or module cache), skip the entire DOM teardown/rebuild cycle.
+     */
+    redraw() {
+      const newKey = this._buildPreviewKey()
+      const cache = this._resolvePreviewCache()
+      if (cache && cache.key === newKey) {
+        // Restore instance cache from module cache if this is a new instance
+        if (!this._cachedPreviewHtml) {
+          this._prevPreviewKey = cache.key
+          this._cachedPreviewHtml = cache.html
+        }
+        return Promise.resolve()
+      }
+      return super.redraw()
+    }
+
     render() {
       // ── Change detection: skip re-render if nothing preview-relevant changed ──
       const newKey = this._buildPreviewKey()
-      if (this._prevPreviewKey === newKey && this.refs?.tanstackTablePreview) {
-        // Nothing that matters changed — reuse existing DOM
-        return super.render(this.refs.tanstackTablePreview.outerHTML)
+      const cache = this._resolvePreviewCache()
+      if (cache && cache.key === newKey) {
+        // Restore instance cache and return cached HTML
+        this._prevPreviewKey = cache.key
+        this._cachedPreviewHtml = cache.html
+        return super.render(cache.html)
       }
       this._prevPreviewKey = newKey
 
@@ -83,7 +145,7 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
       if (this.component.expansionEnabled) features.push('Expandable')
       const featureText = features.length > 0 ? features.join(' · ') : ''
 
-      return super.render(`
+      const html = `
         <div ref="tanstackTablePreview" class="formio-tanstack-table-preview" style="width:100%;border:1px solid #ccc;border-radius:4px;overflow:hidden;">
           <div style="padding:6px 10px;background:#e9ecef;border-bottom:1px solid #ccc;font-size:11px;color:#555;display:flex;justify-content:space-between;">
             <span><i class="fa fa-table"></i> TanStack Table — <strong>${mode}</strong> mode</span>
@@ -99,7 +161,14 @@ export async function registerTanStackTable(Components: FormioComponents): Promi
             ${this.component.paginationEnabled ? `Page 1 · ${this.component.pageSize || 10} per page` : 'No pagination'}
           </div>
         </div>
-      `)
+      `
+
+      // Update both instance and module cache
+      this._cachedPreviewHtml = html
+      _modulePreviewCache.key = newKey
+      _modulePreviewCache.html = html
+
+      return super.render(html)
     }
   }
 

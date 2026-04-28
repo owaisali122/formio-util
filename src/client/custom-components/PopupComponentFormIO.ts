@@ -1,8 +1,8 @@
 /**
- * FormIO: Generic Popup Renderer Component
+ * FormIO: Popup Component Renderer Component
  *
  * Extends FieldComponent to render a trigger button inside the form.
- * When clicked, it opens the generic popup via popupStore (root-level rendering).
+ * When clicked, it opens the popup via popupStore (root-level rendering).
  *
  * Reference pattern: createSearchableDropdownClass (SmartStreetFormIO.ts)
  */
@@ -10,33 +10,33 @@
 import type { PopupButton, PopupConfig } from '../popup/PopupTypes'
 import { openPopup } from '../popup/popupStore'
 
-export function createGenericPopupClass(FieldComponent: any) {
-  return class GenericPopupFormIO extends FieldComponent {
+export function createPopupComponentClass(FieldComponent: any) {
+  return class PopupComponentFormIO extends FieldComponent {
     // The trigger button element reference
     _triggerBtn: HTMLButtonElement | null = null
     _clickBound: (() => void) | null = null
 
     static schema(...extend: any[]) {
       return FieldComponent.schema({
-        type: 'genericPopup',
-        label: 'Generic Popup',
-        key: 'genericPopup',
+        type: 'popupComponent',
+        label: 'Popup Component',
+        key: 'popupComponent',
         input: false,
       }, ...extend)
     }
 
     static get builderInfo() {
       return {
-        title: 'Generic Popup',
+        title: 'Popup Component',
         group: 'basic',
         icon: 'window-restore',
         weight: 35,
-        schema: GenericPopupFormIO.schema(),
+        schema: PopupComponentFormIO.schema(),
       }
     }
 
     get defaultSchema() {
-      return GenericPopupFormIO.schema()
+      return PopupComponentFormIO.schema()
     }
 
     // ── Render ──────────────────────────────────────────────────────────────
@@ -45,18 +45,19 @@ export function createGenericPopupClass(FieldComponent: any) {
       const c = this.component
       const triggerLabel: string = c.triggerLabel || 'Open Popup'
       const triggerIcon: string = c.triggerIcon || ''
+      const isDisabled: boolean = c.disabled === true
 
       const iconHtml = triggerIcon
-        ? `<i class="${triggerIcon}" aria-hidden="true" style="margin-right:6px;"></i>`
+        ? `<i class="${triggerIcon} me-1" aria-hidden="true"></i>`
         : ''
 
       return super.render(`
-        <div ref="genericPopupWrapper" style="display:inline-block;">
+        <div ref="popupComponentWrapper" class="d-inline-block">
           <button
-            ref="genericPopupTrigger"
+            ref="popupComponentTrigger"
             type="button"
             class="btn btn-primary"
-            style="font-size:14px;"
+            ${isDisabled ? 'disabled' : ''}
           >
             ${iconHtml}${triggerLabel}
           </button>
@@ -70,15 +71,19 @@ export function createGenericPopupClass(FieldComponent: any) {
       const result = super.attach(element)
 
       this.loadRefs(element, {
-        genericPopupTrigger: 'single',
-        genericPopupWrapper: 'single',
+        popupComponentTrigger: 'single',
+        popupComponentWrapper: 'single',
       })
 
-      const btn = (this.refs as any)?.genericPopupTrigger as HTMLButtonElement | undefined
+      const btn = (this.refs as any)?.popupComponentTrigger as HTMLButtonElement | undefined
       if (btn) {
         this._triggerBtn = btn
         this._clickBound = () => this._openPopup()
         btn.addEventListener('click', this._clickBound)
+
+        if (this.component.autofocus) {
+          btn.focus()
+        }
       }
 
       return result
