@@ -10,10 +10,10 @@ export type { DocumentViewerFileType, DocumentViewerSourceType }
 
 /**
  * Wrapper-only props consumed by ReactDocumentViewer itself.
- * These are NOT forwarded to the underlying DocumentViewerTrigger component.
+ * These are NOT forwarded to the underlying DocumentViewerCore component.
  *
  * Everything else is forwarded via spread, so any new prop added to
- * DocumentViewerTriggerProps is automatically picked up here.
+ * DocumentViewerCoreProps is automatically picked up here.
  */
 export interface ReactDocumentViewerWrapperProps {
   /** Text label rendered above the field. Omit to render without a label. */
@@ -49,11 +49,11 @@ export interface ReactDocumentViewerWrapperProps {
 /**
  * Props accepted by ReactDocumentViewer.
  *
- * Extends DocumentViewerTriggerProps (forwarded to the shared trigger) with
+ * Extends DocumentViewerCoreProps (forwarded to the shared Core) with
  * ReactDocumentViewerWrapperProps (handled by this wrapper only).
  *
  * The wrapper consumes its own props and spreads the rest into the shared
- * `DocumentViewerTrigger`. The wrapper-resolved `fileUrl`, `fileName`,
+ * `DocumentViewerCore`. The wrapper-resolved `fileUrl`, `fileName`,
  * `disabled`, `tabIndex`, and `className` always win over any forwarded
  * values via explicit overrides at the call site.
  */

@@ -35,8 +35,3 @@ export interface DocumentViewerCoreProps {
   onPopupClose?: () => void
   onPopupAction?: (actionKey: string) => void
 }
-
-/**
- * @deprecated Use `DocumentViewerCoreProps` instead. Kept for backward compatibility.
- */
-export type DocumentViewerTriggerProps = DocumentViewerCoreProps

@@ -2,16 +2,16 @@
 
 /**
  * ReactDocumentViewer — clean React wrapper around the shared
- * DocumentViewerTrigger component.
+ * DocumentViewerCore component.
  *
  * Mirrors the ReactSmartStreet pattern:
  *   1. Render an optional label above the trigger.
  *   2. Resolve fileUrl / fileName from props (static or submission-driven).
- *   3. Spread the remaining trigger props into <DocumentViewerTrigger />,
- *      so any new prop added to DocumentViewerTriggerProps flows through
+ *   3. Spread the remaining trigger props into <DocumentViewerCore />,
+ *      so any new prop added to DocumentViewerCoreProps flows through
  *      automatically without touching this wrapper.
  *
- * No Formio.createForm. The shared trigger is the single source of truth and
+ * No Formio.createForm. The shared Core is the single source of truth and
  * is also rendered by the Form.io documentViewer runtime via createRoot.
  *
  * NOTE: Consumers must mount the popup container at the app level, since the
@@ -68,8 +68,8 @@ export function ReactDocumentViewer({
   // ── Wrapper-aware override (also forwarded after combining with readOnly) ──
   disabled = false,
 
-  // ── Remaining props are forwarded to DocumentViewerTrigger via spread,
-  //    so any new prop added to DocumentViewerTriggerProps is automatically
+  // ── Remaining props are forwarded to DocumentViewerCore via spread,
+  //    so any new prop added to DocumentViewerCoreProps is automatically
   //    picked up here. ──
   ...triggerProps
 }: ReactDocumentViewerProps) {

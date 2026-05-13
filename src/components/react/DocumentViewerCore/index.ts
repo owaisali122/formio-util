@@ -1,2 +1,2 @@
-export { DocumentViewerCore, DocumentViewerTrigger } from './DocumentViewerCore'
-export type { DocumentViewerCoreProps, DocumentViewerTriggerProps } from './DocumentViewerCore.types'
+export { DocumentViewerCore } from './DocumentViewerCore'
+export type { DocumentViewerCoreProps } from './DocumentViewerCore.types'

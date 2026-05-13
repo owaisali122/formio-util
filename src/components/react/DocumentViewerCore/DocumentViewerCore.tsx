@@ -1,11 +1,11 @@
 'use client'
 
 /**
- * DocumentViewerTrigger — shared React core for the Form.io document viewer.
+ * DocumentViewerCore — shared React core for the document viewer.
  *
  * Renders a trigger button. On click, opens the existing popup via openPopup()
  * and renders DocumentViewerContent (PDF / image / fallback) inside it via
- * React 18 createRoot — exactly mirroring the original Form.io class behavior.
+ * React 18 createRoot.
  *
  * This is the single source of truth for the document viewer trigger UI and
  * popup wiring. Both consumers render this component directly:
@@ -27,8 +27,7 @@ import {
 } from '../../../client/custom-components/DocumentViewerContent'
 import type { DocumentViewerCoreProps } from './DocumentViewerCore.types'
 
-// Keep the old name as an alias for backward compatibility during migration
-export type { DocumentViewerCoreProps, DocumentViewerTriggerProps } from './DocumentViewerCore.types'
+export type { DocumentViewerCoreProps } from './DocumentViewerCore.types'
 
 function resolvePopupTitle(configured: string | undefined, fileName: string | undefined): string {
   const c = (configured ?? '').trim()
@@ -182,8 +181,3 @@ export function DocumentViewerCore({
 }
 
 export default DocumentViewerCore
-
-/**
- * @deprecated Use `DocumentViewerCore` instead. Kept for backward compatibility.
- */
-export const DocumentViewerTrigger = DocumentViewerCore

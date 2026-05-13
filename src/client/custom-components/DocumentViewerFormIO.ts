@@ -4,7 +4,7 @@
  * Reference pattern: SmartStreet — render an empty container in Form.io's
  * `render()` and mount a shared React component into it via createRoot inside
  * `attach()`. The trigger button + popup wiring lives entirely in the shared
- * DocumentViewerTrigger React component; this file is now a thin Form.io
+ * DocumentViewerCore React component; this file is now a thin Form.io
  * adapter that resolves submission-driven values and bridges popup events
  * back through `this.emit`.
  *
