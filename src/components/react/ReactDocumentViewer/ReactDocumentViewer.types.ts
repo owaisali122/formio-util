@@ -1,4 +1,4 @@
-import type { DocumentViewerTriggerProps } from '../DocumentViewerTrigger/DocumentViewerTrigger'
+import type { DocumentViewerCoreProps } from '../DocumentViewerCore/DocumentViewerCore.types'
 import type {
   DocumentViewerFileType,
   DocumentViewerSourceType,
@@ -62,7 +62,7 @@ export type ReactDocumentViewerProps =
   // so the public surface keeps the original `tabindex` (string | number)
   // shape and the wrapper's own `fileUrl` / file-source props.
   Omit<
-    DocumentViewerTriggerProps,
+    DocumentViewerCoreProps,
     'fileUrl' | 'fileName' | 'tabIndex' | 'className' | 'onPopupClose' | 'onPopupAction'
   > &
     ReactDocumentViewerWrapperProps

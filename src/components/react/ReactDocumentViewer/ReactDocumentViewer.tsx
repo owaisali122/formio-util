@@ -21,7 +21,7 @@
 import React, { useMemo } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { DocumentViewerTrigger } from '../DocumentViewerTrigger'
+import { DocumentViewerCore } from '../DocumentViewerCore'
 
 import type { ReactDocumentViewerProps } from './ReactDocumentViewer.types'
 
@@ -104,7 +104,7 @@ export function ReactDocumentViewer({
           </label>
         )}
 
-        <DocumentViewerTrigger
+        <DocumentViewerCore
           {...triggerProps}
           disabled={disabled || readOnly}
           tabIndex={tabIndexNum}
