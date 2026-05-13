@@ -1,6 +1,6 @@
 import type React from 'react'
-import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from '../../DatePickerInput'
-import type { DatePickerMode } from '../../date-picker-shared'
+import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from '../../../coreHelper/DatePickerInputCore'
+import type { DatePickerMode } from '../../../coreHelper/DatePickerInputCore/DatePickerInputCore.helpers'
 
 // Re-export underlying value/config types so consumers of ReactDatePicker
 // never need to reach into the Form.io DatePickerInput module directly.

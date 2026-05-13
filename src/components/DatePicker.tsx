@@ -4,7 +4,7 @@ import {
   DEFAULT_DATE_PICKER_TIME_FORMAT,
   DEFAULT_DATE_PICKER_TIME_INTERVALS,
   getDatePickerDisplayFormatOptions,
-} from './date-picker-shared'
+} from '../coreHelper/DatePickerInputCore/DatePickerInputCore.helpers'
 
 export const DATE_PICKER_TYPE = 'datePicker'
 

@@ -146,8 +146,8 @@ export {
 } from './components/DatePicker'
 export type { DatePickerSchema } from './components/DatePicker'
 
-export { DatePickerInput, parseDateString, formatDateString, parseDisabledDates, parseDisabledRanges } from './components/DatePickerInput'
-export type { DatePickerInputProps, DateRangeValue, DisabledDateRange } from './components/DatePickerInput'
+export { DatePickerInput, parseDateString, formatDateString, parseDisabledDates, parseDisabledRanges } from './coreHelper/DatePickerInputCore'
+export type { DatePickerInputProps, DateRangeValue, DisabledDateRange } from './coreHelper/DatePickerInputCore'
 
 export {
   TabIndexManagerComponent,

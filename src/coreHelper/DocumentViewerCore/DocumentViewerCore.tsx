@@ -20,11 +20,11 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import { openPopup } from '../../../client/popup/popupStore'
+import { openPopup } from '../../client/popup/popupStore'
 import {
   DocumentViewerContent,
   resolveFileType,
-} from '../../../client/custom-components/DocumentViewerContent'
+} from '../../client/custom-components/DocumentViewerContent'
 import type { DocumentViewerCoreProps } from './DocumentViewerCore.types'
 
 export type { DocumentViewerCoreProps } from './DocumentViewerCore.types'

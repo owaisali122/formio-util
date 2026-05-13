@@ -28,14 +28,14 @@ import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { FileUploaderComponent } from '../../components/FileUpload'
-import { FileUploaderCore } from '../../components/react/FileUploaderCore/FileUploaderCore'
+import { FileUploaderCore } from '../../coreHelper/FileUploaderCore/FileUploaderCore'
 import {
   buildApiHeaders,
   normalizeValueToEntries,
   selectedFilesToValue,
   uploadFileEntry,
-} from '../../components/react/FileUploaderCore/FileUploaderCore.helpers'
-import type { SelectedFileEntry } from '../../components/react/FileUploaderCore/FileUploaderCore.helpers'
+} from '../../coreHelper/FileUploaderCore/FileUploaderCore.helpers'
+import type { SelectedFileEntry } from '../../coreHelper/FileUploaderCore/FileUploaderCore.helpers'
 
 /**
  * Module-level cache: preserves selectedFiles across Form.io destroy/recreate

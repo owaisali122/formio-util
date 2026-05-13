@@ -1,4 +1,4 @@
-import type { DocumentViewerFileType } from '../../DocumentViewer'
+import type { DocumentViewerFileType } from '../../components/DocumentViewer'
 
 export interface DocumentViewerCoreProps {
   // ── Trigger button ───────────────────────────────────────────────────

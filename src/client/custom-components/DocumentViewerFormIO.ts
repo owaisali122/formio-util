@@ -17,7 +17,7 @@ import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 import { DOCUMENT_VIEWER_TYPE } from '../../components/DocumentViewer'
-import { DocumentViewerCore } from '../../components/react/DocumentViewerCore'
+import { DocumentViewerCore } from '../../coreHelper/DocumentViewerCore'
 
 // Re-export worker setup so consumers can import it from one place.
 export { setupDocumentViewerWorker } from './DocumentViewerContent'

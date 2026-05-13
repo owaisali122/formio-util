@@ -11,9 +11,9 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
-import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from '../../components/DatePickerInput'
-import { getDateRestrictionError, parseDateString, parseDateTimeString, parseDisabledDates, parseDisabledRanges } from '../../components/DatePickerInput'
-import { normalizeDisplayFormat } from '../../components/date-picker-shared'
+import type { DatePickerInputProps, DatePickerSingleValue, DateRangeValue } from '../../coreHelper/DatePickerInputCore'
+import { getDateRestrictionError, parseDateString, parseDateTimeString, parseDisabledDates, parseDisabledRanges } from '../../coreHelper/DatePickerInputCore'
+import { normalizeDisplayFormat } from '../../coreHelper/DatePickerInputCore/DatePickerInputCore.helpers'
 import datepickerCSS from 'react-datepicker/dist/react-datepicker.css'
 
 let DatePickerInputComponent: React.ComponentType<DatePickerInputProps> | null = null
@@ -21,7 +21,7 @@ let _cssInjected = false
 
 async function loadReactComponent() {
   if (!DatePickerInputComponent) {
-    const mod = await import('../../components/DatePickerInput')
+    const mod = await import('../../coreHelper/DatePickerInputCore/DatePickerInputCore')
     DatePickerInputComponent = mod.DatePickerInput
   }
   return DatePickerInputComponent

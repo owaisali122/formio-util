@@ -18,7 +18,7 @@
 import React from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { DatePickerInput } from '../../DatePickerInput'
+import { DatePickerInput } from '../../../coreHelper/DatePickerInputCore'
 
 import type { ReactDatePickerProps } from './ReactDatePicker.types'
 

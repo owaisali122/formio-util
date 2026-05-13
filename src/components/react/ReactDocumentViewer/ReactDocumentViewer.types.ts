@@ -1,4 +1,4 @@
-import type { DocumentViewerCoreProps } from '../DocumentViewerCore/DocumentViewerCore.types'
+import type { DocumentViewerCoreProps } from '../../../coreHelper/DocumentViewerCore/DocumentViewerCore.types'
 import type {
   DocumentViewerFileType,
   DocumentViewerSourceType,

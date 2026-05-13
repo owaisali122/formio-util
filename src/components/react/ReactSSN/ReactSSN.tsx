@@ -20,8 +20,8 @@
 import React, { useCallback, useMemo } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { SSNInputCore } from '../SSNInputCore/SSNInputCore'
-import { digitsOnly } from '../SSNInputCore/SSNInputCore.helpers'
+import { SSNInputCore } from '../../../coreHelper/SSNInputCore/SSNInputCore'
+import { digitsOnly } from '../../../coreHelper/SSNInputCore/SSNInputCore.helpers'
 
 import type { ReactSSNProps, ReactSSNValue } from './ReactSSN.types'
 

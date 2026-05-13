@@ -22,13 +22,13 @@
 import React, { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { FileUploaderCore } from '../FileUploaderCore/FileUploaderCore'
+import { FileUploaderCore } from '../../../coreHelper/FileUploaderCore/FileUploaderCore'
 import {
   buildApiHeaders,
   selectedFilesToValue,
   uploadFileEntry,
-} from '../FileUploaderCore/FileUploaderCore.helpers'
-import type { SelectedFileEntry } from '../FileUploaderCore/FileUploaderCore.helpers'
+} from '../../../coreHelper/FileUploaderCore/FileUploaderCore.helpers'
+import type { SelectedFileEntry } from '../../../coreHelper/FileUploaderCore/FileUploaderCore.helpers'
 import type { ReactFileUploaderHandle, ReactFileUploaderProps } from './ReactFileUploader.types'
 
 export const ReactFileUploader = forwardRef<ReactFileUploaderHandle, ReactFileUploaderProps>(

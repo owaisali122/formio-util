@@ -3,7 +3,7 @@ import {
   getDatePickerDisplayFormatOptions,
   getEffectiveDatePickerPlaceholder,
   normalizeDisplayFormat,
-} from '../components/date-picker-shared'
+} from '../coreHelper/DatePickerInputCore/DatePickerInputCore.helpers'
 import type { FormioComponents } from './types'
 
 type DatePickerEditFormInstance = {

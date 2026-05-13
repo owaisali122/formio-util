@@ -21,12 +21,12 @@
 import React from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import { SSNInputCore } from '../../components/react/SSNInputCore/SSNInputCore'
+import { SSNInputCore } from '../../coreHelper/SSNInputCore/SSNInputCore'
 import {
   digitsOnly,
   validateTaxId,
   formatTaxId,
-} from '../../components/react/SSNInputCore/SSNInputCore.helpers'
+} from '../../coreHelper/SSNInputCore/SSNInputCore.helpers'
 
 export function createSSNMaskingClass(TextFieldComponent: any) {
   return class SSNMaskingFormIO extends TextFieldComponent {

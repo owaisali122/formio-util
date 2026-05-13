@@ -21,7 +21,7 @@
 import React, { useMemo } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { DocumentViewerCore } from '../DocumentViewerCore'
+import { DocumentViewerCore } from '../../../coreHelper/DocumentViewerCore'
 
 import type { ReactDocumentViewerProps } from './ReactDocumentViewer.types'
 
