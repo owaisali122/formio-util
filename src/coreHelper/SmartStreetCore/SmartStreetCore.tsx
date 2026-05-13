@@ -3,7 +3,22 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react'
 import Select from 'react-select'
 import type { SingleValue, StylesConfig, InputActionMeta } from 'react-select'
-import type { SmartStreetDropdownItem } from './SmartStreetDropdown'
+import type { SmartStreetDropdownItem } from '../../components/SmartStreetDropdown'
+import type {
+  AddressApiConfig,
+  AddressMapping,
+  AddressResult,
+  SmartStreetProps,
+  SmartStreetValue,
+} from './SmartStreetCore.types'
+
+export type {
+  AddressApiConfig,
+  AddressMapping,
+  AddressResult,
+  SmartStreetProps,
+  SmartStreetValue,
+} from './SmartStreetCore.types'
 
 interface OptionType {
   value: string
@@ -22,28 +37,7 @@ interface AddressSuggestion {
   entries: number | string
 }
 
-export interface AddressApiConfig {
-  url?: string
-  partnerId?: string
-  username?: string
-  password?: string
-}
-
-export interface AddressResult {
-  streetLine: string
-  secondary: string
-  city: string
-  state: string
-  zipcode: string
-}
-
-export interface AddressMapping {
-  streetLine?: string
-  secondary?: string
-  city?: string
-  state?: string
-  zipcode?: string
-}
+// (AddressApiConfig, AddressResult, AddressMapping re-exported from types above)
 
 function buildSelectedParam(s: AddressSuggestion): string {
   const parts: string[] = [s.street_line.trim()]
@@ -101,25 +95,7 @@ function filterIrrelevantSuggestions(suggestions: AddressSuggestion[]): AddressS
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** The shape stored in Form.io submission data for this component */
-export interface SmartStreetValue {
-  selectedLabel: string
-  address: AddressResult
-}
-
-export interface SmartStreetProps {
-  name: string
-  placeholder?: string
-  minSearchLength?: number
-  debounceDelay?: number
-  value?: SmartStreetValue | null
-  onChange?: (value: SmartStreetValue | null) => void
-  addressApiConfig?: AddressApiConfig
-  addressMapping?: AddressMapping
-  onAddressSelected?: (address: AddressResult) => void
-  disabled?: boolean
-  tabIndex?: number
-}
+// (Types re-exported from SmartStreetCore.types above)
 
 // ── Option renderer — shows right-side entries badge only in dropdown menu ──
 function formatOptionLabel(opt: OptionType, { context }: { context: 'menu' | 'value' }) {

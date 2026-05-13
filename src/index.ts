@@ -52,8 +52,8 @@ export {
 } from './components/SmartStreetDropdown'
 export type { SmartStreetDropdownItem } from './components/SmartStreetDropdown'
 
-export { SmartStreet } from './components/SmartStreet'
-export type { SmartStreetProps, SmartStreetValue, AddressApiConfig, AddressResult, AddressMapping } from './components/SmartStreet'
+export { SmartStreet } from './coreHelper/SmartStreetCore'
+export type { SmartStreetProps, SmartStreetValue, AddressApiConfig, AddressResult, AddressMapping } from './coreHelper/SmartStreetCore'
 
 export { ReactSmartStreetComponent } from './components/ReactSmartStreetComponent'
 export type { ReactSmartStreetComponentProps, ReactSmartStreetWrapperProps } from './components/ReactSmartStreetComponent'

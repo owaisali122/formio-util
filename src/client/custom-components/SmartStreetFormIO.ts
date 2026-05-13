@@ -7,7 +7,7 @@
 
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
-import type { AddressResult, SmartStreetValue } from '../../components/SmartStreet'
+import type { AddressResult, SmartStreetValue } from '../../coreHelper/SmartStreetCore'
 
 export interface ApiResponseItem {
   id: string
@@ -20,7 +20,7 @@ let SmartStreetComponent: React.ComponentType<any> | null = null
 
 async function loadReactComponent() {
   if (!SmartStreetComponent) {
-    const module = await import('../../components/SmartStreet')
+    const module = await import('../../coreHelper/SmartStreetCore/SmartStreetCore')
     SmartStreetComponent = module.SmartStreet
   }
   return SmartStreetComponent

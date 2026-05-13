@@ -1,14 +1,14 @@
 'use client'
 
 import React from 'react'
-import { SmartStreet } from './SmartStreet'
+import { SmartStreet } from '../coreHelper/SmartStreetCore'
 import type {
   SmartStreetProps,
   SmartStreetValue,
   AddressApiConfig,
   AddressMapping,
   AddressResult,
-} from './SmartStreet'
+} from '../coreHelper/SmartStreetCore'
 
 // Re-export the underlying types so consumers of ReactSmartStreetComponent
 // never need to import from SmartStreet directly.

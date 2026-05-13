@@ -4,7 +4,7 @@ import {
   SmartStreetDropdownComponent,
   SEARCHABLE_DROPDOWN_TYPE,
 } from '../components/SmartStreetDropdown'
-import type { AddressResult, SmartStreetValue } from '../components/SmartStreet'
+import type { AddressResult, SmartStreetValue } from '../coreHelper/SmartStreetCore'
 import type { FormioComponents } from './types'
 
 type ReactComponent = React.ComponentType<any>
@@ -12,7 +12,7 @@ let SmartStreetComponent: ReactComponent | null = null
 
 async function loadReactComponent(): Promise<ReactComponent | null> {
   if (!SmartStreetComponent) {
-    const mod = await import('../components/SmartStreet')
+    const mod = await import('../coreHelper/SmartStreetCore/SmartStreetCore')
     SmartStreetComponent = mod.SmartStreet
   }
   return SmartStreetComponent

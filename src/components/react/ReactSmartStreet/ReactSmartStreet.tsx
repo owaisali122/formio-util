@@ -21,7 +21,7 @@
 import React from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
-import { SmartStreet } from '../../SmartStreet'
+import { SmartStreet } from '../../../coreHelper/SmartStreetCore'
 
 import type { ReactSmartStreetProps } from './ReactSmartStreet.types'
 

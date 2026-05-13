@@ -5,7 +5,7 @@ import type {
   AddressApiConfig,
   AddressMapping,
   AddressResult,
-} from '../../SmartStreet'
+} from '../../../coreHelper/SmartStreetCore'
 
 // Re-export underlying value/config types so consumers of ReactSmartStreet
 // never need to reach into the Form.io SmartStreet module directly.
