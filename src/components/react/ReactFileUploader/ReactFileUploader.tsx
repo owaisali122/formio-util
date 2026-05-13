@@ -27,8 +27,8 @@ import {
   buildApiHeaders,
   selectedFilesToValue,
   uploadFileEntry,
-} from '../FileUploaderCore/file-uploader-helpers'
-import type { SelectedFileEntry } from '../FileUploaderCore/file-uploader-helpers'
+} from '../FileUploaderCore/FileUploaderCore.helpers'
+import type { SelectedFileEntry } from '../FileUploaderCore/FileUploaderCore.helpers'
 import type { ReactFileUploaderHandle, ReactFileUploaderProps } from './ReactFileUploader.types'
 
 export const ReactFileUploader = forwardRef<ReactFileUploaderHandle, ReactFileUploaderProps>(

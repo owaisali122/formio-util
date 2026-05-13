@@ -13,7 +13,7 @@
  *   - builder _fileCache for preview across Form.io destroy/recreate cycles
  *
  * Upload + scan helpers live in:
- *   src/components/react/FileUploaderCore/file-uploader-helpers.ts
+ *   src/components/react/FileUploaderCore/FileUploaderCore.helpers.ts
  *
  * File lifecycle:
  *   1. On file pick: status → 'pending'. If scanEnabled → immediate scan;
@@ -34,8 +34,8 @@ import {
   normalizeValueToEntries,
   selectedFilesToValue,
   uploadFileEntry,
-} from '../../components/react/FileUploaderCore/file-uploader-helpers'
-import type { SelectedFileEntry } from '../../components/react/FileUploaderCore/file-uploader-helpers'
+} from '../../components/react/FileUploaderCore/FileUploaderCore.helpers'
+import type { SelectedFileEntry } from '../../components/react/FileUploaderCore/FileUploaderCore.helpers'
 
 /**
  * Module-level cache: preserves selectedFiles across Form.io destroy/recreate

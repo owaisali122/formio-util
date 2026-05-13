@@ -1,4 +1,4 @@
-import type { SelectedFileEntry, UploadedFileValue } from './file-uploader-helpers'
+import type { SelectedFileEntry, UploadedFileValue } from './FileUploaderCore.helpers'
 
 export type { SelectedFileEntry, UploadedFileValue }
 

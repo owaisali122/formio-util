@@ -10,10 +10,10 @@ export {
   selectedFilesToValue,
   normalizeValueToEntries,
   nextFileId,
-} from './file-uploader-helpers'
+} from './FileUploaderCore.helpers'
 export type {
   SelectedFileEntry,
   UploadedFileValue,
   ScanResult,
   UploadResult,
-} from './file-uploader-helpers'
+} from './FileUploaderCore.helpers'

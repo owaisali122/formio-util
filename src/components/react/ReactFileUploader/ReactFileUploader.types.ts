@@ -1,6 +1,6 @@
 // Import locally so the name is visible within this file, then re-export so
 // consumers of ReactFileUploader don't need to reach into FileUploaderCore.
-import type { SelectedFileEntry, UploadedFileValue } from '../FileUploaderCore/file-uploader-helpers'
+import type { SelectedFileEntry, UploadedFileValue } from '../FileUploaderCore/FileUploaderCore.helpers'
 export type { SelectedFileEntry, UploadedFileValue }
 
 /**

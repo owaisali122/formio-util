@@ -19,7 +19,7 @@
  *     createRoot in attach(); upload happens in beforeSubmit using shared helpers)
  *
  * Upload + scan helpers (runScan, uploadFileEntry, buildApiHeaders) are exported
- * separately from `./file-uploader-helpers` so the Form.io class can call them
+ * separately from `./FileUploaderCore.helpers` so the Form.io class can call them
  * in beforeSubmit without requiring React.
  */
 
@@ -35,7 +35,7 @@ import {
   selectedFilesToValue,
   uploadFileEntry,
   validateFileEntry,
-} from './file-uploader-helpers'
+} from './FileUploaderCore.helpers'
 import type { FileUploaderCoreProps, SelectedFileEntry } from './FileUploaderCore.types'
 
 const STYLE_ID = 'file-uploader-core-css'
