@@ -186,12 +186,9 @@ export function createDocumentViewerClass(FieldComponent: any) {
 
     detach() {
       if (this._triggerRoot) {
-        try {
-          this._triggerRoot.unmount()
-        } catch {
-          // Ignore — root may have already been torn down.
-        }
+        const root = this._triggerRoot
         this._triggerRoot = null
+        queueMicrotask(() => { try { root.unmount() } catch { /* already gone */ } })
       }
       return super.detach()
     }

@@ -21,7 +21,7 @@ import React, { useCallback, useMemo } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
 import { SSNInputCore } from '../SSNInputCore/SSNInputCore'
-import { digitsOnly } from '../SSNInputCore/ssn-helpers'
+import { digitsOnly } from '../SSNInputCore/SSNInputCore.helpers'
 
 import type { ReactSSNProps, ReactSSNValue } from './ReactSSN.types'
 

@@ -94,9 +94,10 @@ export default function createTanStackTableClass(FieldComponent: any) {
 
         // Handle stale root (DOM removed)
         if (this.reactRoot && this.reactContainer && !document.contains(this.reactContainer)) {
-          try { this.reactRoot.unmount() } catch { /* already gone */ }
+          const root = this.reactRoot
           this.reactRoot = null
           this.reactContainer = null
+          queueMicrotask(() => { try { root.unmount() } catch { /* already gone */ } })
         }
 
         // Bail if a newer mount was requested while we were working

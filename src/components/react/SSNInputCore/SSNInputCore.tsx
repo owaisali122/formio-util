@@ -17,7 +17,7 @@
  *   - SSNMaskingFormIO (Form.io runtime, mounted via createRoot in attach())
  *
  * Validation logic (SSN/ITIN format) is exported separately from
- * `./ssn-helpers` so the Form.io class can run it inside checkValidity()
+ * `./SSNInputCore.helpers` so the Form.io class can run it inside checkValidity()
  * without instantiating React.
  */
 
@@ -27,7 +27,7 @@ import {
   digitsOnly,
   formatTaxId,
   maskTaxId,
-} from './ssn-helpers'
+} from './SSNInputCore.helpers'
 import type { SSNInputCoreProps } from './SSNInputCore.types'
 
 const STYLE_ELEMENT_ID = 'ssn-mask-css'

@@ -1,7 +1,7 @@
 import type {
   TaxIdMaskedDisplayMode,
   TaxIdValidationMode,
-} from './ssn-helpers'
+} from './SSNInputCore.helpers'
 
 export type { TaxIdMaskedDisplayMode, TaxIdValidationMode }
 

@@ -399,8 +399,9 @@ export default function createFileUploaderClass(FieldComponent: any) {
 
     _unmountReact() {
       if (this._reactRoot) {
-        try { this._reactRoot.unmount() } catch { /* ignore */ }
+        const root = this._reactRoot
         this._reactRoot = null
+        queueMicrotask(() => { try { root.unmount() } catch { /* already gone */ } })
       }
     }
 

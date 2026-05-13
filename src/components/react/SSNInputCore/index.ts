@@ -8,9 +8,9 @@ export {
   isValidITIN,
   validateTaxId,
   defaultTaxIdValidationMessage,
-} from './ssn-helpers'
+} from './SSNInputCore.helpers'
 export type {
   TaxIdMaskedDisplayMode,
   TaxIdValidationMode,
   TaxIdValidationResult,
-} from './ssn-helpers'
+} from './SSNInputCore.helpers'

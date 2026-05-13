@@ -26,7 +26,7 @@ import {
   digitsOnly,
   validateTaxId,
   formatTaxId,
-} from '../../components/react/SSNInputCore/ssn-helpers'
+} from '../../components/react/SSNInputCore/SSNInputCore.helpers'
 
 export function createSSNMaskingClass(TextFieldComponent: any) {
   return class SSNMaskingFormIO extends TextFieldComponent {
@@ -171,8 +171,9 @@ export function createSSNMaskingClass(TextFieldComponent: any) {
 
     _unmountReact() {
       if (this._reactRoot) {
-        try { this._reactRoot.unmount() } catch { /* ignore */ }
+        const root = this._reactRoot
         this._reactRoot = null
+        queueMicrotask(() => { try { root.unmount() } catch { /* already gone */ } })
       }
       this._reactContainer = null
     }
