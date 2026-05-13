@@ -7,8 +7,8 @@
  * Reference pattern: createSearchableDropdownClass (SmartStreetFormIO.ts)
  */
 
-import type { PopupButton, PopupConfig } from '../popup/PopupTypes'
-import { openPopup } from '../popup/popupStore'
+import type { PopupButton, PopupConfig } from '../../coreHelper/PopupCore/PopupCore.types'
+import { openPopup } from '../../coreHelper/PopupCore/PopupCore.helpers'
 
 export function createPopupComponentClass(FieldComponent: any) {
   return class PopupComponentFormIO extends FieldComponent {

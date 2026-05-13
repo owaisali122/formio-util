@@ -14,7 +14,7 @@
  */
 
 import React, { useCallback, useEffect, useRef } from 'react'
-import type { PopupButton, PopupConfig, PopupPayload, PopupVariant } from './PopupTypes'
+import type { PopupButton, PopupConfig, PopupPayload, PopupVariant } from './PopupCore.types'
 
 // ── Default button sets per variant ──────────────────────────────────────────
 

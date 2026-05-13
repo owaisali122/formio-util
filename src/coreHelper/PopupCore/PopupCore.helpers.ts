@@ -1,5 +1,5 @@
 /**
- * popupStore — zero-dependency global singleton for popup state.
+ * PopupCore.helpers — zero-dependency global singleton for popup state + React hook.
  *
  * Any module (React component, Form.io vanilla component, TanStack Table action)
  * can call openPopup / closePopup without knowing anything about React or the DOM.
@@ -8,7 +8,7 @@
  * actual modal UI at page-root level via ReactDOM.createPortal.
  */
 
-import type { PopupConfig, PopupPayload, PopupState } from './PopupTypes'
+import type { PopupConfig, PopupPayload, PopupState } from './PopupCore.types'
 
 type Listener = (state: PopupState | null) => void
 
@@ -49,4 +49,35 @@ export function getPopupState(): PopupState | null {
 export function subscribePopup(listener: Listener): () => void {
   _listeners.add(listener)
   return () => _listeners.delete(listener)
+}
+
+// ── usePopup hook ─────────────────────────────────────────────────────────────
+
+export interface UsePopupReturn {
+  /**
+   * Open the popup.
+   * @param config - Title, message, buttons, variant, callbacks, etc.
+   * @param payload - Optional dynamic context (row data, record id, etc.)
+   * @returns The internal popup id (rarely needed by callers)
+   */
+  open: (config: PopupConfig, payload?: PopupPayload) => string
+  /** Close the currently open popup programmatically. */
+  close: () => void
+}
+
+/**
+ * usePopup — React hook for opening and closing the generic popup.
+ *
+ * Works in any React component within the application (forms, pages, tables).
+ * The popup renders at page-root via PopupContainer — not inside this component.
+ *
+ * Usage:
+ *   const { open, close } = usePopup()
+ *   open({ title: 'Are you sure?', variant: 'delete', onAction: (key) => ... })
+ */
+export function usePopup(): UsePopupReturn {
+  return {
+    open: openPopup,
+    close: closePopup,
+  }
 }

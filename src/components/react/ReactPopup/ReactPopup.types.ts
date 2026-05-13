@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { PopupButton, PopupButtonVariant, PopupConfig, PopupPayload, PopupSize, PopupVariant } from '../../../client/popup/PopupTypes'
+import type { PopupButton, PopupButtonVariant, PopupConfig, PopupPayload, PopupSize, PopupVariant } from '../../../coreHelper/PopupCore/PopupCore.types'
 
 // ── Re-export canonical Form.io popup types under React-prefixed aliases ──────
 //

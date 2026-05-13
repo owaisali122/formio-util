@@ -20,7 +20,7 @@
 import React, { useCallback, useEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
-import { openPopup } from '../../client/popup/popupStore'
+import { openPopup } from '../PopupCore/PopupCore.helpers'
 import {
   DocumentViewerContent,
   resolveFileType,

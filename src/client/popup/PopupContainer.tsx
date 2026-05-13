@@ -16,9 +16,9 @@
 
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { closePopup, subscribePopup } from './popupStore'
-import { PopupModal } from './PopupModal'
-import type { PopupState } from './PopupTypes'
+import { closePopup, subscribePopup } from '../../coreHelper/PopupCore/PopupCore.helpers'
+import { PopupModal } from '../../coreHelper/PopupCore/PopupCore'
+import type { PopupState } from '../../coreHelper/PopupCore/PopupCore.types'
 
 // ─── PopupContainer ───────────────────────────────────────────────────────────
 
