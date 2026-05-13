@@ -163,14 +163,14 @@ export {
   getSubmissionValue,
   formatValue,
   resolveSections,
-} from './components/react/ReactFormReview/form-review-helpers'
+} from './coreHelper/FormReviewCore/FormReviewCore.helpers'
 export type {
   ReviewItemConfig,
   ReviewSectionConfig,
   FormReviewSettings,
   ResolvedReviewItem,
   ResolvedReviewSection,
-} from './components/react/ReactFormReview/form-review-helpers'
+} from './coreHelper/FormReviewCore/FormReviewCore.types'
 
 export { ReactFormReview } from './components/react/ReactFormReview'
 export type {

@@ -19,11 +19,13 @@
 import {
   buildComponentMap,
   resolveSections,
-  type ResolvedReviewSection,
-  type ResolvedReviewItem,
-  type NestedReviewEntry,
-  type ReviewSensitiveValue,
-} from '../../components/react/ReactFormReview/form-review-helpers'
+} from '../../coreHelper/FormReviewCore/FormReviewCore.helpers'
+import type {
+  ResolvedReviewSection,
+  ResolvedReviewItem,
+  NestedReviewEntry,
+  ReviewSensitiveValue,
+} from '../../coreHelper/FormReviewCore/FormReviewCore.types'
 
 export function createFormReviewClass(FieldComponent: any) {
   return class FormReviewFormIO extends FieldComponent {

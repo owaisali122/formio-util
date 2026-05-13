@@ -11,7 +11,7 @@ import type {
   ReviewItemConfig,
   ReviewSectionConfig,
   ReviewSSNFormat,
-} from './form-review-helpers'
+} from '../../../coreHelper/FormReviewCore/FormReviewCore.types'
 
 /** Submission data the review reads values from (typically the wizard's flat data store). */
 export type ReactFormReviewData = Record<string, unknown>

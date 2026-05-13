@@ -19,13 +19,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { BootstrapProvider } from '../../BootstrapProvider'
 import { injectFormioOverrides } from '../../../utils/inject-formio-overrides'
-import {
-  resolveSections,
-  type NestedReviewEntry,
-  type ResolvedReviewItem,
-  type ResolvedReviewSection,
-  type ReviewSensitiveValue,
-} from './form-review-helpers'
+import { resolveSections } from '../../../coreHelper/FormReviewCore/FormReviewCore.helpers'
+import type {
+  NestedReviewEntry,
+  ResolvedReviewItem,
+  ResolvedReviewSection,
+  ReviewSensitiveValue,
+} from '../../../coreHelper/FormReviewCore/FormReviewCore.types'
 import type { ReactFormReviewProps } from './ReactFormReview.types'
 
 const DEFAULT_EMPTY = '\u2014'
