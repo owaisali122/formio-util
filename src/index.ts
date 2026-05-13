@@ -64,6 +64,42 @@ export {
 } from './components/FileUpload'
 export type { FileUploaderSchema } from './components/FileUpload'
 
+export { ReactFileUploader } from './components/react/ReactFileUploader'
+export type {
+  ReactFileUploaderProps,
+  UploadedFileValue,
+} from './components/react/ReactFileUploader'
+
+export { ReactSmartStreet } from './components/react/ReactSmartStreet'
+export type {
+  ReactSmartStreetProps,
+} from './components/react/ReactSmartStreet'
+
+export { ReactDocumentViewer } from './components/react/ReactDocumentViewer'
+export type { ReactDocumentViewerProps } from './components/react/ReactDocumentViewer'
+
+export { ReactSSN } from './components/react/ReactSSN'
+export type {
+  ReactSSNProps,
+  ReactSSNValue,
+} from './components/react/ReactSSN'
+
+export { ReactPopup } from './components/react/ReactPopup'
+export type {
+  ReactPopupProps,
+  ReactPopupButton,
+  ReactPopupButtonVariant,
+  ReactPopupVariant,
+  ReactPopupSize,
+  ReactPopupPayload,
+} from './components/react/ReactPopup'
+
+export { ReactDatePicker } from './components/react/ReactDatePicker'
+export type {
+  ReactDatePickerProps,
+  ReactDatePickerWrapperProps,
+} from './components/react/ReactDatePicker'
+
 export {
   ProfileFieldSectionComponent,
   PROFILE_FIELD_SECTION_TYPE,
@@ -127,11 +163,20 @@ export {
   getSubmissionValue,
   formatValue,
   resolveSections,
-} from './utils/form-review-helpers'
+} from './components/react/ReactFormReview/form-review-helpers'
 export type {
   ReviewItemConfig,
   ReviewSectionConfig,
   FormReviewSettings,
   ResolvedReviewItem,
   ResolvedReviewSection,
-} from './utils/form-review-helpers'
+} from './components/react/ReactFormReview/form-review-helpers'
+
+export { ReactFormReview } from './components/react/ReactFormReview'
+export type {
+  ReactFormReviewProps,
+  ReactFormReviewData,
+  ReactFormReviewSection,
+  ReactFormReviewItem,
+  ReactFormReviewSSNFormat,
+} from './components/react/ReactFormReview'

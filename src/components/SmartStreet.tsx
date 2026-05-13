@@ -428,9 +428,16 @@ function SmartStreetInner({
     }
   }, [minSearchLength, doSearch])
 
+  // Stable, deterministic IDs for react-select to prevent SSR/CSR hydration
+  // mismatches in Next.js. Without these, react-select auto-generates instance
+  // IDs (e.g. "react-select-2-..."), which can differ between server and client.
+  const stableSelectId = useMemo(() => name || 'smart-street', [name])
+
   return (
     <div className="smart-street-wrapper" style={{ minWidth: 0, minHeight: 38, overflow: 'visible' }}>
       <Select<OptionType>
+        instanceId={stableSelectId}
+        inputId={`${stableSelectId}-input`}
         name={name}
         options={options}
         isLoading={isLoading}

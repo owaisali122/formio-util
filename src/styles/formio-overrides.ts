@@ -1,5 +1,13 @@
 /** Form.io override styles – injected into document.head at runtime by FormBuilder and FormRenderer. */
-export const formioOverridesCss = `/* Ensure cards render correctly inside Form.io dialogs */
+export const formioOverridesCss = `/* Ensure the date picker calendar portal floats above all page containers.
+   react-datepicker renders the popper into #date-picker-portal at body level
+   when portalId is set. Without an explicit z-index it defaults to 1, which
+   puts it behind Bootstrap modals (1050), navbars (1030), and fixed headers. */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}
+
+/* Ensure cards render correctly inside Form.io dialogs */
 .formio-dialog .card {
   display: block;
 }

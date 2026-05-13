@@ -1,51 +1,75 @@
 /**
  * FormIO: File Upload Renderer Component
  *
- * Renders a compact icon-button file uploader inside a Form.io field.
- * Works standalone and inside table/grid/list rows.
+ * Thin Form.io adapter — all UI (button, file list, status icons, remove)
+ * is rendered by the shared `FileUploaderCore` React component via createRoot.
  *
- * Schema properties (from designer):
- *   type: 'fileUploader', uploadButtonLabel, uploadIcon, multiple,
- *   allowedFileTypes, acceptedExtensions, maxFileSize, maxFiles,
- *   allowRemove, showFileList, showFileSize, autofocus,
- *   apiType, scanEnabled, scanApiUrl, uploadApiUrl,
- *   authType, authUsername, authPassword, partnerId
+ * This file is responsible only for:
+ *   - schema / statics delegation to FileUploaderComponent
+ *   - mounting / unmounting the React core (attach / detach / destroy)
+ *   - mirroring file state from React → Form.io data (getValue / setValue / dataValue)
+ *   - checkComponentValidity (required + scan-in-progress guard)
+ *   - beforeSubmit (deferred upload for files in 'scanned' or 'pending' state)
+ *   - builder _fileCache for preview across Form.io destroy/recreate cycles
+ *
+ * Upload + scan helpers live in:
+ *   src/components/react/FileUploaderCore/file-uploader-helpers.ts
  *
  * File lifecycle:
- *   1. On file pick: status → 'pending'. If scanEnabled + scanApiUrl → immediate POST to
- *      scan API; status → 'scanned' (pass) or 'error' (fail/infected).
- *   2. beforeSubmit: blocks if any file is still 'scanning'.
- *   3. POST to uploadApiUrl for each 'scanned' (scan on) or 'pending' (scan off) file.
- *   4. Full server response bound into submission data (status → 'success').
- *   5. On form reload: file shown as clickable link using the stored server URL.
+ *   1. On file pick: status → 'pending'. If scanEnabled → immediate scan;
+ *      status → 'scanned' (pass) or 'error' (fail).
+ *   2. beforeSubmit: uploads each 'scanned' (scan on) / 'pending' (scan off)
+ *      file to uploadApiUrl; status → 'success'. Blocks on any ongoing scan.
+ *   3. Submission data: full server response bound per file.
+ *   4. On form reload: files shown as clickable links via stored server URL.
  */
+
+import React from 'react'
+import { createRoot, type Root } from 'react-dom/client'
 
 import { FileUploaderComponent } from '../../components/FileUpload'
-
-interface SelectedFile {
-  name: string
-  size: number
-  type: string
-  file?: File
-  url?: string
-  path?: string
-  serverResponse?: Record<string, any>
-  status: 'pending' | 'scanning' | 'scanned' | 'success' | 'error'
-  error?: string
-}
+import { FileUploaderCore } from '../../components/react/FileUploaderCore/FileUploaderCore'
+import {
+  buildApiHeaders,
+  normalizeValueToEntries,
+  selectedFilesToValue,
+  uploadFileEntry,
+} from '../../components/react/FileUploaderCore/file-uploader-helpers'
+import type { SelectedFileEntry } from '../../components/react/FileUploaderCore/file-uploader-helpers'
 
 /**
- * Module-level cache: preserves selectedFiles across Form.io destroy/recreate cycles
- * in the builder preview. Keyed by component key.
+ * Module-level cache: preserves selectedFiles across Form.io destroy/recreate
+ * cycles in the builder preview. Keyed by component key.
  */
-const _fileCache = new Map<string, SelectedFile[]>()
+const _fileCache = new Map<string, SelectedFileEntry[]>()
+
+/**
+ * Module-level React mount cache: preserves the React root + persistent mount
+ * div across Form.io destroy/recreate cycles in the designer preview.
+ *
+ * Form.io destroys and recreates the preview instance on every edit-dialog
+ * tab change. Without this cache, each recreate triggers a fresh createRoot()
+ * which causes the visible "jerk". With it, the new instance retrieves the
+ * same React root + div and skips the full remount.
+ *
+ * Keyed by component key (same as _fileCache).
+ */
+const _reactMountCache = new Map<string, { mount: HTMLDivElement; root: Root }>()
 
 export default function createFileUploaderClass(FieldComponent: any) {
   return class FileUploaderFormIO extends FieldComponent {
-    selectedFiles: SelectedFile[] = []
-    _syncing: boolean = false
-    _lastValueJSON: string = ''
-    _submitInProgress: boolean = false
+    /** Mirror of the React core's current file state. Used by getValue/beforeSubmit. */
+    _selectedFiles: SelectedFileEntry[] = []
+    _syncing = false
+    _lastValueJSON = ''
+    _submitInProgress = false
+    _reactRoot: Root | null = null
+    /**
+     * Persistent mount div — survives Form.io attach/detach/destroy cycles.
+     * Moved into the new container on each attach() via appendChild() so the
+     * React tree is never torn down when Form.io rebuilds the outer DOM.
+     */
+    _persistentMount: HTMLDivElement | null = null
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(FileUploaderComponent.schema(), ...extend)
@@ -71,63 +95,25 @@ export default function createFileUploaderClass(FieldComponent: any) {
       return this.component?.maxFiles ?? 1
     }
 
-    get acceptedExtensions(): string {
-      return this.component?.acceptedExtensions || ''
-    }
-
-    get allowedFileTypes(): string {
-      return this.component?.allowedFileTypes || ''
-    }
-
-    get maxFileSizeBytes(): number {
-      const raw = this.component?.maxFileSize || '10MB'
-      const match = raw.match(/^(\d+(?:\.\d+)?)\s*(KB|MB|GB)?$/i)
-      if (!match) return 10 * 1024 * 1024
-      const num = parseFloat(match[1])
-      const unit = (match[2] || 'MB').toUpperCase()
-      if (unit === 'KB') return num * 1024
-      if (unit === 'GB') return num * 1024 * 1024 * 1024
-      return num * 1024 * 1024
-    }
-
     constructor(component: any, options: any, data: any) {
       super(component, options, data)
-      const key = component.key
+      const key = component?.key
       if (data && key && Array.isArray(data[key])) {
-        this.selectedFiles = data[key]
-          .filter((v: any) => v)
-          .map((v: any) => ({
-            name: v.name || 'file',
-            size: v.size || 0,
-            type: v.type || '',
-            url: v.url,
-            path: v.path,
-            serverResponse: v,
-            status: 'success' as const,
-          }))
+        this._selectedFiles = normalizeValueToEntries(data[key])
+        this._lastValueJSON = JSON.stringify(selectedFilesToValue(this._selectedFiles))
       } else if (key) {
-        // Restore from preview cache when Form.io recreates the component in the builder
         const cached = _fileCache.get(key)
-        if (cached) this.selectedFiles = [...cached]
+        if (cached) {
+          this._selectedFiles = [...cached]
+          this._lastValueJSON = JSON.stringify(selectedFilesToValue(this._selectedFiles))
+        }
       }
     }
 
+    // ── Value binding ─────────────────────────────────────────────────────
+
     getValue() {
-      return this.selectedFiles
-        .filter((f) => f.status !== 'error')
-        .map((f) => {
-          // Return the full server response object when available so the
-          // exact payload the upload API returned is what gets persisted to DB.
-          if (f.serverResponse) return { ...f.serverResponse }
-          // Pending / scanned files not yet uploaded: return local metadata.
-          return {
-            name: f.name,
-            size: f.size,
-            type: f.type,
-            ...(f.url && !f.url.startsWith('blob:') ? { url: f.url } : {}),
-            ...(f.path ? { path: f.path } : {}),
-          }
-        })
+      return selectedFilesToValue(this._selectedFiles)
     }
 
     setValue(value: any, flags?: any) {
@@ -136,20 +122,8 @@ export default function createFileUploaderClass(FieldComponent: any) {
         const valueJSON = JSON.stringify(value)
         if (valueJSON === this._lastValueJSON) return super.setValue(value, flags)
         this._lastValueJSON = valueJSON
-
-        const arr = Array.isArray(value) ? value : [value]
-        this.selectedFiles = arr
-          .filter((v: any) => v)
-          .map((v: any) => ({
-            name: v.name || 'file',
-            size: v.size || 0,
-            type: v.type || '',
-            url: v.url,
-            path: v.path,
-            serverResponse: v,
-            status: 'success' as const,
-          }))
-        this.updateFileListUI()
+        this._selectedFiles = normalizeValueToEntries(value)
+        this._renderReact()
       }
       return super.setValue(value, flags)
     }
@@ -160,49 +134,53 @@ export default function createFileUploaderClass(FieldComponent: any) {
       return !val
     }
 
+    // ── Validation ────────────────────────────────────────────────────────
+
     checkComponentValidity(data?: any, dirty?: boolean, rowData?: any, options?: any) {
-      // Always block while a scan is in progress — regardless of dirty state
-      if (this.selectedFiles.some((f) => f.status === 'scanning')) {
-        const msg = 'File scan is in progress. Please wait.'
-        this.setCustomValidity(msg)
+      if (this._selectedFiles.some((f) => f.status === 'scanning')) {
+        this.setCustomValidity('File scan is in progress. Please wait.')
         return false
       }
 
-      // Required + custom JS validation only fires when the field has been
-      // touched or the form is submitted (dirty=true). This prevents the
-      // error from appearing permanently on initial render.
       if (!dirty) {
         this.setCustomValidity('')
         return true
       }
 
       if (this.component?.validate?.required) {
-        if (this.selectedFiles.length === 0 || !this.selectedFiles.some((f) => f.status !== 'error')) {
+        const hasValid = this._selectedFiles.some((f) => f.status !== 'error')
+        if (this._selectedFiles.length === 0 || !hasValid) {
           const msg = this.component.validate.customMessage || 'File is required'
           this.setCustomValidity(msg)
           return false
         }
       }
 
-      // Custom JavaScript validation
       const customValidation = this.component?.validate?.custom
-      if (customValidation && this.selectedFiles.length > 0) {
+      if (customValidation && this._selectedFiles.length > 0) {
         try {
           const input = this.getValue()
           const formData = this.data
           const row = rowData || this.data
           const component = this.component
           const instance = this
-          const fn = new Function('input', 'formData', 'row', 'component', 'instance',
-            `let valid = true;\n${customValidation}\nreturn valid;`)
+          const fn = new Function(
+            'input', 'formData', 'row', 'component', 'instance',
+            `let valid = true;\n${customValidation}\nreturn valid;`,
+          )
           const valid: boolean | string = fn(input, formData, row, component, instance)
           if (valid !== true) {
-            const msg = typeof valid === 'string' ? valid : (this.component.validate?.customMessage || 'Custom validation failed')
+            const msg =
+              typeof valid === 'string'
+                ? valid
+                : this.component.validate?.customMessage || 'Custom validation failed'
             this.setCustomValidity(msg)
             return false
           }
         } catch (err) {
-          console.error('FileUpload: custom validation error', err)
+          // Intentionally swallowed to preserve Form.io behavior; log for debugging.
+          // eslint-disable-next-line no-console
+          console.warn('[FileUploaderFormIO] Custom validation error:', err)
         }
       }
 
@@ -210,17 +188,17 @@ export default function createFileUploaderClass(FieldComponent: any) {
       return true
     }
 
+    // ── Before submit (deferred upload) ──────────────────────────────────
+
     async beforeSubmit(): Promise<any> {
       const uploadApiUrl = (this.component?.uploadApiUrl as string | undefined)?.trim()
 
-      // Backward compat: no upload API configured → deferred mode, skip API calls
       if (!uploadApiUrl) {
         return typeof FieldComponent.prototype.beforeSubmit === 'function'
           ? FieldComponent.prototype.beforeSubmit.call(this)
           : Promise.resolve()
       }
 
-      // Guard against duplicate calls during a single submit
       if (this._submitInProgress) {
         return typeof FieldComponent.prototype.beforeSubmit === 'function'
           ? FieldComponent.prototype.beforeSubmit.call(this)
@@ -230,83 +208,55 @@ export default function createFileUploaderClass(FieldComponent: any) {
       this._submitInProgress = true
 
       try {
-        const scanEnabled = this.component?.scanEnabled ?? false
-
-        // Block submit if any file is still being scanned (triggered at pick time)
-        if (this.selectedFiles.some((f) => f.status === 'scanning')) {
+        if (this._selectedFiles.some((f) => f.status === 'scanning')) {
           const msg = 'File scan is in progress. Please wait before submitting.'
           this.setCustomValidity(msg)
           this._submitInProgress = false
           return Promise.reject(new Error(msg))
         }
 
-        // Upload scanned files (scan enabled) or pending files (scan disabled)
-        const pendingFiles = this.selectedFiles.filter((f) => {
+        const scanEnabled = this.component?.scanEnabled ?? false
+        const pendingFiles = this._selectedFiles.filter((f) => {
           if (f.status === 'error' || f.status === 'success') return false
           if (scanEnabled) return f.status === 'scanned' && !!f.file
           return f.status === 'pending' && !!f.file
         })
 
+        const headers = buildApiHeaders(
+          this.component?.apiType,
+          this.component?.authType,
+          this.component?.authUsername,
+          this.component?.authPassword,
+          this.component?.partnerId,
+        )
+
         for (const fileEntry of pendingFiles) {
-          const file = fileEntry.file!
-
-          // Upload
-          const uploadForm = new FormData()
-          uploadForm.append('file', file)
-          let uploadResponse: Response
-          try {
-            uploadResponse = await fetch(uploadApiUrl, { method: 'POST', body: uploadForm, headers: this.buildApiHeaders() })
-          } catch {
-            const msg = 'File upload failed: service unavailable.'
+          const result = await uploadFileEntry(fileEntry.file!, uploadApiUrl, headers)
+          if (!result.success) {
             fileEntry.status = 'error'
-            fileEntry.error = msg
-            this.updateFileListUI()
-            this.setCustomValidity(msg)
+            fileEntry.error = result.message
+            this._renderReact()
+            this.setCustomValidity(result.message ?? 'File upload failed.')
             this._submitInProgress = false
-            return Promise.reject(new Error(msg))
+            return Promise.reject(new Error(result.message))
           }
 
-          if (!uploadResponse.ok) {
-            let msg = 'File upload failed.'
-            try {
-              const text = await uploadResponse.text()
-              try {
-                const body = JSON.parse(text)
-                if (typeof body === 'string') msg = body
-                else if (body?.message) msg = body.message
-                else if (body?.error) msg = body.error
-              } catch { msg = text.trim() || msg }
-            } catch { /* ignore */ }
-            fileEntry.status = 'error'
-            fileEntry.error = msg
-            this.updateFileListUI()
-            this.setCustomValidity(msg)
-            this._submitInProgress = false
-            return Promise.reject(new Error(msg))
-          }
-
-          // Bind full server response into the file entry so the DB receives
-          // exactly what the upload API returned.
-          try {
-            const body = JSON.parse(await uploadResponse.text())
-            if (body && typeof body === 'object') {
-              fileEntry.serverResponse = body
-              fileEntry.url = body.url || body.path || body.location || body.fileUrl || body.filePath || fileEntry.url
-              fileEntry.path = body.path
-              fileEntry.name = body.name || fileEntry.name
-              fileEntry.size = body.size || fileEntry.size
-              fileEntry.type = body.type || fileEntry.type
-            } else if (typeof body === 'string') {
-              fileEntry.url = body
-            }
-          } catch { /* ignore — url already set from headers if needed */ }
-
+          const resp = result.response
           fileEntry.status = 'success'
           fileEntry.file = undefined
+          fileEntry.serverResponse = resp
+          if (resp) {
+            fileEntry.url = String(
+              resp.url ?? resp.path ?? resp.location ?? resp.fileUrl ?? resp.filePath ?? fileEntry.url ?? '',
+            )
+            fileEntry.path = typeof resp.path === 'string' ? resp.path : fileEntry.path
+            fileEntry.name = typeof resp.name === 'string' ? resp.name : fileEntry.name
+            fileEntry.size = typeof resp.size === 'number' ? resp.size : fileEntry.size
+            fileEntry.type = typeof resp.type === 'string' ? resp.type : fileEntry.type
+          }
         }
 
-        // Flush the resolved server URLs into submission data
-        this.syncFormValue()
+        this._syncFormValue()
         this.setCustomValidity('')
         this._submitInProgress = false
         return typeof FieldComponent.prototype.beforeSubmit === 'function'
@@ -318,7 +268,9 @@ export default function createFileUploaderClass(FieldComponent: any) {
       }
     }
 
-    syncFormValue() {
+    // ── Sync files → Form.io data ─────────────────────────────────────────
+
+    _syncFormValue() {
       const key = this.component?.key
       const val = this.getValue()
       if (key && this.data) this.data[key] = val
@@ -328,345 +280,172 @@ export default function createFileUploaderClass(FieldComponent: any) {
       this._syncing = false
     }
 
-    render() {
-      const iconClass = this.component.uploadIcon || 'fa fa-upload'
-      const label = this.component.uploadButtonLabel || ''
-      const accept = this.acceptedExtensions || this.allowedFileTypes || ''
-      const isDisabled = this.disabled
-      const tabindex = this.component.tabindex !== '' && this.component.tabindex != null
-        ? ` tabindex="${Number(this.component.tabindex)}"` : ''
+    /**
+     * Called by the React core whenever its file state changes.
+     * Updates the mirror and propagates the change through Form.io.
+     */
+    _commitFromReact(files: SelectedFileEntry[]) {
+      if (this._syncing) return
+      this._selectedFiles = files
+      const key = this.component?.key
+      if (key) _fileCache.set(key, [...files])
+      this._syncFormValue()
+    }
 
-      return super.render(`
-        <div ref="fileUploaderContainer" class="formio-file-uploader">
-          <button type="button" ref="uploadBtn"
-                  class="btn btn-outline-secondary btn-sm${isDisabled ? ' disabled' : ''}"
-                  title="${label || 'Upload file'}"
-                  ${isDisabled ? 'disabled' : ''}${tabindex}>
-            <i class="${iconClass}"></i>${label ? ' ' + this.t(label) : ''}
-          </button>
-          <input ref="fileInput" type="file"
-                 ${this.isMultiple ? 'multiple' : ''}
-                 ${accept ? 'accept="' + accept + '"' : ''}
-                 ${isDisabled ? 'disabled' : ''}
-                 style="display:none;" />
-          <div ref="fileList" class="formio-file-uploader-list"></div>
-        </div>
-      `)
+    // ── Render / attach ───────────────────────────────────────────────────
+
+    render() {
+      return super.render('<div ref="fileUploaderReactContainer"></div>')
+    }
+
+    /**
+     * Override redraw() to block the DOM rebuild when React is already live.
+     *
+     * Form.io calls redraw() on every edit-form property change and on every
+     * tab switch in the designer. Without this override, each redraw triggers
+     * detach() → attach(), which destroys and recreates the React root —
+     * causing the visible jerk in the preview.
+     *
+     * When the persistent mount is live, we skip the DOM rebuild entirely and
+     * just push updated props into the existing React tree.
+     */
+    redraw() {
+      if (this._reactRoot && this._persistentMount) {
+        this._renderReact()
+        return Promise.resolve()
+      }
+      return super.redraw()
     }
 
     attach(element: HTMLElement) {
       const result = super.attach(element)
+
       this.loadRefs(element, {
-        fileUploaderContainer: 'single',
-        uploadBtn: 'single',
-        fileInput: 'single',
-        fileList: 'single',
+        fileUploaderReactContainer: 'single',
       })
 
-      const btn = (this.refs as any)?.uploadBtn as HTMLElement | undefined
-      const fileInput = (this.refs as any)?.fileInput as HTMLInputElement | undefined
+      const container = (this.refs as any)?.fileUploaderReactContainer as
+        | HTMLElement
+        | undefined
+      if (!container) return result
 
-      if (btn && fileInput) {
-        if (!this.disabled) {
-          this.addEventListener(btn, 'click', (e: Event) => {
-            e.preventDefault()
-            fileInput.click()
-          })
+      const cacheKey = this.component?.key || ''
 
-          this.addEventListener(fileInput, 'change', () => {
-            const files = fileInput.files
-            if (files && files.length > 0) {
-              this.handleFiles(files)
-              fileInput.value = ''
-            }
-          })
+      // Retrieve cached root + mount from a previous instance if available.
+      // This fires when Form.io destroys + recreates the instance (designer tab
+      // change). The new instance reuses the existing React root so no remount.
+      if (!this._persistentMount && cacheKey) {
+        const cached = _reactMountCache.get(cacheKey)
+        if (cached) {
+          this._persistentMount = cached.mount
+          this._reactRoot = cached.root
+          _reactMountCache.delete(cacheKey)
         }
       }
 
-      if (this.selectedFiles.length > 0) {
-        this.updateFileListUI()
+      // Create the persistent mount div on first-ever attach.
+      if (!this._persistentMount) {
+        this._persistentMount = document.createElement('div')
+        this._persistentMount.className = 'file-uploader-react-mount'
       }
 
-      // Initial focus
-      if (this.component?.autofocus) {
-        const focusBtn = (this.refs as any)?.uploadBtn as HTMLElement | undefined
-        if (focusBtn) setTimeout(() => focusBtn.focus(), 50)
+      // Move (or append) the persistent div into the new container.
+      // appendChild on an already-in-DOM node simply moves it — the React
+      // tree stays intact, no unmount/remount, no visible jerk.
+      container.innerHTML = ''
+      container.appendChild(this._persistentMount)
+
+      if (!this._reactRoot) {
+        this._reactRoot = createRoot(this._persistentMount)
       }
 
+      this._renderReact()
       return result
     }
 
-    handleFiles(fileList: FileList) {
-      const files = Array.from(fileList)
-
-      if (!this.isMultiple) {
-        this.selectedFiles = []
-      }
-
-      const maxFiles = this.maxFiles
-      // Read once — these don't change between files
-      const scanEnabled = this.component?.scanEnabled ?? false
-      const scanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
-
-      for (const file of files) {
-        if (maxFiles > 0 && this.selectedFiles.length >= maxFiles) break
-
-        const error = this.validateFile(file)
-        if (error) {
-          this.selectedFiles.push({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            status: 'error',
-            error,
-          })
-          continue
-        }
-
-        const fileEntry: SelectedFile = {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          file,
-          url: URL.createObjectURL(file),
-          status: 'pending',
-        }
-        this.selectedFiles.push(fileEntry)
-
-        if (scanEnabled && scanApiUrl) {
-          this.runScanNow(fileEntry)
-        }
-      }
-
-      this.updateFileListUI()
-      this.syncFormValue()
-      const cKey = this.component?.key
-      if (cKey) _fileCache.set(cKey, [...this.selectedFiles])
-    }
-
-    // Builds authorization headers for scan/upload API calls.
-    // Returns an empty object for 'custom' apiType; adds Authorization + partner-id for 'secure'.
-    buildApiHeaders(): Record<string, string> {
-      const apiType = (this.component?.apiType as string | undefined) ?? 'custom'
-      if (apiType !== 'secure') return {}
-
-      const headers: Record<string, string> = {}
-      const authType = (this.component?.authType as string | undefined) ?? 'basic'
-      if (authType === 'basic') {
-        const username = (this.component?.authUsername as string | undefined) ?? ''
-        const password = (this.component?.authPassword as string | undefined) ?? ''
-        if (username || password) {
-          headers['Authorization'] = `Basic ${btoa(`${username}:${password}`)}`
-        }
-      }
-      const partnerId = (this.component?.partnerId as string | undefined)?.trim()
-      if (partnerId) headers['partner-id'] = partnerId
-      return headers
-    }
-
-    // Called immediately when a file is picked and scanEnabled is true.
-    // Updates the file entry status as the scan progresses and re-renders the list.
-    async runScanNow(fileEntry: SelectedFile): Promise<void> {
-      const scanApiUrl = (this.component?.scanApiUrl as string | undefined)?.trim()
-      if (!scanApiUrl || !fileEntry.file) return
-
-      fileEntry.status = 'scanning'
-      this.updateFileListUI()
-
-      try {
-        const scanForm = new FormData()
-        scanForm.append('file', fileEntry.file)
-        let response: Response
-        try {
-          response = await fetch(scanApiUrl, { method: 'POST', body: scanForm, headers: this.buildApiHeaders() })
-        } catch {
-          fileEntry.status = 'error'
-          fileEntry.error = 'File scan failed: service unavailable.'
-          return
-        }
-
-        if (!response.ok) {
-          // Non-2xx → scan rejected (e.g. 422 for infected)
-          let msg = 'File did not pass security scan.'
-          try {
-            const body = JSON.parse(await response.text())
-            if (body?.message) msg = body.message
-            else if (body?.error) msg = body.error
-          } catch { /* ignore */ }
-          fileEntry.status = 'error'
-          fileEntry.error = msg
-          return
-        }
-
-        // 2xx response — check `status` field in body (some APIs return 200 with 'infected')
-        try {
-          const body = JSON.parse(await response.text())
-          if (body?.status === 'infected') {
-            fileEntry.status = 'error'
-            fileEntry.error = body.message || 'File did not pass security scan.'
-          } else {
-            // status: 'clean' or any successful response
-            fileEntry.status = 'scanned'
-            fileEntry.error = undefined
-          }
-        } catch {
-          // Unparseable body but response was OK → treat as passed
-          fileEntry.status = 'scanned'
-          fileEntry.error = undefined
-        }
-      } finally {
-        this.updateFileListUI()
-        this.syncFormValue()
-      }
-    }
-
-    validateFile(file: File): string | null {
-      if (file.size > this.maxFileSizeBytes) {
-        return `File exceeds maximum size of ${this.component?.maxFileSize || '10MB'}.`
-      }
-
-      const accepted = this.acceptedExtensions
-      if (accepted) {
-        const exts = accepted.split(',').map((e: string) => e.trim().toLowerCase())
-        const name = file.name.toLowerCase()
-        const valid = exts.some((ext: string) => {
-          if (ext.startsWith('.')) return name.endsWith(ext)
-          return file.type === ext
-        })
-        if (!valid) return `File type not allowed. Accepted: ${accepted}`
-      }
-
-      const mimeTypes = this.allowedFileTypes
-      if (mimeTypes) {
-        const types = mimeTypes.split(',').map((t: string) => t.trim().toLowerCase())
-        const valid = types.some((t: string) => {
-          if (t.endsWith('/*')) return file.type.startsWith(t.replace('/*', '/'))
-          return file.type === t
-        })
-        if (!valid) return `File type not allowed. Accepted: ${mimeTypes}`
-      }
-
-      return null
-    }
-
-    updateFileListUI() {
-      const listEl = (this.refs as any)?.fileList as HTMLElement | undefined
-      if (!listEl) return
-
-      const showList = this.component?.showFileList ?? true
-      if (!showList || this.selectedFiles.length === 0) {
-        listEl.innerHTML = ''
-        return
-      }
-
-      const showSize = this.component?.showFileSize ?? true
-      const allowRemove = this.component?.allowRemove ?? true
-      listEl.innerHTML = ''
-
-      for (let i = 0; i < this.selectedFiles.length; i++) {
-        const f = this.selectedFiles[i]
-        const row = document.createElement('div')
-        row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;'
-
-        // Status icon — only rendered for statuses that have a visual indicator
-        if (f.status !== 'pending') {
-          const iconSpan = document.createElement('span')
-          if (f.status === 'scanning') {
-            iconSpan.innerHTML = '<i class="fa fa-spinner fa-spin text-primary"></i>'
-            iconSpan.title = 'Scanning…'
-          } else if (f.status === 'scanned') {
-            iconSpan.innerHTML = '<i class="fa fa-shield text-success"></i>'
-            iconSpan.title = 'Scan passed'
-          } else if (f.status === 'success') {
-            iconSpan.innerHTML = '<i class="fa fa-check-circle text-success"></i>'
-            iconSpan.title = 'Uploaded'
-          } else if (f.status === 'error') {
-            iconSpan.innerHTML = '<i class="fa fa-exclamation-circle text-danger"></i>'
-            iconSpan.title = 'Error'
-          }
-          row.appendChild(iconSpan)
-        }
-
-        // File name: clickable link for server-uploaded files, plain text otherwise
-        const isServerUrl = !!f.url && !f.url.startsWith('blob:')
-        if (f.status === 'success' && isServerUrl) {
-          const link = document.createElement('a')
-          link.href = f.url!
-          link.target = '_blank'
-          link.rel = 'noopener noreferrer'
-          link.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;'
-          link.title = f.name
-          link.textContent = f.name
-          row.appendChild(link)
-        } else {
-          const nameSpan = document.createElement('span')
-          nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;'
-          nameSpan.title = f.name
-          nameSpan.textContent = f.name
-          row.appendChild(nameSpan)
-        }
-
-        if (showSize && f.size > 0) {
-          const sizeSpan = document.createElement('span')
-          sizeSpan.style.color = '#aaa'
-          sizeSpan.textContent = '(' + this.formatFileSize(f.size) + ')'
-          row.appendChild(sizeSpan)
-        }
-
-        if (f.status === 'scanning') {
-          const scanMsg = document.createElement('span')
-          scanMsg.style.color = '#0d6efd'
-          scanMsg.textContent = 'Scanning…'
-          row.appendChild(scanMsg)
-        }
-
-        if (f.error) {
-          const errSpan = document.createElement('span')
-          errSpan.style.color = '#dc3545'
-          errSpan.textContent = f.error
-          row.appendChild(errSpan)
-        }
-
-        if (allowRemove && f.status !== 'scanning') {
-          const removeBtn = document.createElement('button')
-          removeBtn.type = 'button'
-          removeBtn.style.cssText = 'background:none;border:none;color:#dc3545;cursor:pointer;font-size:12px;padding:0 2px;'
-          removeBtn.innerHTML = '<i class="fa fa-times"></i>'
-          removeBtn.title = 'Remove'
-          removeBtn.setAttribute('aria-label', `Remove ${f.name}`)
-          const idx = i
-          removeBtn.addEventListener('click', (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            this.removeFile(idx)
-          })
-          row.appendChild(removeBtn)
-        }
-
-        listEl.appendChild(row)
-      }
-    }
-
-    formatFileSize(bytes: number): string {
-      if (bytes < 1024) return `${bytes} B`
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-    }
-
-    removeFile(index: number) {
-      this.selectedFiles.splice(index, 1)
-      this.updateFileListUI()
-      this.syncFormValue()
-      const cKey = this.component?.key
-      if (cKey) _fileCache.set(cKey, [...this.selectedFiles])
+    detach() {
+      // Do NOT unmount the React root on detach — Form.io calls detach()
+      // before every redraw/reattach cycle in the designer, so unmounting
+      // here would cause the visible jerk. The root stays live and is reused
+      // on the next attach(). It is only fully unmounted in destroy().
+      return super.detach()
     }
 
     destroy() {
-      // Preserve files in cache so the builder preview can restore them on recreate
       const key = this.component?.key
-      if (key && this.selectedFiles.length > 0) _fileCache.set(key, [...this.selectedFiles])
-      this.selectedFiles = []
+      if (key && this._selectedFiles.length > 0) {
+        _fileCache.set(key, [...this._selectedFiles])
+      }
+
+      // Cache the React root + mount div so the next preview instance created
+      // after Form.io's destroy/recreate cycle can reuse them.
+      const cacheKey = key || ''
+      if (cacheKey && this._persistentMount && this._reactRoot) {
+        _reactMountCache.set(cacheKey, {
+          mount: this._persistentMount,
+          root: this._reactRoot,
+        })
+        this._reactRoot = null
+        this._persistentMount = null
+      } else {
+        this._unmountReact()
+      }
+
+      this._selectedFiles = []
       super.destroy()
+    }
+
+    // ── React helpers ─────────────────────────────────────────────────────
+
+    _unmountReact() {
+      if (this._reactRoot) {
+        try { this._reactRoot.unmount() } catch { /* ignore */ }
+        this._reactRoot = null
+      }
+    }
+
+    _renderReact() {
+      if (!this._reactRoot) return
+      const c = this.component || {}
+
+      const tabIndex =
+        c.tabindex !== '' && c.tabindex != null && Number.isFinite(Number(c.tabindex))
+          ? Number(c.tabindex)
+          : undefined
+
+      const self = this
+      const currentValue = selectedFilesToValue(this._selectedFiles)
+
+      this._reactRoot.render(
+        React.createElement(FileUploaderCore, {
+          value: currentValue,
+          uploadButtonLabel: c.uploadButtonLabel || 'Upload',
+          uploadIcon: c.uploadIcon || 'fa fa-upload',
+          showFileList: c.showFileList !== false,
+          showFileSize: c.showFileSize !== false,
+          disabled: c.disabled === true || (this as any).disabled === true,
+          readOnly: (this as any).options?.readOnly === true,
+          multiple: c.multiple === true,
+          maxFiles: typeof c.maxFiles === 'number' ? c.maxFiles : 1,
+          allowRemove: c.allowRemove !== false,
+          autoFocus: c.autofocus === true,
+          tabIndex,
+          acceptedExtensions: c.acceptedExtensions || '',
+          allowedFileTypes: c.allowedFileTypes || '',
+          maxFileSize: c.maxFileSize || '10MB',
+          uploadApiUrl: c.uploadApiUrl || '',
+          scanEnabled: c.scanEnabled === true,
+          scanApiUrl: c.scanApiUrl || '',
+          // Form.io always uses deferred upload — upload runs in beforeSubmit.
+          uploadMode: 'deferred',
+          apiType: c.apiType || 'custom',
+          authType: c.authType,
+          authUsername: c.authUsername,
+          authPassword: c.authPassword,
+          partnerId: c.partnerId,
+          onChange: (files: SelectedFileEntry[]) => self._commitFromReact(files),
+        }),
+      )
     }
   }
 }

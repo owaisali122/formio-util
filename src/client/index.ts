@@ -15,3 +15,8 @@ export * from './custom-components'
 
 // Popup system
 export * from './popup'
+
+// Standalone React wrappers — must live in the client bundle so their
+// internal openPopup calls share the same popupStore singleton as PopupContainer.
+export { ReactDocumentViewer } from '../components/react/ReactDocumentViewer'
+export type { ReactDocumentViewerProps } from '../components/react/ReactDocumentViewer/ReactDocumentViewer.types'

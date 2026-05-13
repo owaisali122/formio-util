@@ -23,7 +23,7 @@ import {
   type ResolvedReviewItem,
   type NestedReviewEntry,
   type ReviewSensitiveValue,
-} from '../../utils/form-review-helpers'
+} from '../../components/react/ReactFormReview/form-review-helpers'
 
 export function createFormReviewClass(FieldComponent: any) {
   return class FormReviewFormIO extends FieldComponent {

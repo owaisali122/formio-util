@@ -1917,6 +1917,7 @@ export function DatePickerInput({
           showPopperArrow={false}
           className={inputClassName}
           calendarClassName="datepicker-calendar"
+          portalId="date-picker-portal"
           autoComplete="off"
           aria-label={effectivePlaceholder}
           aria-invalid={manualInputError || timeZoneError ? 'true' : 'false'}
@@ -1966,9 +1967,7 @@ export function DatePickerInput({
         showPopperArrow={false}
         className={inputClassName}
         calendarClassName="datepicker-calendar"
-        autoComplete="off"
-        aria-label={effectivePlaceholder}
-        aria-invalid={manualInputError || timeZoneError ? 'true' : 'false'}
+          portalId="date-picker-portal"
         tabIndex={tabIndex}
       />
       {timeZoneSelector}
