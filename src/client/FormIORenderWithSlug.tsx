@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FormRenderer } from '../components/FormRenderer'
+import { ReactTransStackTable } from '../components/ReactTransStackTable'
 
 /**
  * Wizard state passed to onNext / onPrevious / onSaveExit.
@@ -147,7 +147,7 @@ export default function FormIORenderWithSlug(props: FormIORenderWithSlugProps) {
   }
 
   return (
-    <FormRenderer
+    <ReactTransStackTable
       schema={formMeta.schema}
       onSubmit={props.onSubmit}
       submission={props.initialData}
@@ -660,7 +660,7 @@ function WizardRenderer({
 
   return (
     <>
-      <FormRenderer
+      <ReactTransStackTable
         schema={schema}
         submission={effectiveInitialData}
         readOnly={false}

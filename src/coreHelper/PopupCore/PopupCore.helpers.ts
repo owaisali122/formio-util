@@ -6,40 +6,60 @@
  *
  * A single PopupContainer React component subscribes here and renders the
  * actual modal UI at page-root level via ReactDOM.createPortal.
+ *
+ * IMPORTANT: State is stored on globalThis so that multiple bundled copies of this
+ * module (e.g. dist/index.js and dist/client.js with splitting:false) share the
+ * same singleton. Without this, openPopup() in one bundle would notify a different
+ * _listeners set than PopupContainer subscribes to in another bundle.
  */
 
 import type { PopupConfig, PopupPayload, PopupState } from './PopupCore.types'
 
 type Listener = (state: PopupState | null) => void
 
-let _state: PopupState | null = null
-let _counter = 0
-const _listeners = new Set<Listener>()
+interface PopupSingleton {
+  state: PopupState | null
+  counter: number
+  listeners: Set<Listener>
+}
+
+const GLOBAL_KEY = '__kolea_popup_singleton__' as const
+
+function _getSingleton(): PopupSingleton {
+  const g = globalThis as any
+  if (!g[GLOBAL_KEY]) {
+    g[GLOBAL_KEY] = { state: null, counter: 0, listeners: new Set<Listener>() }
+  }
+  return g[GLOBAL_KEY] as PopupSingleton
+}
 
 function _notify() {
-  _listeners.forEach((fn) => fn(_state))
+  const s = _getSingleton()
+  s.listeners.forEach((fn) => fn(s.state))
 }
 
 /** Open the popup with the given config and optional dynamic payload. */
 export function openPopup(config: PopupConfig, payload?: PopupPayload): string {
-  const id = `popup-${++_counter}`
-  _state = { id, config, payload: payload ?? {}, isOpen: true }
+  const s = _getSingleton()
+  const id = `popup-${++s.counter}`
+  s.state = { id, config, payload: payload ?? {}, isOpen: true }
   _notify()
   return id
 }
 
 /** Close the currently open popup (if any). */
 export function closePopup(): void {
-  if (!_state) return
-  const { config } = _state
-  _state = null
+  const s = _getSingleton()
+  if (!s.state) return
+  const { config } = s.state
+  s.state = null
   _notify()
   config.onClose?.()
 }
 
 /** Returns the current popup state (null when no popup is open). */
 export function getPopupState(): PopupState | null {
-  return _state
+  return _getSingleton().state
 }
 
 /**
@@ -47,8 +67,9 @@ export function getPopupState(): PopupState | null {
  * @returns an unsubscribe function — call it to stop listening.
  */
 export function subscribePopup(listener: Listener): () => void {
-  _listeners.add(listener)
-  return () => _listeners.delete(listener)
+  const s = _getSingleton()
+  s.listeners.add(listener)
+  return () => s.listeners.delete(listener)
 }
 
 // ── usePopup hook ─────────────────────────────────────────────────────────────

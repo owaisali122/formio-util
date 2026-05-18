@@ -65,6 +65,22 @@ A checkbox. Default: off.
 
 When enabled, this component and the embedded form are not shown to the user. Use the Conditional tab to hide the component based on field values instead of setting this permanently.
 
+### Hide Nested Wizard Navigation
+
+A checkbox. Default: off.
+
+When enabled and the referenced form has display type `wizard`, the embedded wizard's own navigation is hidden:
+- Wizard tablist / breadcrumb header
+- Pagination header
+- Page navigation tabs
+- Previous / Next / Cancel / Submit buttons
+
+Use this when the parent form is a wizard and the parent should control the main navigation flow. The nested wizard content still renders correctly — only its internal navigation controls are suppressed.
+
+When this option is **off** and the parent form is also a wizard, the system still auto-detects the situation and hides navigation for backward compatibility. Enable this option explicitly when you want guaranteed suppression regardless of the parent form's display type.
+
+This setting does **not** affect standalone rendering. If the same referenced form is used outside a wizard parent without this flag enabled, its own navigation displays normally.
+
 ---
 
 ## Data Source tab

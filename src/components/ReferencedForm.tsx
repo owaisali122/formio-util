@@ -25,6 +25,7 @@ export interface ReferencedFormSchema {
   selectedFormId: string
   hidden: boolean
   autofocus: boolean
+  hideNestedWizardNavigation: boolean
   // data source configuration
   apiType: 'custom' | 'secure'
   apiEndpoint: string
@@ -57,6 +58,7 @@ export class ReferencedFormComponent {
       selectedFormId: '',
       hidden: false,
       autofocus: false,
+      hideNestedWizardNavigation: false,
       // data source defaults
       apiType: 'custom',
       apiEndpoint: '',
@@ -138,6 +140,16 @@ export class ReferencedFormComponent {
                   weight: 40,
                   tooltip:
                     'When enabled, this component is hidden from the form.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'hideNestedWizardNavigation',
+                  label: 'Hide Nested Wizard Navigation',
+                  input: true,
+                  defaultValue: false,
+                  weight: 50,
+                  tooltip:
+                    'When enabled and the referenced form is a wizard, hides its internal navigation (tablist, breadcrumb, pagination header, and page buttons). The parent wizard controls navigation instead.',
                 },
               ],
             },

@@ -2,18 +2,18 @@ export { default as createTanStackTableClass } from './TransStackFormIO'
 export {
   TransStackReact,
   type TransStackReactProps,
-} from './TransStackReact'
+} from '../../../coreHelper/TransStackCore/TransStackCore'
 export {
   fetchServerData,
   resolvePath,
-  type TransStackFetchParams,
-  type TransStackFetchResult,
-  type TransStackGroupRow,
-  type TransStackRow,
-  type TransStackServiceConfig,
-} from './TransStackService'
-export {
   registerTanStackTableHandlers,
   getTanStackTableHandlers,
-  type TanStackTableActionHandlers,
-} from './TransStackActionHandlers'
+} from '../../../coreHelper/TransStackCore/TransStackCore.helpers'
+export type {
+  TransStackFetchParams,
+  TransStackFetchResult,
+  TransStackGroupRow,
+  TransStackRow,
+  TransStackServiceConfig,
+  TanStackTableActionHandlers,
+} from '../../../coreHelper/TransStackCore/TransStackCore.types'

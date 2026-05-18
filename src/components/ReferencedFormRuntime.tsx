@@ -33,6 +33,7 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
         selectedFormId: null,
         hidden: false,
         autofocus: false,
+        hideNestedWizardNavigation: false,
         // data source configuration (from designer)
         apiType: 'custom',
         apiEndpoint: '',
@@ -283,23 +284,27 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
           }
           const schemaClone = JSON.parse(JSON.stringify(schema))
 
-          // Case 1 – Wizard-in-wizard: hide the embedded wizard's own navigation buttons.
-          // The parent wizard (FormIORenderWithSlug) drives navigation via delegation.
-          // Cases 2/3/4/5: keep default behaviour (buttons visible).
+          // Determine if nested wizard navigation should be hidden.
+          // Explicit per-component flag takes priority; falls back to auto-detection
+          // when the parent form is itself a wizard (backward-compatible default).
           const embeddedDisplay: string = schemaClone?.display ?? 'form'
           const parentIsWizard = Array.isArray((this as any).root?.pages)
+          const hideNav: boolean =
+            this.component?.hideNestedWizardNavigation === true ||
+            (parentIsWizard && embeddedDisplay === 'wizard')
           const createFormOpts: Record<string, any> = {
             readOnly: this.options?.readOnly ?? false,
             noAlerts: true,
             form: schemaClone,
           }
-          if (parentIsWizard && embeddedDisplay === 'wizard') {
+          if (hideNav && embeddedDisplay === 'wizard') {
             createFormOpts.buttonSettings = {
               showPrevious: false,
               showNext: false,
               showCancel: false,
               showSubmit: false,
             }
+            createFormOpts.breadcrumbSettings = { clickable: false }
             createFormOpts.allowPrevious = false
           }
 
@@ -310,6 +315,15 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
           this.embeddedForm = form
           ;(form as any)._formSchema = form.component ?? form.root?.component
           if (form.ready) await form.ready
+
+          // Apply CSS class to hide wizard header/tablist when navigation is suppressed
+          const embeddedDisplay: string = (form as any)._form?.display ?? form.display ?? ''
+          const hideNav: boolean =
+            this.component?.hideNestedWizardNavigation === true ||
+            (Array.isArray((this as any).root?.pages) && embeddedDisplay === 'wizard')
+          if (hideNav && embeddedDisplay === 'wizard') {
+            container.classList.add('referenced-form--hide-wizard-nav')
+          }
 
           const key = this.component?.key
           const existingData =

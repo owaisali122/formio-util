@@ -1,19 +1,17 @@
 import { createRoot, Root } from 'react-dom/client'
 import React from 'react'
 
-import type { TransStackReactProps } from './TransStackReact'
-import type { TransStackFetchParams, TransStackFetchResult, TransStackServiceConfig } from './TransStackService'
-import { fetchServerData } from './TransStackService'
-import { getTanStackTableHandlers } from './TransStackActionHandlers'
-import type { TransStackColumn } from '../../../components/TransStack'
+import type { TransStackCoreProps, TransStackFetchParams, TransStackFetchResult, TransStackServiceConfig, TransStackColumn, TransStackRow } from '../../../coreHelper/TransStackCore/TransStackCore.types'
+import { fetchServerData, getTanStackTableHandlers } from '../../../coreHelper/TransStackCore/TransStackCore.helpers'
 import { TANSTACK_TABLE_TYPE } from '../../../components/TransStack'
 
+type TransStackReactProps = TransStackCoreProps
 type ReactComponent = React.ComponentType<TransStackReactProps>
 let TransStackReactCmp: ReactComponent | null = null
 
 async function loadReactComponent(): Promise<ReactComponent | null> {
   if (!TransStackReactCmp) {
-    const mod = await import('./TransStackReact')
+    const mod = await import('../../../coreHelper/TransStackCore/TransStackCore')
     TransStackReactCmp = mod.TransStackReact
   }
   return TransStackReactCmp
@@ -29,6 +27,15 @@ export default function createTanStackTableClass(FieldComponent: any) {
     _mountedVersion: number = 0
     /** Stable fetcher reference — created once, never changes identity */
     _stableFetcher: ((params: TransStackFetchParams) => Promise<TransStackFetchResult>) | null = null
+    /**
+     * Stable handler wrappers — created once per instance.
+     * They call getTanStackTableHandlers() at click-time, so they always
+     * dispatch to whatever was registered, regardless of when Form.io
+     * first rendered vs when the renderer app registered the handlers.
+     */
+    _onEditWrapper = (row: TransStackRow) => { getTanStackTableHandlers().onEdit?.(row) }
+    _onDeleteWrapper = (row: TransStackRow) => { getTanStackTableHandlers().onDelete?.(row) }
+    _onRowClickWrapper = (row: TransStackRow) => { getTanStackTableHandlers().onRowClick?.(row) }
 
     static schema(...extend: any[]) {
       return FieldComponent.schema(
@@ -137,8 +144,6 @@ export default function createTanStackTableClass(FieldComponent: any) {
         .split(',')
         .map((s: string) => s.trim())
         .filter(Boolean)
-      const handlers = getTanStackTableHandlers()
-
       // Use stable fetcher reference to avoid re-triggering useEffect in React
       if (!this._stableFetcher) {
         this._stableFetcher = this.buildFetcher()
@@ -165,9 +170,9 @@ export default function createTanStackTableClass(FieldComponent: any) {
           detailFields,
           rowClickUrl: c.rowClickUrl || '',
           enableRowClickNavigation: c.enableRowClickNavigation === true,
-          onEdit: handlers.onEdit,
-          onDelete: handlers.onDelete,
-          onRowClick: handlers.onRowClick,
+          onEdit: this._onEditWrapper,
+          onDelete: this._onDeleteWrapper,
+          onRowClick: this._onRowClickWrapper,
           actionColumnEnabled: c.actionColumnEnabled === true,
           actionColumnLabel: c.actionColumnLabel || '',
           actionColumnActions: c.actionColumnActions || '',

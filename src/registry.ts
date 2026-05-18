@@ -402,6 +402,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           appDetailRef: true,
           ssn: true,
           searchableDropdown: true,
+          file: true,
           fileUploader: true,
           fileDownload: true,
         },

@@ -32,11 +32,11 @@
       "require": "./dist/payload.cjs",
       "default": "./dist/payload.js"
     },
-    "./FormRenderer": {
-      "types": "./dist/components/FormRenderer.d.ts",
-      "import": "./dist/components/FormRenderer.js",
-      "require": "./dist/components/FormRenderer.cjs",
-      "default": "./dist/components/FormRenderer.js"
+    "./ReactTransStackTable": {
+      "types": "./dist/components/ReactTransStackTable.d.ts",
+      "import": "./dist/components/ReactTransStackTable.js",
+      "require": "./dist/components/ReactTransStackTable.cjs",
+      "default": "./dist/components/ReactTransStackTable.js"
     }
   },
   "files": [

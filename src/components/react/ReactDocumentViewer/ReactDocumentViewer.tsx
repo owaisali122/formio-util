@@ -20,7 +20,7 @@
 
 import React, { useMemo } from 'react'
 
-import { BootstrapProvider } from '../../BootstrapProvider'
+import { BootstrapProvider } from '../../../providers/BootstrapProvider'
 import { DocumentViewerCore } from '../../../coreHelper/DocumentViewerCore'
 
 import type { ReactDocumentViewerProps } from './ReactDocumentViewer.types'

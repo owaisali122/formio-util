@@ -4,18 +4,18 @@ import React, { useEffect, useRef } from 'react'
 import { registerCustomComponents } from '../registry'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
 import { runReferencedFormInjection } from '../utils/formio-referenced-form-logic'
-import { BootstrapProvider } from './BootstrapProvider'
+import { BootstrapProvider } from '../providers/BootstrapProvider'
 
 /** Schema shape matches Form.io form JSON (display, components, etc.) */
-export interface FormRendererSchema {
+export interface ReactFormRendererSchema {
   display?: 'form' | 'wizard'
   components?: unknown[]
   [key: string]: unknown
 }
 
-export interface FormRendererProps {
+export interface ReactFormRendererProps {
   /** Form.io JSON schema (from builder) */
-  schema: FormRendererSchema
+  schema: ReactFormRendererSchema
   /** Called when the form is submitted */
   onSubmit?: (data: Record<string, unknown>) => void
   /** Prefill form values */
@@ -56,12 +56,12 @@ type FormioFormInstance = {
 type FormioStatic = {
   createForm: (
     el: HTMLElement,
-    schema: FormRendererSchema,
+    schema: ReactFormRendererSchema,
     opts?: { readOnly?: boolean; [key: string]: unknown }
   ) => Promise<FormioFormInstance>
 }
 
-export function FormRenderer(props: FormRendererProps) {
+export function ReactFormRenderer(props: ReactFormRendererProps) {
   const { schema, onSubmit, submission, readOnly = false, onFormReady, createFormOptions } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const formInstanceRef = useRef<FormioFormInstance | null>(null)
@@ -155,3 +155,5 @@ export function FormRenderer(props: FormRendererProps) {
     </BootstrapProvider>
   )
 }
+
+

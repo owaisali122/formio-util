@@ -21,7 +21,7 @@
 
 import React, { forwardRef, useCallback, useImperativeHandle, useRef } from 'react'
 
-import { BootstrapProvider } from '../../BootstrapProvider'
+import { BootstrapProvider } from '../../../providers/BootstrapProvider'
 import { FileUploaderCore } from '../../../coreHelper/FileUploaderCore/FileUploaderCore'
 import {
   buildApiHeaders,

@@ -3,7 +3,7 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    'components/FormRenderer': 'src/components/FormRenderer.tsx',
+    'components/ReactTransStackTable': 'src/components/ReactTransStackTable.tsx',
     server: 'src/server/index.ts',
     client: 'src/client/index.ts',
     payload: 'src/payload.ts',

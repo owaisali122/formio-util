@@ -19,7 +19,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { BootstrapProvider } from '../../BootstrapProvider'
+import { BootstrapProvider } from '../../../providers/BootstrapProvider'
 import { PopupModal } from '../../../coreHelper/PopupCore/PopupCore'
 import type { ReactPopupProps } from './ReactPopup.types'
 

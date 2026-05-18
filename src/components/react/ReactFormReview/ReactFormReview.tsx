@@ -17,7 +17,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { BootstrapProvider } from '../../BootstrapProvider'
+import { BootstrapProvider } from '../../../providers/BootstrapProvider'
 import { injectFormioOverrides } from '../../../utils/inject-formio-overrides'
 import { resolveSections } from '../../../coreHelper/FormReviewCore/FormReviewCore.helpers'
 import type {

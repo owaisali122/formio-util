@@ -19,7 +19,7 @@
 
 import React, { useCallback, useMemo } from 'react'
 
-import { BootstrapProvider } from '../../BootstrapProvider'
+import { BootstrapProvider } from '../../../providers/BootstrapProvider'
 import { SSNInputCore } from '../../../coreHelper/SSNInputCore/SSNInputCore'
 import { digitsOnly } from '../../../coreHelper/SSNInputCore/SSNInputCore.helpers'
 

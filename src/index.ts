@@ -9,9 +9,9 @@ export {
 } from './registry'
 export type { RegistryConfig } from './registry'
 
-export { BootstrapProvider } from './components/BootstrapProvider'
-export { FormRenderer } from './components/FormRenderer'
-export type { FormRendererProps, FormRendererSchema } from './components/FormRenderer'
+export { BootstrapProvider } from './providers/BootstrapProvider'
+export { ReactTransStackTable } from './components/ReactTransStackTable'
+export type { ReactTransStackTableProps, ReactTransStackTableSchema } from './components/ReactTransStackTable'
 export { FormBuilder } from './components/FormBuilder'
 export type {
   FormBuilderProps,
@@ -111,6 +111,11 @@ export {
   TANSTACK_TABLE_TYPE,
 } from './components/TransStack'
 export type { TransStackSchema, TransStackColumn } from './components/TransStack'
+export {
+  registerTanStackTableHandlers,
+  getTanStackTableHandlers,
+} from './coreHelper/TransStackCore/TransStackCore.helpers'
+export type { TanStackTableActionHandlers, TransStackFetchParams, TransStackFetchResult, TransStackRow } from './coreHelper/TransStackCore/TransStackCore.types'
 
 export {
   PopupComponent,

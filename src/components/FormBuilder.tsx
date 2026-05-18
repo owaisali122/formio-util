@@ -9,7 +9,7 @@ import {
   setupReferencedFormDropdown,
   setupTabIndexManagerDropdown,
 } from '../registry'
-import { BootstrapProvider } from './BootstrapProvider'
+import { BootstrapProvider } from '../providers/BootstrapProvider'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
 
 /** Form.io form JSON schema (display, components, etc.) */

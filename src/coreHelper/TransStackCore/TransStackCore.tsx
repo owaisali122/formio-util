@@ -1,4 +1,6 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿'use client'
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,197 +18,31 @@ import {
   type ColumnOrderState,
   type ColumnSizingState,
 } from '@tanstack/react-table'
-import type { TransStackFetchParams, TransStackFetchResult, TransStackGroupRow, TransStackRow } from './TransStackService'
-import type { TransStackColumn } from '../../../components/TransStack'
-import { openPopup } from '../../../coreHelper/PopupCore/PopupCore.helpers'
-import type { PopupButton, PopupConfig } from '../../../coreHelper/PopupCore/PopupCore.types'
+import { openPopup } from '../PopupCore/PopupCore.helpers'
+import type { PopupButton, PopupConfig } from '../PopupCore/PopupCore.types'
 import { createRoot } from 'react-dom/client'
-import { DocumentViewerContent, resolveFileType } from '../DocumentViewerContent'
-import { triggerFileDownload } from '../fileDownloadUtils'
-
-// â”€â”€â”€ Props â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-export interface TransStackReactProps {
-  dataMode: 'client' | 'server'
-  columns: TransStackColumn[]
-  // pagination
-  paginationEnabled: boolean
-  pageSize: number
-  pageSizeOptions: number[]
-  pageSizeSelectorEnabled: boolean
-  // sorting
-  sortingEnabled: boolean
-  defaultSortField: string
-  defaultSortDirection: 'asc' | 'desc'
-  // search
-  globalSearchEnabled: boolean
-  searchPlaceholder: string
-  searchDebounce: number
-  // grouping
-  groupingEnabled: boolean
-  groupingField: string
-  // expansion
-  expansionEnabled: boolean
-  groupedRowExpansion: boolean
-  detailFields: string[]
-  // row navigation
-  rowClickUrl: string
-  enableRowClickNavigation?: boolean
-  /** Called when an 'edit' action is triggered on a row */
-  onEdit?: (row: TransStackRow) => void
-  /** Called when a 'delete' action is triggered on a row */
-  onDelete?: (row: TransStackRow) => void
-  /** Called when row click navigation is triggered (if enableRowClickNavigation is true) */
-  onRowClick?: (row: TransStackRow) => void
-  // action column
-  actionColumnEnabled: boolean
-  actionColumnLabel: string
-  actionColumnActions: string
-  // UI text
-  toolbarEnabled: boolean
-  emptyStateText: string
-  loadingText: string
-  errorText: string
-  /**
-   * Data fetcher. For client mode, called once with page=0.
-   * For server mode, called on every state change.
-   */
-  fetchData: (params: TransStackFetchParams) => Promise<TransStackFetchResult>
-}
-
-// â”€â”€â”€ Styles (inline to avoid external CSS dep in shared package) â”€â”€â”€â”€â”€
-
-const S = {
-  wrapper: { width: '100%', fontFamily: 'inherit', fontSize: 13 } as React.CSSProperties,
-  tableScroll: { width: '100%', overflowX: 'auto' as const } as React.CSSProperties,
-  toolbar: { display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', flexWrap: 'wrap' as const } as React.CSSProperties,
-  searchInput: { padding: '4px 8px', border: '1px solid #ccc', borderRadius: 3, fontSize: 13, minWidth: 200 } as React.CSSProperties,
-  table: { width: '100%', borderCollapse: 'collapse' as const, border: '1px solid #ddd' } as React.CSSProperties,
-  th: { padding: '8px 10px', background: '#f5f5f5', borderBottom: '2px solid #ddd', textAlign: 'left' as const, fontWeight: 600, fontSize: 12, cursor: 'default', userSelect: 'none' as const, whiteSpace: 'nowrap' as const, position: 'relative' as const, overflow: 'hidden' as const } as React.CSSProperties,
-  thSortable: { cursor: 'pointer' } as React.CSSProperties,
-  /** Drag-and-drop: visual cue when a column header is being dragged */
-  thDragging: { opacity: 0.5, background: '#e0e4ea' } as React.CSSProperties,
-  thDragOver: { borderLeft: '2px solid #4a90d9' } as React.CSSProperties,
-  /** Sort indicator styles */
-  sortIndicator: { marginLeft: 4, fontSize: 10, display: 'inline-block' } as React.CSSProperties,
-  sortActive: { color: '#333' } as React.CSSProperties,
-  sortInactive: { color: '#bbb' } as React.CSSProperties,
-  td: { padding: '6px 10px', borderBottom: '1px solid #eee', fontSize: 13 } as React.CSSProperties,
-  groupRow: { background: '#f0f4ff', fontWeight: 600 } as React.CSSProperties,
-  detailRow: { background: '#fafafa' } as React.CSSProperties,
-  detailCell: { padding: '10px 14px', fontSize: 12, color: '#555' } as React.CSSProperties,
-  pager: { display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0', fontSize: 12, flexWrap: 'wrap' as const } as React.CSSProperties,
-  btn: { padding: '3px 10px', border: '1px solid #ccc', borderRadius: 3, background: '#fff', cursor: 'pointer', fontSize: 12 } as React.CSSProperties,
-  btnDisabled: { opacity: 0.5, cursor: 'default' } as React.CSSProperties,
-  center: { padding: 24, textAlign: 'center' as const, color: '#888', fontSize: 13 } as React.CSSProperties,
-  expandBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px', fontSize: 14 } as React.CSSProperties,
-  select: { padding: '3px 6px', border: '1px solid #ccc', borderRadius: 3, fontSize: 12 } as React.CSSProperties,
-  clickableRow: { cursor: 'pointer' } as React.CSSProperties,
-  actionBtn: { background: 'none', border: '1px solid #ccc', borderRadius: 3, cursor: 'pointer', padding: '2px 8px', fontSize: 13 } as React.CSSProperties,
-  iconCell: { textAlign: 'center' as const, fontSize: 16 } as React.CSSProperties,
-  /** Resize handle â€” 5px hit-target absolutely positioned at the right edge of each header cell.
-   *  Inline styles are required: Bootstrap CSS is not guaranteed in the renderer context. */
-  resizeHandle: { position: 'absolute' as const, top: 0, right: 0, height: '100%', width: 5, cursor: 'col-resize', userSelect: 'none' as const, touchAction: 'none' as const, zIndex: 1, display: 'flex' as const, alignItems: 'stretch', justifyContent: 'center' } as React.CSSProperties,
-  /** Inner separator line â€” background is driven by hover/active state at render time */
-  resizeHandleInner: { width: 2, borderRadius: 1, flexShrink: 0, transition: 'background 0.15s' } as React.CSSProperties,
-} as const
-
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-/** Interpolate {{fieldKey}} tokens in a URL template using row data */
-function interpolateUrl(template: string, row: TransStackRow): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) =>
-    encodeURIComponent(String(row[key] ?? '')),
-  )
-}
-
-// â”€â”€â”€ File viewer helpers (used by 'fileViewer' action type) â”€â”€â”€â”€â”€
-
-const _FILE_EXT_MAP: Record<string, 'image' | 'pdf' | 'video' | 'audio'> = {
-  jpg: 'image', jpeg: 'image', png: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
-  pdf: 'pdf',
-  mp4: 'video', webm: 'video', ogg: 'video', ogv: 'video', mov: 'video',
-  mp3: 'audio', wav: 'audio', oga: 'audio', m4a: 'audio', flac: 'audio',
-}
-
-function _getFileExt(url: string): string {
-  try {
-    const p = new URL(url, 'https://x').pathname
-    const d = p.lastIndexOf('.')
-    return d === -1 ? '' : p.slice(d + 1).toLowerCase()
-  } catch {
-    const d = url.lastIndexOf('.')
-    return d === -1 ? '' : url.slice(d + 1).toLowerCase().split(/[?#]/)[0]
-  }
-}
-
-function _escAttr(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-/** Parsed icon rule: value pattern â†’ icon class + optional text */
-interface IconRule {
-  pattern: string
-  iconClass: string
-  text?: string
-  type: 'exact' | 'startsWith' | 'endsWith' | 'contains' | 'wildcard'
-}
-
-/** Parse icon map JSON into ordered rules. Keys support glob patterns:
- *  - "active"   â†’ exact match (case-insensitive)
- *  - "active*"  â†’ starts with
- *  - "*active"  â†’ ends with
- *  - "*active*" â†’ contains
- *  - "*"        â†’ catch-all wildcard
- */
-function parseIconRules(raw?: string): IconRule[] {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    const rules: IconRule[] = []
-    for (const [k, v] of Object.entries(parsed)) {
-      const key = k.toLowerCase()
-      let iconClass: string
-      let text: string | undefined
-      if (typeof v === 'object' && v !== null) {
-        const obj = v as Record<string, unknown>
-        iconClass = String(obj.icon ?? '')
-        text = obj.text != null ? String(obj.text) : undefined
-      } else {
-        iconClass = String(v)
-      }
-      if (key === '*') {
-        rules.push({ pattern: '*', iconClass, text, type: 'wildcard' })
-      } else if (key.startsWith('*') && key.endsWith('*') && key.length > 2) {
-        rules.push({ pattern: key.slice(1, -1), iconClass, text, type: 'contains' })
-      } else if (key.endsWith('*')) {
-        rules.push({ pattern: key.slice(0, -1), iconClass, text, type: 'startsWith' })
-      } else if (key.startsWith('*')) {
-        rules.push({ pattern: key.slice(1), iconClass, text, type: 'endsWith' })
-      } else {
-        rules.push({ pattern: key, iconClass, text, type: 'exact' })
-      }
-    }
-    return rules
-  } catch { return [] }
-}
-
-/** Resolve an icon rule using ordered rules. First match wins. Returns null if no match. */
-function resolveIconRule(rules: IconRule[], rawValue: string): IconRule | null {
-  const lower = rawValue.toLowerCase()
-  for (const rule of rules) {
-    switch (rule.type) {
-      case 'exact':      if (lower === rule.pattern) return rule; break
-      case 'startsWith': if (lower.startsWith(rule.pattern)) return rule; break
-      case 'endsWith':   if (lower.endsWith(rule.pattern)) return rule; break
-      case 'contains':   if (lower.includes(rule.pattern)) return rule; break
-      case 'wildcard':   return rule
-    }
-  }
-  return null
-}
-
-// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+import { DocumentViewerContent, resolveFileType } from '../../client/custom-components/DocumentViewerContent'
+import { triggerFileDownload } from '../../client/custom-components/fileDownloadUtils'
+import type {
+  TransStackCoreProps,
+  TransStackColumn,
+  TransStackFetchParams,
+  TransStackFetchResult,
+  TransStackGroupRow,
+  TransStackRow,
+} from './TransStackCore.types'
+import { TRANS_STACK_STYLES as S } from './TransStackCore.types'
+import {
+  interpolateUrl,
+  parseIconRules,
+  resolveIconRule,
+  FILE_EXT_MAP,
+  getFileExt,
+  escAttr,
+} from './TransStackCore.helpers'
+// -- Re-export props type for backward compat ---------
+export type TransStackReactProps = TransStackCoreProps
+// ─── Component ───────────────────────────────────────────────────────
 
 export function TransStackReact(props: TransStackReactProps) {
   const {
@@ -223,7 +59,7 @@ export function TransStackReact(props: TransStackReactProps) {
     fetchData,
   } = props
 
-  // â”€â”€ Local state â”€â”€
+  // ── Local state ──
   const [data, setData] = useState<TransStackRow[]>([])
   const [groupedData, setGroupedData] = useState<TransStackGroupRow[]>([])
   const [totalRows, setTotalRows] = useState(0)
@@ -246,17 +82,17 @@ export function TransStackReact(props: TransStackReactProps) {
     groupingEnabled && groupingField ? [groupingField] : [],
   )
 
-  // Column reorder state â€” drag-and-drop reordering is UI-only, not persisted
+  // Column reorder state — drag-and-drop reordering is UI-only, not persisted
   const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([])
   const dragColumnRef = useRef<string | null>(null)
   const downloadingButtonsRef = useRef<Set<HTMLElement>>(new Set())
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null)
 
-  // Column resize state â€” session-only, not persisted
+  // Column resize state — session-only, not persisted
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
   const [hoveredResizeColId, setHoveredResizeColId] = useState<string | null>(null)
 
-  // â”€â”€ Debounced search â”€â”€
+  // ── Debounced search ──
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
@@ -268,13 +104,13 @@ export function TransStackReact(props: TransStackReactProps) {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchValue, searchDebounce])
 
-  // â”€â”€ Cleanup â”€â”€
+  // ── Cleanup ──
   useEffect(() => {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 
-  // â”€â”€ Build fetch params â”€â”€
+  // ── Build fetch params ──
   const buildParams = useCallback((): TransStackFetchParams => {
     const s = sorting[0]
     return {
@@ -287,7 +123,7 @@ export function TransStackReact(props: TransStackReactProps) {
     }
   }, [pagination, sorting, debouncedSearch, groupingEnabled, groupingField])
 
-  // â”€â”€ Data fetching â”€â”€
+  // ── Data fetching ──
   // Server mode: re-fetch whenever params change (pagination, sorting, search).
   // Client mode: fetch once, TanStack handles the rest locally.
   //
@@ -331,7 +167,7 @@ export function TransStackReact(props: TransStackReactProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataMode, clientDataLoaded, dataMode === 'server' ? buildParams : null])
 
-  // â”€â”€ Column definitions for TanStack â”€â”€
+  // ── Column definitions for TanStack ──
   const tanCols = useMemo<ColumnDef<TransStackRow>[]>(() => {
     const result: ColumnDef<TransStackRow>[] = []
 
@@ -345,7 +181,7 @@ export function TransStackReact(props: TransStackReactProps) {
           if (!row.getCanExpand()) return null
           return (
             <button style={S.expandBtn} onClick={row.getToggleExpandedHandler()}>
-              {row.getIsExpanded() ? 'â–¼' : 'â–¶'}
+              {row.getIsExpanded() ? '▼' : '▶'}
             </button>
           )
         },
@@ -356,7 +192,7 @@ export function TransStackReact(props: TransStackReactProps) {
       if (col.visible === false) continue
       const renderType = col.renderType || 'text'
       const parsedWidth = col.width ? parseInt(col.width, 10) || undefined : undefined
-      // colWidth is percentage-based â€” stored as a CSS string, applied as CSS width on <th> directly
+      // colWidth is percentage-based — stored as a CSS string, applied as CSS width on <th> directly
       const cssColWidth = col.minWidth ? `${parseInt(col.minWidth, 10)}%` : undefined
       const colDef: ColumnDef<TransStackRow> = {
         id: col.key,
@@ -393,7 +229,7 @@ export function TransStackReact(props: TransStackReactProps) {
       let actions: {
         icon?: string
         text?: string
-        /** Navigation URL â€” supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
+        /** Navigation URL — supports {{fieldKey}} interpolation. Used when type is 'url' (default). */
         url?: string
         /**
          * Action type. Defaults to 'url'.
@@ -440,7 +276,7 @@ export function TransStackReact(props: TransStackReactProps) {
            *
            * 2. **Raw field name** (no `{{}}`):
            *    Reads the field value directly from the row data.
-           *    e.g. `"link"` â†’ uses `row["link"]` as-is.
+           *    e.g. `"link"` → uses `row["link"]` as-is.
            */
           fileUrlField?: string
           /**
@@ -463,15 +299,15 @@ export function TransStackReact(props: TransStackReactProps) {
         fileDownload?: {
           /**
            * File URL source. Same as fileViewer:
-           * Template (`{{fieldKey}}`) â†’ interpolated, else raw field read.
+           * Template (`{{fieldKey}}`) → interpolated, else raw field read.
            */
           fileUrlField?: string
           /** @deprecated Use `fileUrlField`. */
           fileUrl?: string
           /**
            * Optional file name. Supports two modes:
-           * - Template: `"{{formName}}"` â†’ interpolated from row data (no encoding)
-           * - Raw field name: `"formName"` â†’ reads `row["formName"]` directly
+           * - Template: `"{{formName}}"` → interpolated from row data (no encoding)
+           * - Raw field name: `"formName"` → reads `row["formName"]` directly
            */
           fileNameField?: string
         }
@@ -484,8 +320,8 @@ export function TransStackReact(props: TransStackReactProps) {
          */
         documentView?: {
           /**
-           * File URL. Template (`{{fieldKey}}`) â†’ interpolated from row data (URL-encoded);
-           * plain field name â†’ reads `row[fieldKey]` directly.
+           * File URL. Template (`{{fieldKey}}`) → interpolated from row data (URL-encoded);
+           * plain field name → reads `row[fieldKey]` directly.
            */
           fileUrlField?: string
           /** Modal title. Supports {{fieldKey}} interpolation (not URL-encoded). */
@@ -503,7 +339,7 @@ export function TransStackReact(props: TransStackReactProps) {
           /** Viewer height CSS value. Defaults to '70vh'. */
           viewerHeight?: string
           /**
-           * Toolbar configuration. Each key defaults to true â€” omit the key to keep
+           * Toolbar configuration. Each key defaults to true — omit the key to keep
            * the button visible, or set it to false to hide it.
            * Omitting toolbar entirely shows all buttons.
            */
@@ -548,7 +384,7 @@ export function TransStackReact(props: TransStackReactProps) {
                     if (onDelete) onDelete(row.original)
                   } else if (action.type === 'fileViewer' && action.fileViewer) {
                     const fv = action.fileViewer
-                    // Resolve file URL: template (has {{}}) â†’ interpolate (no encoding), else raw field read
+                    // Resolve file URL: template (has {{}}) → interpolate (no encoding), else raw field read
                     let resolvedUrl = ''
                     if (fv.fileUrlField) {
                       resolvedUrl = fv.fileUrlField.includes('{{')
@@ -564,20 +400,20 @@ export function TransStackReact(props: TransStackReactProps) {
                       ? fv.title.replace(/\{\{(\w+)\}\}/g, (_, k) => String(row.original[k] ?? ''))
                       : (action.text || 'Document Preview')
 
-                    const extCat = _FILE_EXT_MAP[_getFileExt(resolvedUrl)]
+                    const extCat = FILE_EXT_MAP[getFileExt(resolvedUrl)]
                     const detectedCat = (fv.fileType as 'image' | 'pdf' | 'video' | 'audio' | undefined) || extCat || 'unknown'
 
                     let bodyHtml: string
                     if (detectedCat === 'pdf') {
-                      bodyHtml = `<iframe src="${_escAttr(resolvedUrl)}" style="width:100%;height:70vh;border:none;" title="PDF Preview"></iframe>`
+                      bodyHtml = `<iframe src="${escAttr(resolvedUrl)}" style="width:100%;height:70vh;border:none;" title="PDF Preview"></iframe>`
                     } else if (detectedCat === 'image') {
-                      bodyHtml = `<div class="text-center"><img src="${_escAttr(resolvedUrl)}" alt="Preview" class="d-block mx-auto" style="max-width:100%;height:auto;" /></div>`
+                      bodyHtml = `<div class="text-center"><img src="${escAttr(resolvedUrl)}" alt="Preview" class="d-block mx-auto" style="max-width:100%;height:auto;" /></div>`
                     } else if (detectedCat === 'video') {
-                      bodyHtml = `<video controls class="d-block mx-auto" style="max-width:100%;height:auto;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" />Your browser does not support video playback.</video>`
+                      bodyHtml = `<video controls class="d-block mx-auto" style="max-width:100%;height:auto;" preload="metadata"><source src="${escAttr(resolvedUrl)}" />Your browser does not support video playback.</video>`
                     } else if (detectedCat === 'audio') {
-                      bodyHtml = `<div class="p-3"><audio controls style="width:100%;" preload="metadata"><source src="${_escAttr(resolvedUrl)}" /></audio></div>`
+                      bodyHtml = `<div class="p-3"><audio controls style="width:100%;" preload="metadata"><source src="${escAttr(resolvedUrl)}" /></audio></div>`
                     } else {
-                      bodyHtml = `<div class="p-4 text-center text-muted"><i class="fa fa-file-o" style="font-size:36px;"></i><p class="mt-2">Preview not available for this file type.</p><a href="${_escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="small"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
+                      bodyHtml = `<div class="p-4 text-center text-muted"><i class="fa fa-file-o" style="font-size:36px;"></i><p class="mt-2">Preview not available for this file type.</p><a href="${escAttr(resolvedUrl)}" target="_blank" rel="noopener noreferrer" class="small"><i class="fa fa-external-link"></i> Open in new tab</a></div>`
                     }
 
                     openPopup({
@@ -629,7 +465,7 @@ export function TransStackReact(props: TransStackReactProps) {
                     })
                   } else if (action.type === 'documentView' && action.documentView) {
                     const dv = action.documentView
-                    // Resolve file URL â€” no encoding: link field is often a full path like
+                    // Resolve file URL — no encoding: link field is often a full path like
                     // "/api/download/abc123" where encodeURIComponent would break the slashes.
                     let dvUrl = ''
                     if (dv.fileUrlField) {
@@ -651,7 +487,7 @@ export function TransStackReact(props: TransStackReactProps) {
 
                     const dvHeight = dv.viewerHeight || '70vh'
 
-                    // Resolve toolbar visibility â€” each key defaults to true when omitted.
+                    // Resolve toolbar visibility — each key defaults to true when omitted.
                     const tb = dv.toolbar ?? {}
                     const tbSidebar  = tb.thumbnail !== false
                     const tbFind     = tb.search !== false
@@ -663,7 +499,7 @@ export function TransStackReact(props: TransStackReactProps) {
 
                     let dvRoot: ReturnType<typeof createRoot> | null = null
 
-                    // Open popup IMMEDIATELY â€” no HEAD request; avoids double network fetch.
+                    // Open popup IMMEDIATELY — no HEAD request; avoids double network fetch.
                     // File type: explicit config > URL extension > default 'pdf' (primary use case).
                     const dvFileType: 'pdf' | 'image' | 'text' | 'other' = dv.fileType
                       ?? (() => { const t = resolveFileType('auto', dvFileName, dvUrl); return t === 'other' ? 'pdf' : t })()
@@ -766,14 +602,14 @@ export function TransStackReact(props: TransStackReactProps) {
     setColumnOrder(tanCols.map((c) => c.id!).filter(Boolean))
   }, [tanCols])
 
-  // â”€â”€ Is server-side grouped response? â”€â”€
+  // ── Is server-side grouped response? ──
   const isGroupedResponse = groupedData.length > 0
 
-  // â”€â”€ TanStack table instance â”€â”€
+  // ── TanStack table instance ──
   const table = useReactTable({
     data,
     columns: tanCols,
-    // Column resizing â€” real-time width update while dragging
+    // Column resizing — real-time width update while dragging
     columnResizeMode: 'onChange',
     defaultColumn: { minSize: 50 },
     state: {
@@ -783,7 +619,7 @@ export function TransStackReact(props: TransStackReactProps) {
       columnOrder,
       columnSizing,
       grouping: !isGroupedResponse ? grouping : [],
-      // Client-side global filter â€” ignored in server mode
+      // Client-side global filter — ignored in server mode
       ...(globalSearchEnabled && dataMode === 'client' ? { globalFilter: debouncedSearch } : {}),
     },
     onColumnOrderChange: setColumnOrder,
@@ -811,7 +647,7 @@ export function TransStackReact(props: TransStackReactProps) {
     // Grouping (client-side only via TanStack)
     ...(groupingEnabled && !isGroupedResponse ? { getGroupedRowModel: getGroupedRowModel() } : {}),
     onGroupingChange: setGrouping,
-    // Expansion â€” sub-rows are rendered manually in a detail panel,
+    // Expansion — sub-rows are rendered manually in a detail panel,
     // NOT via TanStack's getSubRows, because child rows typically have
     // a different shape than parent rows.
     onExpandedChange: setExpanded,
@@ -825,7 +661,7 @@ export function TransStackReact(props: TransStackReactProps) {
     getCoreRowModel: getCoreRowModel(),
   })
 
-  // â”€â”€ Render helpers â”€â”€
+  // ── Render helpers ──
 
   const renderToolbar = () => {
     if (!toolbarEnabled) return null
@@ -897,7 +733,7 @@ export function TransStackReact(props: TransStackReactProps) {
               {subRows.map((sr, i) => (
                 <tr key={i}>
                   {subFields.map((f) => (
-                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? 'â€”')}</td>
+                    <td key={f} style={{ ...S.td, fontSize: 12 }}>{String(sr[f] ?? '—')}</td>
                   ))}
                 </tr>
               ))}
@@ -906,13 +742,13 @@ export function TransStackReact(props: TransStackReactProps) {
         </div>
       )
     }
-    // Detail field expansion: show keyâ€“value pairs from the row
+    // Detail field expansion: show key–value pairs from the row
     if (detailFields.length > 0) {
       return (
         <div style={S.detailCell}>
           {detailFields.map((f) => (
             <div key={f} style={{ marginBottom: 4 }}>
-              <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
+              <strong>{f}: </strong>{String(row[f] ?? '—')}
             </div>
           ))}
         </div>
@@ -921,7 +757,7 @@ export function TransStackReact(props: TransStackReactProps) {
     return null
   }
 
-  // â”€â”€ Grouped response rendering (server-side groups) â”€â”€
+  // ── Grouped response rendering (server-side groups) ──
   const renderGroupedTable = () => (
     <table style={S.table}>
       <thead>
@@ -947,10 +783,10 @@ export function TransStackReact(props: TransStackReactProps) {
     </table>
   )
 
-  // â”€â”€ Guard: no columns configured yet â†’ avoid TanStack crash â”€â”€
+  // ── Guard: no columns configured yet → avoid TanStack crash ──
   const hasDataColumns = colDefs.length > 0
 
-  // â”€â”€ Main table rendering â”€â”€
+  // ── Main table rendering ──
   if (!hasDataColumns) {
     return (
       <div style={S.center}>
@@ -1011,7 +847,7 @@ export function TransStackReact(props: TransStackReactProps) {
                         setDragOverColumnId(null)
                         const dragId = dragColumnRef.current
                         if (!dragId || dragId === colId) return
-                        // Reorder columns â€” swap dragged column to drop target position
+                        // Reorder columns — swap dragged column to drop target position
                         setColumnOrder((prev) => {
                           const order = [...prev]
                           const fromIdx = order.indexOf(dragId)
@@ -1031,7 +867,7 @@ export function TransStackReact(props: TransStackReactProps) {
                       {/* Sort indicator: visible on all sortable columns */}
                       {canSort && (
                         <span style={{ ...S.sortIndicator, ...(sortDir ? S.sortActive : S.sortInactive) }}>
-                          {sortDir === 'asc' ? ' ▲' : sortDir === 'desc' ? ' ▼' :  '▼▲'}
+                          {sortDir === 'asc' ? '↑' : sortDir === 'desc' ? '↓' : '↕'}
                         </span>
                       )}
                       {/* Column resize handle — drag left/right to adjust column width */}
@@ -1111,7 +947,7 @@ export function TransStackReact(props: TransStackReactProps) {
   )
 }
 
-// ─── Server-side group row block (for grouped response) ──────────────
+// --- Server-side group row block (for grouped response) --------------
 
 function GroupRowBlock(props: {
   group: TransStackGroupRow
@@ -1160,7 +996,7 @@ function ChildRow(props: {
         {groupedRowExpansion && (
           <td style={S.td}>
             {expansionEnabled && detailFields.length > 0 && (
-              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? 'â–¼' : 'â–¶'}</button>
+              <button style={S.expandBtn} onClick={() => setOpen(!open)}>{open ? '▼' : '▶'}</button>
             )}
           </td>
         )}
@@ -1174,7 +1010,7 @@ function ChildRow(props: {
           <td colSpan={tanCols.length + (groupedRowExpansion ? 1 : 0)} style={S.detailCell}>
             {detailFields.map((f) => (
               <div key={f} style={{ marginBottom: 4 }}>
-                <strong>{f}: </strong>{String(row[f] ?? 'â€”')}
+                <strong>{f}: </strong>{String(row[f] ?? '—')}
               </div>
             ))}
           </td>

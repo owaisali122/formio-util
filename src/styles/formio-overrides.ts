@@ -174,6 +174,26 @@ export const formioOverridesCss = `/* Ensure the date picker calendar portal flo
   box-shadow: none !important;
 }
 
+/* ========== Referenced Form: hide nested wizard navigation ========== */
+/* Applied via .referenced-form--hide-wizard-nav class on the container.
+   Hides the wizard header/tablist/breadcrumb/pagination and any residual
+   navigation buttons when hideNestedWizardNavigation is enabled. */
+.referenced-form--hide-wizard-nav .wizard-nav,
+.referenced-form--hide-wizard-nav .formio-wizard-nav-container,
+.referenced-form--hide-wizard-nav nav[aria-label="Wizard Navigation"],
+.referenced-form--hide-wizard-nav .pagination,
+.referenced-form--hide-wizard-nav [id$="-header"],
+.referenced-form--hide-wizard-nav .wizard-page-header,
+.referenced-form--hide-wizard-nav .formio-wizard-header {
+  display: none !important;
+}
+.referenced-form--hide-wizard-nav .btn-wizard-nav-previous,
+.referenced-form--hide-wizard-nav .btn-wizard-nav-next,
+.referenced-form--hide-wizard-nav .btn-wizard-nav-cancel,
+.referenced-form--hide-wizard-nav .btn-wizard-nav-submit {
+  display: none !important;
+}
+
 /* If builder classes leak into renderer, neutralize dashed component wrappers */
 .formio-renderer .formio-component-textfield,
 .formio-renderer .formio-component-textarea,
