@@ -286,12 +286,13 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
 
           // Determine if nested wizard navigation should be hidden.
           // Explicit per-component flag takes priority; falls back to auto-detection
-          // when the parent form is itself a wizard (backward-compatible default).
+          // only when the property is undefined (old forms without the setting).
           const embeddedDisplay: string = schemaClone?.display ?? 'form'
           const parentIsWizard = Array.isArray((this as any).root?.pages)
+          const hideNavSetting = this.component?.hideNestedWizardNavigation
           const hideNav: boolean =
-            this.component?.hideNestedWizardNavigation === true ||
-            (parentIsWizard && embeddedDisplay === 'wizard')
+            hideNavSetting === true ||
+            (hideNavSetting == null && parentIsWizard && embeddedDisplay === 'wizard')
           const createFormOpts: Record<string, any> = {
             readOnly: this.options?.readOnly ?? false,
             noAlerts: true,
@@ -318,9 +319,10 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
 
           // Apply CSS class to hide wizard header/tablist when navigation is suppressed
           const embeddedDisplay: string = (form as any)._form?.display ?? form.display ?? ''
+          const hideNavSetting = this.component?.hideNestedWizardNavigation
           const hideNav: boolean =
-            this.component?.hideNestedWizardNavigation === true ||
-            (Array.isArray((this as any).root?.pages) && embeddedDisplay === 'wizard')
+            hideNavSetting === true ||
+            (hideNavSetting == null && Array.isArray((this as any).root?.pages) && embeddedDisplay === 'wizard')
           if (hideNav && embeddedDisplay === 'wizard') {
             container.classList.add('referenced-form--hide-wizard-nav')
           }
