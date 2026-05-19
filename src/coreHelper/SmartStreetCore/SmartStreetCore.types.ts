@@ -39,4 +39,5 @@ export interface SmartStreetProps {
   onAddressSelected?: (address: AddressResult) => void
   disabled?: boolean
   tabIndex?: number
+  enableCache?: boolean
 }

@@ -48,6 +48,8 @@ export interface DocumentViewerSchema {
   showToolbarRotate: boolean
   showToolbarPrint: boolean
   showToolbarDownload: boolean
+  // cache
+  enableCache: boolean
   [k: string]: unknown
 }
 
@@ -84,6 +86,8 @@ export class DocumentViewerComponent {
       showToolbarRotate: true,
       showToolbarPrint: true,
       showToolbarDownload: true,
+      // cache
+      enableCache: true,
       ...overrides,
     }
   }
@@ -171,6 +175,15 @@ export class DocumentViewerComponent {
                   input: true,
                   defaultValue: false,
                   weight: 60,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'enableCache',
+                  label: 'Enable Cache',
+                  input: true,
+                  defaultValue: true,
+                  weight: 65,
+                  tooltip: 'When enabled, the viewer preserves its state across wizard page navigation. Static URLs and resolved file metadata are not reloaded unnecessarily.',
                 }
               ],
             },

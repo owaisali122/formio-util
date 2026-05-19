@@ -42,6 +42,14 @@ import {
 } from './TransStackCore.helpers'
 // -- Re-export props type for backward compat ---------
 export type TransStackReactProps = TransStackCoreProps
+
+/**
+ * Module-level data cache for TanStack Table.
+ * Survives component remounts (wizard page navigation).
+ * Keyed by fetch params serialized as a string.
+ */
+const _transStackDataCache = new Map<string, TransStackFetchResult>()
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export function TransStackReact(props: TransStackReactProps) {
@@ -57,6 +65,7 @@ export function TransStackReact(props: TransStackReactProps) {
     actionColumnEnabled, actionColumnLabel, actionColumnActions,
     toolbarEnabled, emptyStateText, loadingText, errorText,
     fetchData,
+    enableCache = false,
   } = props
 
   // ── Local state ──
@@ -64,6 +73,7 @@ export function TransStackReact(props: TransStackReactProps) {
   const [groupedData, setGroupedData] = useState<TransStackGroupRow[]>([])
   const [totalRows, setTotalRows] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchValue, setSearchValue] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -71,6 +81,9 @@ export function TransStackReact(props: TransStackReactProps) {
   const mountedRef = useRef(true)
   // client-side: all data loaded flag
   const [clientDataLoaded, setClientDataLoaded] = useState(false)
+
+  // Module-level cache map for this component (survives remounts)
+  const cacheMapRef = useRef(_transStackDataCache)
 
   // TanStack state
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: initialPageSize })
@@ -127,6 +140,12 @@ export function TransStackReact(props: TransStackReactProps) {
   // Server mode: re-fetch whenever params change (pagination, sorting, search).
   // Client mode: fetch once, TanStack handles the rest locally.
   //
+  // When enableCache is true:
+  //   - Show cached data immediately (no loading spinner)
+  //   - Always call API in background
+  //   - Show refresh indicator while API is running
+  //   - Replace data only when API returns different rows
+  //
   // fetchData is stored in a ref so that a new function reference from the
   // parent (e.g. from FormIO re-rendering props) does NOT trigger a
   // duplicate API call.  Only genuine state changes (pagination, sorting,
@@ -138,21 +157,77 @@ export function TransStackReact(props: TransStackReactProps) {
     if (dataMode === 'client' && clientDataLoaded) return
 
     let cancelled = false
-    setLoading(true)
+    const params = buildParams()
+
+    // Build a cache key from params for cache lookup/storage
+    const cacheKey = enableCache
+      ? `${dataMode}|${params.page}|${params.pageSize}|${params.sortField || ''}|${params.sortDirection || ''}|${params.search || ''}|${params.group || ''}`
+      : ''
+
+    // If cache is enabled, try to show cached data immediately
+    const cached = enableCache ? cacheMapRef.current.get(cacheKey) : undefined
+    if (cached) {
+      // We have cached data — display it immediately, no loading state
+      const hasGroups = cached.rows.length > 0 && (cached.rows[0] as TransStackGroupRow)?._isGroup
+      if (hasGroups) {
+        setGroupedData(cached.rows as TransStackGroupRow[])
+        setData([])
+      } else {
+        setData(cached.rows as TransStackRow[])
+        setGroupedData([])
+      }
+      setTotalRows(cached.total)
+      setLoading(false)
+      setIsRefreshing(true)
+    } else {
+      setLoading(true)
+      setIsRefreshing(false)
+    }
+
     setError(null)
 
-    fetchDataRef.current(buildParams())
+    fetchDataRef.current(params)
       .then((result) => {
         if (cancelled || !mountedRef.current) return
-        const hasGroups = result.rows.length > 0 && (result.rows[0] as TransStackGroupRow)?._isGroup
-        if (hasGroups) {
-          setGroupedData(result.rows as TransStackGroupRow[])
-          setData([])
+
+        // If cache is enabled, store result and only update UI if data differs
+        if (enableCache) {
+          const prevCached = cacheMapRef.current.get(cacheKey)
+          cacheMapRef.current.set(cacheKey, result)
+
+          // Compare: only update state if rows actually changed
+          const prevRows = prevCached?.rows
+          const newRows = result.rows
+          const isDifferent =
+            !prevRows ||
+            prevRows.length !== newRows.length ||
+            prevCached.total !== result.total ||
+            JSON.stringify(prevRows) !== JSON.stringify(newRows)
+
+          if (isDifferent) {
+            const hasGroups = result.rows.length > 0 && (result.rows[0] as TransStackGroupRow)?._isGroup
+            if (hasGroups) {
+              setGroupedData(result.rows as TransStackGroupRow[])
+              setData([])
+            } else {
+              setData(result.rows as TransStackRow[])
+              setGroupedData([])
+            }
+            setTotalRows(result.total)
+          }
         } else {
-          setData(result.rows as TransStackRow[])
-          setGroupedData([])
+          // No cache — normal behavior
+          const hasGroups = result.rows.length > 0 && (result.rows[0] as TransStackGroupRow)?._isGroup
+          if (hasGroups) {
+            setGroupedData(result.rows as TransStackGroupRow[])
+            setData([])
+          } else {
+            setData(result.rows as TransStackRow[])
+            setGroupedData([])
+          }
+          setTotalRows(result.total)
         }
-        setTotalRows(result.total)
+
         if (dataMode === 'client') setClientDataLoaded(true)
       })
       .catch((err) => {
@@ -160,12 +235,15 @@ export function TransStackReact(props: TransStackReactProps) {
         setError(err?.message || errorText)
       })
       .finally(() => {
-        if (!cancelled && mountedRef.current) setLoading(false)
+        if (!cancelled && mountedRef.current) {
+          setLoading(false)
+          setIsRefreshing(false)
+        }
       })
 
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataMode, clientDataLoaded, dataMode === 'server' ? buildParams : null])
+  }, [dataMode, clientDataLoaded, enableCache, dataMode === 'server' ? buildParams : null])
 
   // ── Column definitions for TanStack ──
   const tanCols = useMemo<ColumnDef<TransStackRow>[]>(() => {
@@ -800,6 +878,12 @@ export function TransStackReact(props: TransStackReactProps) {
 
   return (
     <div style={S.wrapper}>
+      {isRefreshing && (
+        <div style={{ width: '100%', height: 3, background: '#e0e0e0', overflow: 'hidden', borderRadius: 2 }}>
+          <div style={{ width: '40%', height: '100%', background: '#2563eb', animation: 'transstack-refresh 1.2s infinite ease-in-out', borderRadius: 2 }} />
+          <style>{`@keyframes transstack-refresh { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }`}</style>
+        </div>
+      )}
       {renderToolbar()}
       <div style={S.tableScroll}>
       {isGroupedResponse ? renderGroupedTable() : (

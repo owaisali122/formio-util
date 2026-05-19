@@ -148,6 +148,12 @@ export interface TransStackCoreProps {
    * For server mode, called on every state change.
    */
   fetchData: (params: TransStackFetchParams) => Promise<TransStackFetchResult>
+  /**
+   * When true, cached data is shown immediately while the API is called in
+   * the background. A progress indicator is shown during refresh.
+   * Data is replaced only when API returns different rows.
+   */
+  enableCache?: boolean
 }
 
 // ── Inline Styles ────────────────────────────────────────────────────

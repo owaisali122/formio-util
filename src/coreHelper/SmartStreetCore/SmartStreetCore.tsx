@@ -11,6 +11,7 @@ import type {
   SmartStreetProps,
   SmartStreetValue,
 } from './SmartStreetCore.types'
+import { ComponentCache } from '../CacheHelper'
 
 export type {
   AddressApiConfig,
@@ -19,6 +20,12 @@ export type {
   SmartStreetProps,
   SmartStreetValue,
 } from './SmartStreetCore.types'
+
+/**
+ * Module-level cache for address suggestions.
+ * Survives component remounts (wizard navigation).
+ */
+const _addressCache = new ComponentCache({ staleTime: 60_000, cacheTime: 300_000 })
 
 interface OptionType {
   value: string
@@ -156,6 +163,7 @@ function SmartStreetInner({
   onAddressSelected,
   disabled = false,
   tabIndex,
+  enableCache = true,
 }: SmartStreetProps) {
   const [options, setOptions] = useState<OptionType[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -213,12 +221,21 @@ function SmartStreetInner({
         headers['partner-id'] = addressApiConfig.partnerId
       }
 
-      const resp = await fetch(url, { method: 'GET', headers })
-      if (!resp.ok) return []
-      const data = await resp.json()
-      return Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
+      const doFetch = async (): Promise<AddressSuggestion[]> => {
+        const resp = await fetch(url, { method: 'GET', headers })
+        if (!resp.ok) return []
+        const data = await resp.json()
+        return Array.isArray(data) ? data : (Array.isArray(data?.suggestions) ? data.suggestions : [])
+      }
+
+      if (!enableCache) return doFetch()
+
+      // Cache key uses the URL (which includes query + selected) and safe config parts.
+      // Sensitive values (credentials) are NOT included in the key.
+      const cacheKey = `smartstreet|${name}|${url}`
+      return _addressCache.fetch(cacheKey, doFetch)
     },
-    [addressApiConfig?.url, addressApiConfig?.username, addressApiConfig?.password, addressApiConfig?.partnerId],
+    [addressApiConfig?.url, addressApiConfig?.username, addressApiConfig?.password, addressApiConfig?.partnerId, enableCache, name],
   )
 
   const doSearch = useCallback(

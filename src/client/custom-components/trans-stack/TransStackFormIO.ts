@@ -181,13 +181,14 @@ export default function createTanStackTableClass(FieldComponent: any) {
           loadingText: c.loadingText || 'Loading…',
           errorText: c.errorText || 'Failed to load data',
           fetchData: this._stableFetcher,
+          enableCache: c.enableCache !== false,
         } as TransStackReactProps),
       )
     }
 
     /**
      * Build the fetch function from schema config.
-     * Requires apiEndpoint to be configured in the component schema.
+     * Returns a raw fetcher — caching is handled inside the React component.
      */
     buildFetcher(): (params: TransStackFetchParams) => Promise<TransStackFetchResult> {
       const handlers = getTanStackTableHandlers()
@@ -212,13 +213,13 @@ export default function createTanStackTableClass(FieldComponent: any) {
         sortDirectionParamName: c.sortDirectionParamName || 'sortDirection',
         groupParamName: c.groupParamName || 'group',
         searchParamName: c.searchParamName || 'search',
-        // Secure API configuration — passed through from component schema
         apiType: c.apiType || 'custom',
         authType: c.authType || 'basic',
         authUsername: c.authUsername || '',
         authPassword: c.authPassword || '',
         partnerId: c.partnerId || '',
       }
+
       return (params) => fetchServerData(config, params)
     }
 

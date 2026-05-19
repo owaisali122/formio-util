@@ -213,6 +213,7 @@ export function createSearchableDropdownClass(FieldComponent: any) {
         onAddressSelected: this._onAddressSelectedBound,
         disabled: this.component.disabled || this.options?.readOnly || false,
         tabIndex: this.component.tabindex !== '' && this.component.tabindex != null ? Number(this.component.tabindex) : undefined,
+        enableCache: this.component.enableCache !== false,
       }))
     }
 
@@ -327,10 +328,11 @@ export function createSearchableDropdownClass(FieldComponent: any) {
       this._mounted = false
 
       const cacheKey = this.component?.key || ''
+      const enableCache = this.component?.enableCache !== false
 
-      // Cache the React root + mount div so the next preview instance
-      // can reuse them instead of rebuilding from scratch.
-      if (cacheKey && this._persistentMount && this.reactRoot) {
+      // When cache is enabled, preserve the React root + mount div so the
+      // next instance (wizard navigation or designer tab switch) reuses them.
+      if (enableCache && cacheKey && this._persistentMount && this.reactRoot) {
         _mountCache.set(cacheKey, { mount: this._persistentMount, root: this.reactRoot })
         this.reactRoot = null
         this._persistentMount = null

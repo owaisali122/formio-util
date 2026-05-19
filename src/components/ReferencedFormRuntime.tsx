@@ -20,6 +20,10 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
     // exported anonymous class without TS4094 errors.
     embeddedForm: any = null
     _pendingValue: any = undefined
+    // Cached schema and element to avoid re-fetching and re-creating on wizard page navigation
+    _cachedSchema: any = null
+    _cachedCreateFormOpts: any = null
+    _embeddedElement: HTMLElement | null = null
 
     // Match the POC schema, but use a distinct runtime type so builder
     // configuration remains separate.
@@ -203,9 +207,40 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
       const result = super.attach(element)
       this.loadRefs(element, { container: 'single', placeholder: 'single' })
 
+      const container = this.refs?.container as HTMLElement | undefined
+      const placeholder = this.refs?.placeholder as HTMLElement | undefined
+      if (!container || !placeholder) return result
+
+      // --- Fast path: re-attach existing embedded form without re-fetching or re-creating ---
+      // When Form.io wizard navigates pages, it re-renders and calls attach() again.
+      // If we already have the embedded form and its element, just move it into the new
+      // placeholder and re-attach event bindings. No API call, no form recreation.
+      if (this.embeddedForm && this._embeddedElement) {
+        placeholder.innerHTML = ''
+        placeholder.appendChild(this._embeddedElement)
+        if (typeof this.embeddedForm.attach === 'function') {
+          this.embeddedForm.attach(this._embeddedElement)
+        }
+        // Re-apply hide-nav CSS class on the new container element
+        const embeddedDisplay: string = (this.embeddedForm as any)?._form?.display ?? this.embeddedForm.display ?? ''
+        const hideNavSetting = this.component?.hideNestedWizardNavigation
+        const parentIsWizard = Array.isArray((this as any).root?.pages)
+        const hideNav: boolean =
+          hideNavSetting === true ||
+          (hideNavSetting == null && parentIsWizard && embeddedDisplay === 'wizard')
+        if (hideNav && embeddedDisplay === 'wizard') {
+          container.classList.add('referenced-form--hide-wizard-nav')
+        }
+        return result
+      }
+
+      // --- Slow path (first attach or fallback): fetch schema and create form ---
+
+      // Destroy stale form if present without a cached element (shouldn't normally happen)
       if (this.embeddedForm?.destroy) {
         this.embeddedForm.destroy()
         this.embeddedForm = null
+        this._embeddedElement = null
       }
 
       const formId = this.selectedFormId
@@ -214,13 +249,15 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
         return result
       }
 
-      const container = this.refs?.container as HTMLElement | undefined
-      const placeholder = this.refs?.placeholder as HTMLElement | undefined
-      if (!container || !placeholder) return result
-
       const Formio = this.getFormio()
       if (!Formio?.createForm) {
         this.showError('Formio not available.')
+        return result
+      }
+
+      // If we have a cached schema from a previous attach, skip the API call entirely
+      if (this._cachedSchema) {
+        this._createEmbeddedForm(Formio, placeholder, container, this._cachedSchema, this._cachedCreateFormOpts)
         return result
       }
 
@@ -285,8 +322,6 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
           const schemaClone = JSON.parse(JSON.stringify(schema))
 
           // Determine if nested wizard navigation should be hidden.
-          // Explicit per-component flag takes priority; falls back to auto-detection
-          // only when the property is undefined (old forms without the setting).
           const embeddedDisplay: string = schemaClone?.display ?? 'form'
           const parentIsWizard = Array.isArray((this as any).root?.pages)
           const hideNavSetting = this.component?.hideNestedWizardNavigation
@@ -309,11 +344,36 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
             createFormOpts.allowPrevious = false
           }
 
-          return Formio.createForm(placeholder, schemaClone, createFormOpts)
+          // Cache schema and options for re-attach without re-fetching
+          this._cachedSchema = schemaClone
+          this._cachedCreateFormOpts = createFormOpts
+
+          return this._createEmbeddedForm(Formio, placeholder, container, schemaClone, createFormOpts)
         })
+        .catch((err: any) => {
+          this.showError(err?.message ?? 'Failed to load form.')
+        })
+
+      return result
+    }
+
+    /**
+     * Creates the embedded form from a schema (already resolved).
+     * Shared between initial fetch path and cached-schema re-attach path.
+     */
+    _createEmbeddedForm(
+      Formio: any,
+      placeholder: HTMLElement,
+      container: HTMLElement,
+      schemaClone: any,
+      createFormOpts: any
+    ) {
+      return Formio.createForm(placeholder, schemaClone, createFormOpts)
         .then(async (form: any) => {
           if (!form) return
           this.embeddedForm = form
+          // Save the form's rendered element for fast re-attach on subsequent page navigations
+          this._embeddedElement = form.element || placeholder
           ;(form as any)._formSchema = form.component ?? form.root?.component
           if (form.ready) await form.ready
 
@@ -369,8 +429,6 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
         .catch((err: any) => {
           this.showError(err?.message ?? 'Failed to load form.')
         })
-
-      return result
     }
 
     showError(message: string) {
@@ -392,6 +450,9 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
         }
         this.embeddedForm = null
       }
+      this._embeddedElement = null
+      this._cachedSchema = null
+      this._cachedCreateFormOpts = null
       super.destroy()
     }
   }

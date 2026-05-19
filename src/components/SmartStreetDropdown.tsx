@@ -37,6 +37,8 @@ export class SmartStreetDropdownComponent {
         zipcode: 'Zipcode',
       },
       tabindex: '',
+      // cache
+      enableCache: true,
       ...overrides,
     }
   }
@@ -136,6 +138,15 @@ export class SmartStreetDropdownComponent {
                   defaultValue: false,
                   weight: 70,
                   tooltip: 'When enabled, this component is disabled and the user cannot interact with it.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'enableCache',
+                  label: 'Enable Cache',
+                  input: true,
+                  defaultValue: true,
+                  weight: 75,
+                  tooltip: 'When enabled, address autocomplete results are cached client-side. Repeated searches return cached suggestions immediately and refresh in the background.',
                 }
               ],
             },

@@ -87,6 +87,8 @@ export interface TransStackSchema {
   emptyStateText: string
   loadingText: string
   errorText: string
+  // cache
+  enableCache: boolean
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -156,6 +158,8 @@ export class TanStackTableComponent {
       emptyStateText: 'No data available',
       loadingText: 'Loading…',
       errorText: 'Failed to load data',
+      // cache
+      enableCache: true,
       ...overrides,
     } as TransStackSchema
   }
@@ -224,6 +228,15 @@ export class TanStackTableComponent {
                   defaultValue: false,
                   weight: 90,
                   tooltip: 'When enabled, this component is hidden from the form.',
+                },
+                {
+                  type: 'checkbox',
+                  key: 'enableCache',
+                  label: 'Enable Cache',
+                  input: true,
+                  defaultValue: true,
+                  weight: 95,
+                  tooltip: 'When enabled, API responses are cached client-side. Cached data is shown immediately and refreshed in the background.',
                 },
                 // Validation
                 { type: 'htmlelement', tag: 'h5', content: 'Validation', weight: 100 },

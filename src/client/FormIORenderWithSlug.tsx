@@ -360,32 +360,20 @@ function WizardRenderer({
       (wizard as any).prevPage()
     }
     const stateWithTarget = { ...getState(), currentPage: targetPage }
-    if (saveRecord && recordId != null) {
-      const raw = form?.submission?.data ?? state.data ?? {}
-      const data = { ...cleanFormData(raw), _wizardStep: targetPage }
-      setIsSaving(true)
-      try {
-        const ok = await saveRecord(recordId, data, targetPage)
-        if (ok && typeof window !== 'undefined' && getWizardEditUrl) {
-          window.history.replaceState(null, '', getWizardEditUrl(recordId, targetPage))
-        }
-      } catch (e) {
-        onError?.(e instanceof Error ? e.message : 'Error')
-      } finally {
-        setIsSaving(false)
-      }
+
+    // Update URL step param without saving data — Previous is navigation-only
+    if (recordId != null && typeof window !== 'undefined' && getWizardEditUrl) {
+      window.history.replaceState(null, '', getWizardEditUrl(recordId, targetPage))
     }
+
     if (onPrevious) {
-      setIsSaving(true)
       try {
         await onPrevious(stateWithTarget)
       } catch (e) {
         onError?.(e instanceof Error ? e.message : 'Error')
-      } finally {
-        setIsSaving(false)
       }
     }
-  }, [onPrevious, saveRecord, recordId, getWizardEditUrl, getState, onError])
+  }, [onPrevious, recordId, getWizardEditUrl, getState, onError])
 
   const handleNext = useCallback(async () => {
     const state = getState()

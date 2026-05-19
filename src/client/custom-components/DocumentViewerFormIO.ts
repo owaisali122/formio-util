@@ -254,10 +254,12 @@ export function createDocumentViewerClass(FieldComponent: any) {
 
     destroy() {
       const cacheKey = this.component?.key || ''
+      const enableCache = this.component?.enableCache !== false
 
-      // Cache the React root + mount div so the next preview instance created
-      // after Form.io's destroy/recreate cycle can reuse them.
-      if (cacheKey && this._persistentMount && this._triggerRoot) {
+      // When cache is enabled, preserve the React root + mount div so the
+      // next instance (after Form.io's destroy/recreate cycle during wizard
+      // navigation or designer tab switch) can reuse them without reloading.
+      if (enableCache && cacheKey && this._persistentMount && this._triggerRoot) {
         _reactMountCache.set(cacheKey, {
           mount: this._persistentMount,
           root: this._triggerRoot,
