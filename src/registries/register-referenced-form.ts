@@ -161,6 +161,24 @@ export function setupReferencedFormDropdown(instance: Record<string, unknown>): 
 
     const onDropdownChange = (id: string | undefined) => {
       editingComp.selectedFormId = id
+
+      // Resolve the display type of the selected form and store it
+      const doc = id ? _currentDocs.find((d) => String(d.id) === String(id)) : null
+      const docSchema = doc?.schema as { display?: string } | undefined
+      const display = docSchema?.display || 'form'
+      editingComp.selectedFormDisplay = display
+
+      // Update edit form submission data so conditional visibility reacts
+      const subData = inst.editForm?.submission?.data
+      if (subData) {
+        subData.selectedFormDisplay = display
+      }
+      // Also update via getComponent for reliable Form.io reactivity
+      try {
+        const displayComp = inst.editForm?.getComponent?.('selectedFormDisplay') as any
+        if (displayComp?.setValue) displayComp.setValue(display)
+      } catch { /* ignore */ }
+
       renderDialogPreview(id)
       inst.redraw?.()
     }
@@ -218,6 +236,19 @@ export function setupReferencedFormDropdown(instance: Record<string, unknown>): 
             }
           }
           const currentId = (editingComp.selectedFormId as string) || undefined
+          // Sync selectedFormDisplay for the currently selected form
+          if (currentId) {
+            const doc = _currentDocs.find((d) => String(d.id) === String(currentId))
+            const docSchema = doc?.schema as { display?: string } | undefined
+            const display = docSchema?.display || 'form'
+            editingComp.selectedFormDisplay = display
+            const subData = inst.editForm?.submission?.data
+            if (subData) subData.selectedFormDisplay = display
+            try {
+              const displayComp = inst.editForm?.getComponent?.('selectedFormDisplay') as any
+              if (displayComp?.setValue) displayComp.setValue(display)
+            } catch { /* ignore */ }
+          }
           runWhenPreviewReady(currentId)
           inst.redraw?.()
         })
@@ -304,6 +335,21 @@ export function setupReferencedFormDropdown(instance: Record<string, unknown>): 
       const subData = inst.editForm?.submission?.data
       const currentId = (subData?.selectedFormId as string) || (editingComp.selectedFormId as string) || undefined
       renderDialogPreview(currentId)
+
+      // Sync selectedFormDisplay when docs are available
+      if (currentId && _currentDocs.length > 0) {
+        const doc = _currentDocs.find((d) => String(d.id) === String(currentId))
+        const docSchema = doc?.schema as { display?: string } | undefined
+        const display = docSchema?.display || 'form'
+        if (subData && subData.selectedFormDisplay !== display) {
+          subData.selectedFormDisplay = display
+          editingComp.selectedFormDisplay = display
+          try {
+            const displayComp = inst.editForm?.getComponent?.('selectedFormDisplay') as any
+            if (displayComp?.setValue) displayComp.setValue(display)
+          } catch { /* ignore */ }
+        }
+      }
     })
 
     // ── Initial fetch if endpoint is already configured ──────────

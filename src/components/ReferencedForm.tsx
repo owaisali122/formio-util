@@ -23,6 +23,7 @@ export interface ReferencedFormSchema {
   input: boolean
   tableView: boolean
   selectedFormId: string
+  selectedFormDisplay: string
   hidden: boolean
   autofocus: boolean
   hideNestedWizardNavigation: boolean
@@ -56,6 +57,7 @@ export class ReferencedFormComponent {
       input: false,
       tableView: false,
       selectedFormId: '',
+      selectedFormDisplay: '',
       hidden: false,
       autofocus: false,
       hideNestedWizardNavigation: false,
@@ -142,6 +144,13 @@ export class ReferencedFormComponent {
                     'When enabled, this component is hidden from the form.',
                 },
                 {
+                  type: 'hidden',
+                  key: 'selectedFormDisplay',
+                  input: true,
+                  defaultValue: '',
+                  weight: 45,
+                },
+                {
                   type: 'checkbox',
                   key: 'hideNestedWizardNavigation',
                   label: 'Hide Nested Wizard Navigation',
@@ -150,6 +159,9 @@ export class ReferencedFormComponent {
                   weight: 50,
                   tooltip:
                     'When enabled and the referenced form is a wizard, hides its internal navigation (tablist, breadcrumb, pagination header, and page buttons). The parent wizard controls navigation instead.',
+                  conditional: {
+                    json: { '===': [{ var: 'data.selectedFormDisplay' }, 'wizard'] },
+                  },
                 },
               ],
             },
