@@ -3,7 +3,8 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
-    'components/ReactTransStackTable': 'src/components/ReactTransStackTable.tsx',
+    // Bundle from impl (no "use client") — directive cannot live on a rolled-up entry
+    'components/ReactTransStackTable': 'src/components/ReactTransStackTable.impl.tsx',
     server: 'src/server/index.ts',
     client: 'src/client/index.ts',
     payload: 'src/payload.ts',

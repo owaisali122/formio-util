@@ -199,6 +199,24 @@ function findActiveReferencedWizardsOnPage(wizard: any, pageIndex: number): any[
   return results
 }
 
+/**
+ * Persists the nested wizard's current page into the parent form's submission data.
+ * This allows the step to survive save/reload cycles.
+ */
+function persistNestedWizardStep(nestedComponent: any): void {
+  const ef = nestedComponent?.embeddedForm
+  if (!ef) return
+  const key = nestedComponent?.component?.key
+  if (!key) return
+  const root = nestedComponent?.root
+  if (!root?.data) return
+  const stepKey = `_nestedWizardStep_${key}`
+  root.data[stepKey] = ef.page ?? 0
+  if (typeof nestedComponent.triggerChange === 'function') {
+    nestedComponent.triggerChange()
+  }
+}
+
 // ---------------------------------------------------------------------------
 // File upload flush — called before final submit to resolve all server URLs
 // ---------------------------------------------------------------------------
@@ -350,6 +368,7 @@ function WizardRenderer({
     if (activeNested && !activeNested.isReferencedFirstStep()) {
       // Nested wizard still has previous steps — go back in nested wizard only.
       activeNested.goToReferencedPreviousStep()
+      persistNestedWizardStep(activeNested)
       return
     }
     // If nested wizard is on its first step (Case 9), or there is no nested wizard
@@ -410,6 +429,7 @@ function WizardRenderer({
     if (activeNested && !activeNested.isReferencedLastStep()) {
       // Nested wizard still has internal steps to go through — advance it only.
       activeNested.goToReferencedNextStep()
+      persistNestedWizardStep(activeNested)
       return
     }
     // If activeNested is on its last step (Case 10), or there is no nested wizard
