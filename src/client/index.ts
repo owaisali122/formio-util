@@ -10,6 +10,10 @@
 export { default as FormIORenderWithSlug } from './FormIORenderWithSlug'
 export type { FormIORenderWithSlugProps, WizardState, LoadRecordResult } from './FormIORenderWithSlug'
 
+// Wizard navigation
+export { WizardNavigationRenderer, resolveNavigationButtons, shouldHideDefaultNavigation } from './wizard-navigation-renderer'
+export type { WizardNavigationRendererProps } from './wizard-navigation-renderer'
+
 // Custom components
 export * from './custom-components'
 

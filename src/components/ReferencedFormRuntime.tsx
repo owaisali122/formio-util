@@ -297,6 +297,14 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
             readOnly: this.options?.readOnly ?? false,
             noAlerts: true,
             form: schemaClone,
+            sanitize: false,
+            sanitizeConfig: {
+              addAttr: ['onclick', 'onchange', 'style', 'target'],
+              addTags: ['iframe'],
+              FORCE_BODY: true,
+              ADD_ATTR: ['onclick', 'onchange', 'style', 'target'],
+              ALLOW_UNKNOWN_PROTOCOLS: true,
+            },
           }
           if (hideNav && embeddedDisplay === 'wizard') {
             createFormOpts.buttonSettings = {
@@ -316,6 +324,24 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
           this.embeddedForm = form
           ;(form as any)._formSchema = form.component ?? form.root?.component
           if (form.ready) await form.ready
+
+          // Expose a global helper so inline onclick handlers in htmlelement
+          // components can find the correct (nested) form instance by walking
+          // up the DOM from the clicked element.
+          if (typeof window !== 'undefined') {
+            ;(window as any).__getClosestFormioForm = (el: HTMLElement) => {
+              const Fio = (window as any).Formio
+              if (!Fio?.forms) return null
+              let current: HTMLElement | null = el
+              while (current) {
+                if (current.id && Fio.forms[current.id]) return Fio.forms[current.id]
+                current = current.parentElement
+              }
+              // Fallback: last registered form (most likely the nested one)
+              const keys = Object.keys(Fio.forms)
+              return keys.length > 0 ? Fio.forms[keys[keys.length - 1]] : null
+            }
+          }
 
           // Apply CSS class to hide wizard header/tablist when navigation is suppressed
           const embeddedDisplay: string = (form as any)._form?.display ?? form.display ?? ''

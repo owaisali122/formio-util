@@ -6,6 +6,7 @@ export {
   ensureWizardSchema,
   createFormBuilder,
   setupReferencedFormDropdown,
+  setupWizardPanelNavigationTab,
 } from './registry'
 export type { RegistryConfig } from './registry'
 
@@ -185,3 +186,18 @@ export type {
   ReactFormReviewItem,
   ReactFormReviewSSNFormat,
 } from './components/react/ReactFormReview'
+
+// Wizard Navigation types
+export type {
+  NavigationActionType,
+  NavigationButtonVariant,
+  NavigationButtonAlign,
+  NavigationConditionOperator,
+  NavigationCondition,
+  NavigationButton,
+  PanelCustomNavigation,
+  CustomWizardNavigation,
+} from './types/wizard-navigation'
+
+export { WizardNavigationConfigPanel } from './components/WizardNavigationConfigPanel'
+export type { WizardNavigationConfigPanelProps } from './components/WizardNavigationConfigPanel'

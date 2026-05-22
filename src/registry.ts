@@ -12,6 +12,7 @@ import { registerFormReview } from './registries/register-form-review'
 import { registerDatePicker, setupDatePickerEditForm } from './registries/register-date-picker'
 import { registerTabIndexManager } from './registries/register-tab-index-manager'
 import { setupTabIndexManagerDropdown } from './registries/register-tab-index-manager'
+import { getWizardPanelNavigationTab } from './components/wizard-navigation-editform'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -424,6 +425,66 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
       premium: false,
     },
     ...overrides,
+  }
+}
+
+/**
+ * Post-init hook: extends wizard panel editForm with a "Navigation" tab.
+ * Must be called after builder.ready resolves so the panel component class
+ * is available for editForm patching.
+ */
+export function setupWizardPanelNavigationTab(instance: Record<string, unknown>): void {
+  try {
+    // Get the FormioModule to access Panel component class
+    const FormioModule =
+      typeof window !== 'undefined' ? (window as any).__FormioModule : undefined
+    if (!FormioModule) return
+
+    const PanelComponent =
+      (FormioModule as any).Components?.components?.panel ??
+      (FormioModule as any).default?.Components?.components?.panel
+    if (!PanelComponent) return
+
+    // Only patch if not already patched
+    if ((PanelComponent as any).__wizardNavTabPatched) return
+
+    const originalEditForm = PanelComponent.editForm
+    if (typeof originalEditForm !== 'function') return
+
+    // Import the tab definition inline (this module is already loaded at this point)
+    const navTab = getWizardPanelNavigationTab()
+
+    PanelComponent.editForm = function (...args: unknown[]) {
+      const result = originalEditForm.apply(this, args)
+      if (!result || !result.components) return result
+
+      // Find the tabs container
+      const tabsContainer = result.components.find(
+        (c: any) => c.type === 'tabs' && c.key === 'tabs'
+      )
+      if (tabsContainer && Array.isArray(tabsContainer.components)) {
+        // Add Navigation tab if not already present
+        const alreadyHas = tabsContainer.components.some(
+          (t: any) => t.key === 'customNavigationTab'
+        )
+        if (!alreadyHas) {
+          tabsContainer.components.push(navTab)
+        }
+      } else if (Array.isArray(result.components)) {
+        // Fallback: add as a top-level tab entry
+        const alreadyHas = result.components.some(
+          (t: any) => t.key === 'customNavigationTab'
+        )
+        if (!alreadyHas) {
+          result.components.push(navTab)
+        }
+      }
+      return result
+    }
+
+    ;(PanelComponent as any).__wizardNavTabPatched = true
+  } catch {
+    // Non-critical: wizard navigation tab will not appear but nothing breaks
   }
 }
 

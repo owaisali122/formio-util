@@ -1,0 +1,165 @@
+﻿ {                                       +
+   "step2Back": {                        +
+     "visibleWhen": [                    +
+       {                                 +
+         "field": "dataPanelHiddenField",+
+         "operator": "falsy"             +
+       }                                 +
+     ]                                   +
+   },                                    +
+   "step2Skip": {                        +
+     "visibleWhen": [                    +
+       {                                 +
+         "field": "dataPanelHiddenField",+
+         "operator": "falsy"             +
+       }                                 +
+     ]                                   +
+   },                                    +
+   "step2hideverify": {                  +
+     "visibleWhen": [                    +
+       {                                 +
+         "field": "dataPanelHiddenField",+
+         "operator": "equals",           +
+         "value": "autoVerify"           +
+       }                                 +
+     ]                                   +
+   },                                    +
+   "step2GetStarted": {                  +
+     "visibleWhen": [                    +
+       {                                 +
+         "field": "dataPanelHiddenField",+
+         "operator": "equals",           +
+         "value": "autoVerify"           +
+       }                                 +
+     ]                                   +
+   },                                    +
+   "step2EmployerBack": {                +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"employer"              +
+       }                                 +
+     ]                                   +
+     },                                  +
+   "Step2SigninBack": {                  +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"signin"                +
+       }                                 +
+     ]                                   +
+     },                                  +
+   "Step2SigninSignin": {                +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"signin"                +
+       }                                 +
+     ]                                   +
+     },                                  +
+   "Step2ReviewBack": {                  +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"paymentReview"         +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "Step2ReviewContinue": {             +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"paymentReview"         +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2RequirementBack": {            +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"completePayment"       +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2FRequirementExit": {           +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"completePayment"       +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2FRequirementFinish": {         +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"completePayment"       +
+       }                                 +
+     ]                                   +
+     },                                  +
+ "step2backManualIncome": {              +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"manual"                +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2SkipIncome": {                 +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"manual"                +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2SkipContinue": {               +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"manual"                +
+       }                                 +
+     ]                                   +
+     },                                  +
+ "step2BackReviewManual": {              +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"reviewManual"          +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2SkipIncomeReviewManual": {     +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"reviewManual"          +
+       }                                 +
+     ]                                   +
+     },                                  +
+    "step2ContinueStep3ReviewManual": {  +
+     "visibleWhen":[                     +
+       {                                 +
+         "field":"dataPanelHiddenField", +
+         "operator":"equals",            +
+         "value":"reviewManual"          +
+       }                                 +
+     ]                                   +
+     }                                   +
+                                         +
+                                         +
+ }
+

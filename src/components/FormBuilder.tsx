@@ -8,9 +8,12 @@ import {
   setupDatePickerEditForm,
   setupReferencedFormDropdown,
   setupTabIndexManagerDropdown,
+  setupWizardPanelNavigationTab,
 } from '../registry'
 import { BootstrapProvider } from '../providers/BootstrapProvider'
 import { injectFormioOverrides } from '../utils/inject-formio-overrides'
+import type { CustomWizardNavigation } from '../types/wizard-navigation'
+import { WizardNavigationConfigPanel } from './WizardNavigationConfigPanel'
 
 /** Form.io form JSON schema (display, components, etc.) */
 export interface FormBuilderSchema {
@@ -149,6 +152,7 @@ function FormBuilderInner({
       setupReferencedFormDropdown(instance as unknown as Record<string, unknown>)
       setupTabIndexManagerDropdown(instance as unknown as Record<string, unknown>)
       setupDatePickerEditForm(instance as unknown as Record<string, unknown>)
+      setupWizardPanelNavigationTab(instance as unknown as Record<string, unknown>)
 
       const getSchemaFromInstance = (): FormBuilderSchema | null => {
         try {
@@ -174,7 +178,15 @@ function FormBuilderInner({
         const withDisplay = schema.display
           ? schema
           : { ...schema, display: schemaWithDisplay.display }
-        setValue(cloneSchema(withDisplay))
+        // Preserve root-level custom fields that the Form.io builder instance
+        // does not manage (e.g. customWizardNavigation set by WizardNavigationConfigPanel).
+        // Without this, every builder 'change' event would erase them.
+        const current = valueRef.current
+        const merged = cloneSchema(withDisplay)
+        if (current && (current as any).customWizardNavigation !== undefined) {
+          ;(merged as any).customWizardNavigation = (current as any).customWizardNavigation
+        }
+        setValue(merged)
       }
 
       const schemaToSave = getSchemaFromInstance()
@@ -263,6 +275,18 @@ function FormBuilderInner({
           <option value="wizard">Wizard</option>
         </select>
       </div>
+      {displayType === 'wizard' && (
+        <WizardNavigationConfigPanel
+          value={(value as any)?.customWizardNavigation}
+          onChange={(navConfig: CustomWizardNavigation) => {
+            const currentSchema = value && typeof value === 'object'
+              ? cloneSchema(value as FormBuilderSchema)
+              : cloneSchema(DEFAULT_SCHEMA)
+            ;(currentSchema as any).customWizardNavigation = navConfig
+            setValue(currentSchema)
+          }}
+        />
+      )}
       {packageError && <div style={styles.error}>{packageError}</div>}
       {!packageError && (
         <div
