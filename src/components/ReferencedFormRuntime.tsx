@@ -383,6 +383,38 @@ export function createReferencedFormRuntimeClass(FieldComponent: any) {
             eventTarget.emit('referencedFormReady', payload)
           })
 
+          // Persist nested wizard step in parent data so it survives save/reload
+          const stepKey = `_nestedWizardStep_${this.component?.key}`
+          if (this.isReferencedWizard()) {
+            const savedStep = this.root?.data?.[stepKey]
+            if (typeof savedStep === 'number' && savedStep > 0) {
+              const totalPages = Array.isArray(form.pages) ? form.pages.length : 1
+              const targetStep = Math.min(savedStep, totalPages - 1)
+              if (typeof form.setPage === 'function') {
+                form.setPage(targetStep)
+              }
+            }
+
+            form.on('nextPage', () => {
+              if (this.root?.data) {
+                this.root.data[stepKey] = form.page ?? 0
+                this.triggerChange()
+              }
+            })
+            form.on('prevPage', () => {
+              if (this.root?.data) {
+                this.root.data[stepKey] = form.page ?? 0
+                this.triggerChange()
+              }
+            })
+            form.on('wizardPageSelected', () => {
+              if (this.root?.data) {
+                this.root.data[stepKey] = form.page ?? 0
+                this.triggerChange()
+              }
+            })
+          }
+
           form.on('change', () => {
             const key = this.component?.key
             if (!key || !this.root?.data) return

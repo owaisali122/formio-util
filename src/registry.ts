@@ -13,6 +13,7 @@ import { registerDatePicker, setupDatePickerEditForm } from './registries/regist
 import { registerTabIndexManager } from './registries/register-tab-index-manager'
 import { setupTabIndexManagerDropdown } from './registries/register-tab-index-manager'
 import { getWizardPanelNavigationTab } from './components/wizard-navigation-editform'
+import { registerContentManagement } from './registries/register-content-management'
 import type { FormioComponents } from './registries/types'
 
 export type { FormioComponents }
@@ -86,6 +87,7 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
     await registerFormReview(Components)
     await registerDatePicker(Components)
     await registerTabIndexManager(Components)
+    await registerContentManagement(Components)
 
     // Override built-in datetime component: preserve typed value on invalid blur
     // and show an inline validation error instead of silently clearing the field.
@@ -110,11 +112,8 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
         // For each runtime class, preserve the designer statics (editForm,
         // builderInfo, schema) so the builder keeps showing the clean designer
         // preview and edit form when both sides run in the same context.
-        console.log('Registering fileUploader runtime...')
         const { default: createFileUploaderClass } = await import('./client/custom-components/FileUploadFormIO')
-        console.log('Imported FileUploadFormIO successfully')
         const FileUploaderRuntime = createFileUploaderClass(FieldComponent)
-        console.log('Created FileUploader runtime class successfully')
         const ExistingFileUploader = (Components as any).components?.fileUploader
         if (ExistingFileUploader) {
           if (ExistingFileUploader.editForm) FileUploaderRuntime.editForm = ExistingFileUploader.editForm
@@ -130,7 +129,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('fileUploader', FileUploaderRuntime as never)
-      console.log('Registered fileUploader runtime successfully')
         const TextFieldComponent = (FormioModuleObj.Components as any)?.components?.textfield
         if (TextFieldComponent) {
           const ExistingSSN = (Components as any).components?.ssn
@@ -153,7 +151,6 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
           Components.setComponent('ssn', SSNRuntime as never)
         }
-          console.log('Registered ssn runtime successfully')
         const FieldsetComponent = (FormioModuleObj.Components as any)?.components?.fieldset
         if (FieldsetComponent) {
           const { default: createProfileFieldSectionClass } = await import('./client/custom-components/ProfileFieldSectionFormIO')
@@ -326,12 +323,31 @@ export async function registerCustomComponents(options?: RegistryConfig): Promis
           }
         }
         Components.setComponent('tabIndexManager', TabIndexManagerRuntime as never)
+
+        // Content Management runtime
+        const { default: createContentManagementClass } = await import('./client/custom-components/ContentManagementFormIO')
+        const ContentManagementRuntime = createContentManagementClass(FieldComponent)
+        const ExistingContentManagement = (Components as any).components?.contentManagement
+        if (ExistingContentManagement) {
+          if (ExistingContentManagement.editForm) ContentManagementRuntime.editForm = ExistingContentManagement.editForm
+          if (ExistingContentManagement.builderInfo) {
+            Object.defineProperty(ContentManagementRuntime, 'builderInfo', {
+              get: () => ExistingContentManagement.builderInfo,
+              configurable: true,
+            })
+          }
+          const origContentManagementSchema = ExistingContentManagement.schema
+          if (typeof origContentManagementSchema === 'function') {
+            ContentManagementRuntime.schema = origContentManagementSchema.bind(ExistingContentManagement)
+          }
+        }
+        Components.setComponent('contentManagement', ContentManagementRuntime as never)
       }
-    } catch(error) {
-        console.error('Custom Form.io runtime registration failed:', error)
-         throw error
-      // If registration fails, designer behavior remains intact; renderer
-      // simply won't have the runtime components.
+    } catch (error) {
+      // Runtime registration failure must not block the designer or other
+      // components. Log and continue — the renderer simply won't have the
+      // runtime class for the failed component.
+      console.error('Custom Form.io runtime registration failed:', error)
     }
   }
 
@@ -406,6 +422,7 @@ export function getBuilderConfig(overrides?: Record<string, unknown>): Record<st
           file: true,
           fileUploader: true,
           fileDownload: true,
+          contentManagement: true,
         },
       },
       advanced: false,

@@ -201,3 +201,11 @@ export type {
 
 export { WizardNavigationConfigPanel } from './components/WizardNavigationConfigPanel'
 export type { WizardNavigationConfigPanelProps } from './components/WizardNavigationConfigPanel'
+export {
+  ContentManagementComponent,
+  CONTENT_MANAGEMENT_TYPE,
+} from './components/ContentManagement'
+export type {
+  ContentManagementSchema,
+  ContentManagementRenderMode,
+} from './components/ContentManagement'
