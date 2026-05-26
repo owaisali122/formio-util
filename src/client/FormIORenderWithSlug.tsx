@@ -199,24 +199,6 @@ function findActiveReferencedWizardsOnPage(wizard: any, pageIndex: number): any[
   return results
 }
 
-/**
- * Persists the nested wizard's current page into the parent form's submission data.
- * This allows the step to survive save/reload cycles.
- */
-function persistNestedWizardStep(nestedComponent: any): void {
-  const ef = nestedComponent?.embeddedForm
-  if (!ef) return
-  const key = nestedComponent?.component?.key
-  if (!key) return
-  const root = nestedComponent?.root
-  if (!root?.data) return
-  const stepKey = `_nestedWizardStep_${key}`
-  root.data[stepKey] = ef.page ?? 0
-  if (typeof nestedComponent.triggerChange === 'function') {
-    nestedComponent.triggerChange()
-  }
-}
-
 // ---------------------------------------------------------------------------
 // File upload flush — called before final submit to resolve all server URLs
 // ---------------------------------------------------------------------------
@@ -368,7 +350,6 @@ function WizardRenderer({
     if (activeNested && !activeNested.isReferencedFirstStep()) {
       // Nested wizard still has previous steps — go back in nested wizard only.
       activeNested.goToReferencedPreviousStep()
-      persistNestedWizardStep(activeNested)
       return
     }
     // If nested wizard is on its first step (Case 9), or there is no nested wizard
@@ -429,7 +410,6 @@ function WizardRenderer({
     if (activeNested && !activeNested.isReferencedLastStep()) {
       // Nested wizard still has internal steps to go through — advance it only.
       activeNested.goToReferencedNextStep()
-      persistNestedWizardStep(activeNested)
       return
     }
     // If activeNested is on its last step (Case 10), or there is no nested wizard
@@ -591,6 +571,21 @@ function WizardRenderer({
       }
       setCurrentPage(page)
 
+      // Expose global helper for inline onclick handlers to find the correct form instance
+      if (typeof window !== 'undefined') {
+        ;(window as any).__getClosestFormioForm = (el: HTMLElement) => {
+          const Fio = (window as any).Formio
+          if (!Fio?.forms) return null
+          let current: HTMLElement | null = el
+          while (current) {
+            if (current.id && Fio.forms[current.id]) return Fio.forms[current.id]
+            current = current.parentElement
+          }
+          const keys = Object.keys(Fio.forms)
+          return keys.length > 0 ? Fio.forms[keys[keys.length - 1]] : null
+        }
+      }
+
       const updateStepStyles = () => {
         const form = formInstanceRef.current
         if (!form) return
@@ -611,6 +606,7 @@ function WizardRenderer({
       wizard?.on?.('nextPage', onPageChange)
       wizard?.on?.('prevPage', onPageChange)
       wizard?.on?.('wizardPageSelected', onPageChange)
+
       updateStepStyles()
     },
     [effectiveInitialPage, effectiveMaxFilledStep]
@@ -638,6 +634,16 @@ function WizardRenderer({
       opts.allowPrevious = true
       opts.breadcrumbSettings = { clickable: true }
     }
+    // Allow onclick and other event attributes in htmlelement components.
+    // Form.io uses DOMPurify — ADD_ATTR allows specific attributes through.
+    opts.sanitizeConfig = {
+      addAttr: ['onclick', 'onchange', 'style', 'target'],
+      addTags: ['iframe'],
+      FORCE_BODY: true,
+      ADD_ATTR: ['onclick', 'onchange', 'style', 'target'],
+      ALLOW_UNKNOWN_PROTOCOLS: true,
+    }
+    opts.sanitize = false
     return opts
   }, [schema?.display])
 

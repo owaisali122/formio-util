@@ -185,3 +185,12 @@ export type {
   ReactFormReviewItem,
   ReactFormReviewSSNFormat,
 } from './components/react/ReactFormReview'
+
+export {
+  ContentManagementComponent,
+  CONTENT_MANAGEMENT_TYPE,
+} from './components/ContentManagement'
+export type {
+  ContentManagementSchema,
+  ContentManagementRenderMode,
+} from './components/ContentManagement'

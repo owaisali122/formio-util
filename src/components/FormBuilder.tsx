@@ -174,7 +174,8 @@ function FormBuilderInner({
         const withDisplay = schema.display
           ? schema
           : { ...schema, display: schemaWithDisplay.display }
-        setValue(cloneSchema(withDisplay))
+        const merged = cloneSchema(withDisplay)
+        setValue(merged)
       }
 
       const schemaToSave = getSchemaFromInstance()
