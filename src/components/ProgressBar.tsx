@@ -35,6 +35,14 @@ export interface ProgressBarSchema {
   showPercentLabel: boolean
   /** Animate width changes with a CSS transition */
   animated: boolean
+  /** Show "Step X of Y" text */
+  showStepText: boolean
+  /** Position of step text relative to the bar */
+  stepTextPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  /** Optional override for the current step number */
+  currentStep?: number
+  /** Optional override for the total steps number */
+  totalSteps?: number
   [k: string]: unknown
 }
 
@@ -54,6 +62,8 @@ export class ProgressBarComponent {
       barHeight: '20px',
       showPercentLabel: true,
       animated: true,
+      showStepText: false,
+      stepTextPosition: 'top-left',
       ...overrides,
     }
   }
@@ -96,6 +106,50 @@ export class ProgressBarComponent {
                   input: true,
                   required: true,
                   weight: 10,
+                },
+                {
+                  type: 'checkbox',
+                  key: 'showStepText',
+                  label: 'Show Step Text',
+                  input: true,
+                  defaultValue: false,
+                  weight: 15,
+                  description: 'When enabled, displays "Step X of Y" text near the progress bar.',
+                },
+                {
+                  type: 'select',
+                  key: 'stepTextPosition',
+                  label: 'Step Text Position',
+                  input: true,
+                  defaultValue: 'top-left',
+                  weight: 16,
+                  conditional: { show: true, when: 'showStepText', eq: true },
+                  data: {
+                    values: [
+                      { label: 'Top Left', value: 'top-left' },
+                      { label: 'Top Right', value: 'top-right' },
+                      { label: 'Bottom Left', value: 'bottom-left' },
+                      { label: 'Bottom Right', value: 'bottom-right' },
+                    ],
+                  },
+                },
+                {
+                  type: 'number',
+                  key: 'currentStep',
+                  label: 'Current Step',
+                  input: true,
+                  weight: 17,
+                  conditional: { show: true, when: 'showStepText', eq: true },
+                  description: 'Optional override. If empty, uses wizard page position.',
+                },
+                {
+                  type: 'number',
+                  key: 'totalSteps',
+                  label: 'Total Steps',
+                  input: true,
+                  weight: 18,
+                  conditional: { show: true, when: 'showStepText', eq: true },
+                  description: 'Optional override. If empty, uses wizard total page count.',
                 },
               ],
             },

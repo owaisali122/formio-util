@@ -34,6 +34,8 @@ export function createProgressBarClass(FieldComponent: any) {
           barHeight: '20px',
           showPercentLabel: true,
           animated: true,
+          showStepText: false,
+          stepTextPosition: 'top-left',
         },
         ...extend,
       )
@@ -91,6 +93,33 @@ export function createProgressBarClass(FieldComponent: any) {
       return `progress-bar bg-${color}`
     }
 
+    /** Get the current step and total steps for step text display. */
+    _getStepInfo(): { current: number; total: number } {
+      const c = this.component
+
+      // If custom values provided, use them
+      const customCurrent = Number(c.currentStep)
+      const customTotal = Number(c.totalSteps)
+
+      if (customCurrent > 0 && customTotal > 0) {
+        const clamped = Math.min(customCurrent, customTotal)
+        return { current: clamped, total: customTotal }
+      }
+
+      // Fallback to wizard page info
+      const wizard = this.root
+      const page: number = (wizard?.page ?? 0) + 1
+      const total: number = Array.isArray(wizard?.pages) ? wizard.pages.length : 1
+      return { current: Math.min(page, total), total: Math.max(total, 1) }
+    }
+
+    /** Get alignment class for step text position. */
+    _stepTextAlignClass(): string {
+      const pos: string = this.component.stepTextPosition || 'top-left'
+      if (pos === 'top-right' || pos === 'bottom-right') return 'text-end'
+      return 'text-start'
+    }
+
     // ── Render ──────────────────────────────────────────────────────────────
 
     render() {
@@ -101,7 +130,18 @@ export function createProgressBarClass(FieldComponent: any) {
       const animated: boolean = !!c.animated
       const transition = animated ? 'transition:width .4s ease-in-out;' : ''
 
-      return super.render(`
+      const showStepText: boolean = !!c.showStepText
+      const pos: string = c.stepTextPosition || 'top-left'
+      const isTop = pos === 'top-left' || pos === 'top-right'
+
+      let stepTextHtml = ''
+      if (showStepText) {
+        const { current, total } = this._getStepInfo()
+        const alignClass = this._stepTextAlignClass()
+        stepTextHtml = `<div ref="progressBarStepText" class="mb-1 mt-1 small fw-semibold ${alignClass}">Step ${current} of ${total}</div>`
+      }
+
+      const barHtml = `
         <div ref="progressBarOuter" class="progress" style="height:${height};border-radius:4px;overflow:hidden;">
           <div
             ref="progressBarInner"
@@ -113,7 +153,13 @@ export function createProgressBarClass(FieldComponent: any) {
             aria-valuemax="100"
           >${showLabel ? `${pct}%` : ''}</div>
         </div>
-      `)
+      `
+
+      const content = isTop
+        ? `${stepTextHtml}${barHtml}`
+        : `${barHtml}${stepTextHtml}`
+
+      return super.render(content)
     }
 
     // ── Attach ──────────────────────────────────────────────────────────────
@@ -124,6 +170,7 @@ export function createProgressBarClass(FieldComponent: any) {
       this.loadRefs(element, {
         progressBarOuter: 'single',
         progressBarInner: 'single',
+        progressBarStepText: 'single',
       })
 
       // Set the correct initial value immediately after attach
@@ -167,6 +214,14 @@ export function createProgressBarClass(FieldComponent: any) {
       inner.setAttribute('aria-valuenow', String(pct))
       inner.textContent = showLabel ? `${pct}%` : ''
       inner.className = this._barClasses()
+
+      // Update step text if enabled
+      const stepTextEl = (this.refs as any)?.progressBarStepText as HTMLElement | undefined
+      if (stepTextEl && this.component.showStepText) {
+        const { current, total } = this._getStepInfo()
+        stepTextEl.textContent = `Step ${current} of ${total}`
+        stepTextEl.className = `mb-1 mt-1 small fw-semibold ${this._stepTextAlignClass()}`
+      }
     }
 
     // ── Cleanup ──────────────────────────────────────────────────────────────
